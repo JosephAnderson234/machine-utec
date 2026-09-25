@@ -1,0 +1,24 @@
+---
+/** Generativo vs discriminativo. */
+---
+<figure class="diagram not-content">
+	<svg viewBox="0 0 760 250" role="img" aria-label="Modelos generativos frente a discriminativos">
+		<defs><marker id="gdm" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0L10,5L0,10z" fill="var(--sl-color-gray-3)" /></marker></defs>
+		<text x="20" y="28" class="t-b">Generativo (NB, LDA, QDA)</text>
+		<rect x="20" y="45" width="160" height="46" rx="10" class="box-v" /><text x="100" y="66" text-anchor="middle" class="t">prior πₖ = Nₖ/N</text><text x="100" y="82" text-anchor="middle" class="t-s">contar</text>
+		<rect x="20" y="105" width="160" height="46" rx="10" class="box-v" /><text x="100" y="126" text-anchor="middle" class="t">likelihood p(x | y=k)</text><text x="100" y="142" text-anchor="middle" class="t-s">«retrato» de cada clase</text>
+		<path d="M180,68 L240,93" class="ln" marker-end="url(#gdm)" /><path d="M180,128 L240,105" class="ln" marker-end="url(#gdm)" />
+		<rect x="242" y="75" width="130" height="46" rx="10" class="box" /><text x="307" y="96" text-anchor="middle" class="t">regla de Bayes</text><text x="307" y="112" text-anchor="middle" class="t-s">invertir la barra «|»</text>
+		<path d="M372,98 L430,98" class="ln" marker-end="url(#gdm)" />
+		<rect x="432" y="75" width="150" height="46" rx="10" class="box-a" /><text x="507" y="96" text-anchor="middle" class="t">posterior P(y | x)</text><text x="507" y="112" text-anchor="middle" class="t-s">arg max = MAP</text>
+		<text x="600" y="84" class="t-s">+ generar datos</text><text x="600" y="100" class="t-s">+ imputar, outliers</text><text x="600" y="116" class="t-s">+ aprende con poca data</text>
+		<line x1="20" y1="170" x2="740" y2="170" class="ln" stroke-dasharray="4 5" />
+		<text x="20" y="198" class="t-b">Discriminativo</text>
+		<text x="20" y="216" class="t-s">(regresión logística)</text>
+		<rect x="242" y="185" width="130" height="46" rx="10" class="box" /><text x="307" y="212" text-anchor="middle" class="t">datos (x, y)</text>
+		<path d="M372,208 L430,208" class="ln" marker-end="url(#gdm)" />
+		<rect x="432" y="185" width="150" height="46" rx="10" class="box-a" /><text x="507" y="206" text-anchor="middle" class="t">P(y | x) directo</text><text x="507" y="222" text-anchor="middle" class="t-s">solo la frontera</text>
+		<text x="600" y="204" class="t-s">+ menos supuestos</text><text x="600" y="220" class="t-s">+ gana con mucha data</text>
+	</svg>
+	<figcaption>Ambos caminos pueden llegar a la misma forma σ(wᵀx + b): LDA la <b>deriva</b> de dos gaussianas con Σ compartida; la logística la <b>ajusta</b> directamente (Ng y Jordan, 2001).</figcaption>
+</figure>

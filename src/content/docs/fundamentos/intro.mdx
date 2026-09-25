@@ -1,0 +1,141 @@
+---
+title: "¿Qué es aprender de datos?"
+description: "Definiciones de Samuel y Mitchell, T/P/E, paradigmas, generalización, train/validación/test, data leakage y el flujo de trabajo de ML."
+---
+
+import Paradigma from '../../../components/diagrams/Paradigma.astro';
+import Taxonomia from '../../../components/diagrams/Taxonomia.astro';
+import Workflow from '../../../components/diagrams/Workflow.astro';
+import Splits from '../../../components/diagrams/Splits.astro';
+import PolyFit from '../../../components/sim/PolyFit.tsx';
+import Quiz from '../../../components/Quiz.tsx';
+import Conexiones from '../../../components/Conexiones.astro';
+import Recursos from '../../../components/Recursos.astro';
+import Fuente from '../../../components/Fuente.astro';
+import { R } from '../../../data/recursos';
+
+## El problema de escribir reglas
+
+Tarea: *¿esta foto contiene un gato?* Intenta escribir reglas: «tiene orejas puntiagudas» (pero a veces están dobladas u ocultas), «tiene pelo» (los perros y las alfombras también)… cien reglas después, el programa falla con la siguiente foto.
+
+**No sabemos enunciar las reglas, pero sí podemos dar ejemplos.** Machine learning convierte ejemplos en un programa que funciona.
+
+<Paradigma />
+
+## Dos definiciones
+
+- **Samuel (1959), informal:** el campo que da a las computadoras la capacidad de aprender *sin ser programadas explícitamente*.
+- **Mitchell (1997), operacional:** un programa **aprende** de la experiencia $E$ respecto a una tarea $T$ y una medida de desempeño $P$ si su desempeño en $T$, medido por $P$, **mejora con** $E$.
+
+Para cualquier proyecto de ML, fija siempre las tres piezas. Ejemplo del filtro de spam:
+
+| Pieza | Qué es | Spam |
+| --- | --- | --- |
+| **T** (tarea) | lo que el sistema debe hacer | etiquetar cada correo como spam o ham |
+| **P** (desempeño) | cómo medimos el éxito | % de correos bien clasificados |
+| **E** (experiencia) | de qué datos aprende | correos etiquetados por los usuarios |
+
+:::caution[Trampa del banco de preguntas]
+$E$ **no** es el algoritmo de entrenamiento y $P$ **no** es el número de parámetros. $E$ son los datos; $P$ es una medida de qué tan bien se hace $T$.
+:::
+
+### La versión formal (opcional): minimizar el riesgo
+
+Queremos una función $h$ con bajo **riesgo esperado** $R(h) = \mathbb{E}_{(\mathbf{x},y)\sim P}[\ell(h(\mathbf{x}), y)]$, el error promedio sobre *todos* los datos posibles. No conocemos $P$, así que minimizamos el **riesgo empírico** sobre los datos que sí tenemos:
+
+$$
+\hat R(h) = \frac{1}{n}\sum_{i=1}^{n}\ell\big(h(\mathbf{x}_i), y_i\big)\qquad\text{(ERM: empirical risk minimization)}
+$$
+
+Toda la tensión del curso está aquí: minimizamos $\hat R$ (lo que vemos) pero nos importa $R$ (lo que no vemos). La diferencia es la **generalización**.
+
+## Anatomía de un problema de aprendizaje
+
+| Término | Símbolo | Ejemplo (dígitos 8×8) |
+| --- | --- | --- |
+| Features / entrada | $\mathbf{x}\in\mathcal X$ | los 64 píxeles |
+| Target / etiqueta | $y$ | el dígito 0–9 |
+| Dataset | $\mathcal D=\{(\mathbf{x}_i,y_i)\}_{i=1}^n$ | 1797 imágenes etiquetadas |
+| Modelo | $\hat y = h_\theta(\mathbf{x})$ | una función con perillas $\theta$ |
+| Pérdida | $\ell(\hat y, y)$ | costo de un error |
+| Entrenar vs inferir | ajustar $\theta$ vs predecir | girar perillas vs leer la respuesta |
+
+Los datos pueden ser **estructurados** (una tabla: cada fila un ejemplo, cada columna una feature, el orden de filas no importa) o **no estructurados** (una imagen es un tensor $\mathbb{R}^{H\times W\times 3}$ donde la disposición espacial sí importa). La lógica train/val/test es idéntica en ambos casos.
+
+## Los paradigmas
+
+<Taxonomia />
+
+| Subtipo | Hace | Ejemplos |
+| --- | --- | --- |
+| Regresión | predice un **número** | precio de casas, demanda |
+| Clasificación | predice una **categoría** | spam, enfermedad en un escáner |
+| Clustering | agrupa ítems similares | segmentos de clientes, anomalías |
+| Reducción de dimensión | comprime / visualiza | mapas 2-D, compresión |
+| Refuerzo | actúa por recompensa | juegos, robótica |
+
+:::note[Intuición]
+Supervisado = estudiar con solucionario. No supervisado = ordenar fotos en pilas parecidas sin solucionario. Refuerzo = aprender a jugar recibiendo puntos.
+:::
+
+## Generalizar es todo el punto
+
+Memorizar las respuestas de entrenamiento **no** es aprender. Por eso:
+
+1. Se juzga a los modelos con datos **no vistos**, nunca con los de entrenamiento.
+2. Se parte: **train** (ajustar) / **validación** (elegir y afinar) / **test** (nota final, una sola vez).
+
+<Splits />
+
+- **Underfitting:** el estudiante que solo aprendió «siempre responde C».
+- **Overfitting:** el que memorizó las respuestas exactas del examen del año pasado.
+- **Lo que queremos:** el que aprendió los conceptos.
+
+Juega con el grado del polinomio: el error de entrenamiento siempre baja, pero el de validación hace una **U**.
+
+<PolyFit client:visible showLambda={false} initDeg={1} />
+
+## Cómo aprenden los modelos
+
+Entrenar = **rodar cuesta abajo en la pérdida**. El descenso de gradiente mide la pendiente local y da un paso pequeño en la dirección opuesta; el tamaño del paso es la **tasa de aprendizaje** (ver [matemáticas](/fundamentos/matematicas/) y [descenso de gradiente](/regresion/gradiente/)).
+
+## El flujo de trabajo
+
+<Workflow />
+
+## Ética y ML responsable
+
+- **Sesgo y equidad:** los modelos amplifican los sesgos de los datos → mide por grupos.
+- **Privacidad:** los datos pueden memorizarse y filtrarse → recolecta lo mínimo.
+- **Transparencia:** las personas merecen saber *por qué* y poder impugnarlo.
+- **Responsabilidad:** humano en el circuito para decisiones de alto impacto.
+- **Robustez y costo:** fallas, entradas adversarias, energía, mal uso.
+
+> «Un modelo es un espejo de sus datos. No preguntes solo *¿podemos?* sino *¿debemos?*, y qué pasa cuando se equivoca.»
+
+<Quiz
+	client:visible
+	id="intro"
+	preguntas={[
+		{ q: 'En clasificación, el target $y$ es un valor continuo que puede tomar cualquier número real.', opts: ['Verdadero', 'Falso'], ok: 1, why: 'Eso describe la **regresión**. En clasificación $y$ es discreto y el modelo separa el espacio con una frontera de decisión.' },
+		{ q: 'Para un filtro de spam (Mitchell), ¿qué afirmación es FALSA?', opts: ['T: etiquetar cada correo como spam o ham', 'P: porcentaje de correos bien clasificados', 'E: los correos etiquetados por los usuarios', 'E es el algoritmo de entrenamiento y P el nº de parámetros'], ok: 3, why: 'E es la experiencia (los datos) y P mide el desempeño, no el tamaño del modelo.' },
+		{ q: '¿Qué afirmación sobre paradigmas es VERDADERA?', opts: ['El clustering es no supervisado: agrupa sin usar etiquetas', 'La regresión es no supervisada porque predice un número', 'El aprendizaje por refuerzo aprende de un dataset fijo de pares entrada–respuesta', 'La reducción de dimensionalidad es supervisada, igual que la clasificación'], ok: 0, why: 'La regresión es supervisada (y continuo); RL aprende actuando y recibiendo recompensas; reducir dimensión es no supervisado.' },
+		{ q: 'Afinas un hiperparámetro mirando el error del test set y reportas ese mismo error como nota final. ¿Qué ocurre?', opts: ['Nada, es la práctica estándar', 'Data leakage: la nota final queda optimista', 'El modelo tendrá más sesgo', 'El error de entrenamiento sube'], ok: 1, why: 'El test influyó en una decisión de diseño, así que ya no es una estimación honesta. Se usa una sola vez al final.' },
+		{ q: 'Un modelo tiene error de entrenamiento 0.01 y de validación 0.9. Diagnóstico:', opts: ['Underfitting (alto sesgo)', 'Overfitting (alta varianza)', 'Buen ajuste', 'Falta de datos de test'], ok: 1, why: 'Brecha grande entre train y validación = memorizó el ruido.' },
+	]}
+/>
+
+<Conexiones
+	items={[
+		{ href: '/regularizacion/sesgo-varianza/', titulo: 'Sesgo–varianza', texto: 'Under/overfitting hechos precisos: error = sesgo² + varianza + ruido.' },
+		{ href: '/regularizacion/validacion-cruzada/', titulo: 'Validación cruzada', texto: 'El bloque de validación, rotado K veces para no depender de la suerte.' },
+		{ href: '/regresion/modelo/', titulo: 'Regresión lineal', texto: 'El primer caso concreto de ERM: pérdida cuadrática y modelo lineal.' },
+		{ href: '/clasificacion/metricas/', titulo: 'Métricas', texto: 'Qué es P cuando la accuracy no alcanza (clases desbalanceadas).' },
+	]}
+/>
+
+## Para profundizar
+
+<Recursos items={[R.r2d3, R.mluSplits, R.playground, R.mlcc]} />
+
+<Fuente archivos={['ML_Course_Introduction.pdf (Lecture 01)', 'ML_Course/session-01a…01e.ipynb', 'BANCO_DE_PREGUNTAS_ML_PART_1.pdf']} />

@@ -1,0 +1,120 @@
+---
+title: "Las matemáticas que usarás"
+description: "Álgebra lineal (producto punto, normas, matrices, eigenvectores), probabilidad (gaussiana, Bayes, esperanza) y optimización (derivada, gradiente, tasa de aprendizaje, convexidad)."
+---
+
+import BayesTree from '../../../components/sim/BayesTree.tsx';
+import GradientDescent1D from '../../../components/sim/GradientDescent1D.tsx';
+import Quiz from '../../../components/Quiz.tsx';
+import Conexiones from '../../../components/Conexiones.astro';
+import Recursos from '../../../components/Recursos.astro';
+import Fuente from '../../../components/Fuente.astro';
+import { R } from '../../../data/recursos';
+
+Tres herramientas aparecen una y otra vez:
+
+- **Álgebra lineal** escribe los datos y el modelo.
+- **Probabilidad y estadística** dicen qué tan seguros estamos.
+- **Cálculo y optimización** ajustan el modelo a los datos.
+
+Las tres caben en una sola línea, que es literalmente «entrenar»:
+
+$$
+\theta^\star = \arg\min_\theta\; \underbrace{\frac1n \sum_{i=1}^n}_{\text{estadística}} \ell\big(\underbrace{h_\theta(\mathbf{x}_i)}_{\text{álgebra lineal}},\,y_i\big)\quad\longleftarrow\ \text{optimización}
+$$
+
+## Álgebra lineal: datos y modelos
+
+### Escalares, vectores, matrices, tensores
+
+Un dataset es una **matriz** $\mathbf{X}\in\mathbb{R}^{n\times d}$: una fila por ejemplo, una columna por feature. Una imagen a color es un **tensor** $\mathbb{R}^{H\times W\times 3}$.
+
+### El producto punto: similitud y score
+
+$$
+\mathbf{a}^\top\mathbf{b} = \sum_k a_k b_k = \|\mathbf{a}\|\,\|\mathbf{b}\|\cos\theta
+$$
+
+Positivo = apuntan parecido; 0 = ortogonales; negativo = opuestos. Dividido por $\|\mathbf{b}\|$ es la **sombra** (proyección) de $\mathbf{a}$ sobre $\mathbf{b}$. Un modelo lineal puntúa con un producto punto: $h_\mathbf{w}(\mathbf{x}) = \mathbf{w}^\top\mathbf{x}$.
+
+:::tip[Donde vuelve a aparecer]
+- En **regresión**, cada predicción es el producto punto de una fila de $\mathbf{X}$ con $\mathbf{w}$.
+- En **SVM**, $\mathbf{w}^\top\mathbf{x}/\|\mathbf{w}\|$ es la distancia (con signo) a la frontera.
+- En **kernels**, reemplazamos $\mathbf{x}_i^\top\mathbf{x}_j$ por una similitud $K(\mathbf{x}_i,\mathbf{x}_j)$.
+:::
+
+### Normas: longitud y distancia
+
+$$
+\|\mathbf{v}\|_2 = \sqrt{v_1^2 + v_2^2 + \dots},\qquad \|\mathbf{v}\|_1 = |v_1| + |v_2| + \dots
+$$
+
+La «bola unitaria» de $\ell_2$ es un **círculo**; la de $\ell_1$ es un **rombo**. Esa diferencia de forma es exactamente por qué el lasso produce ceros ([ridge y lasso](/regularizacion/ridge-lasso/)).
+
+### Matrices como transformaciones y eigenvectores
+
+Una matriz transforma el espacio: el círculo unitario se vuelve una elipse. Un modelo lineal es una sola multiplicación $\hat{\mathbf{y}} = \mathbf{X}\mathbf{w}$. Los **eigenvectores** son direcciones que la matriz solo estira: $\mathbf{A}\mathbf{v} = \lambda\mathbf{v}$. Los eigenvectores de la matriz de covarianza son los ejes principales de los datos (PCA), y los de $\mathbf{X}^\top\mathbf{X}$ fijan la forma del «bowl» del costo (por eso importa [escalar features](/regresion/gradiente/)).
+
+## Probabilidad: incertidumbre
+
+### Distribuciones y la gaussiana
+
+Las muestras forman un histograma; una **densidad** lo idealiza. La media $\mu$ es el centro; la varianza $\sigma^2$, la dispersión. La **normal** es el modelo de ruido por defecto (la suma de muchos efectos pequeños tiende a ser gaussiana):
+
+$$
+p(x) = \frac{1}{\sigma\sqrt{2\pi}}\exp\!\left(-\frac{(x-\mu)^2}{2\sigma^2}\right)\qquad\text{regla } 68/95/99.7 \text{ en } \pm1\sigma,\pm2\sigma,\pm3\sigma
+$$
+
+### Correlación y covarianza
+
+La correlación dice si dos variables se mueven juntas ($\rho\in[-1,1]$). Apilando todas las covarianzas se obtiene la **matriz de covarianza** $\Sigma$, cuya forma es una elipse: es la pieza central de [LDA y QDA](/generativos/lda-qda/).
+
+### Prior, likelihood, posterior y la regla de Bayes
+
+$$
+\underbrace{P(A\mid B)}_{\text{posterior}} = \frac{\overbrace{P(B\mid A)}^{\text{likelihood}}\;\overbrace{P(A)}^{\text{prior}}}{P(B)}\qquad\Longrightarrow\qquad \text{posterior}\propto\text{likelihood}\times\text{prior}
+$$
+
+Con una enfermedad rara, **las tasas base dominan**: la mayoría de positivos son falsas alarmas. Compruébalo contando personas:
+
+<BayesTree client:visible />
+
+### Esperanza y ley de los grandes números
+
+El riesgo $R(h)=\mathbb{E}[\ell(h(\mathbf{x}),y)]$ es una esperanza. Los promedios muestrales se acercan a ella cuando $n$ crece: por eso **más datos ayudan**.
+
+## Cálculo y optimización: entrenar
+
+- **Derivada = pendiente.** En un mínimo la pendiente es 0.
+- **Gradiente** $\nabla J$: el vector de pendientes; apunta **cuesta arriba** (máximo aumento). Para minimizar se da un paso en $-\nabla J$.
+- **Descenso de gradiente:** $\theta \leftarrow \theta - \eta\,\nabla J(\theta)$. La **tasa de aprendizaje** $\eta$ es la perilla clave: muy pequeña se arrastra, muy grande diverge.
+- **Convexo vs no convexo:** con un solo valle (regresión lineal y logística) cualquier camino cuesta abajo gana; con muchos valles (redes profundas) buscamos un buen mínimo local.
+
+<GradientDescent1D client:visible />
+
+<Quiz
+	client:visible
+	id="mates"
+	preguntas={[
+		{ q: 'La bola unitaria de la norma $\\ell_1$ en 2-D tiene forma de…', opts: ['círculo', 'rombo (diamante)', 'cuadrado alineado a los ejes', 'elipse'], ok: 1, why: 'Sus esquinas están sobre los ejes: por eso el lasso produce pesos exactamente cero.' },
+		{ q: 'Test con 80% de sensibilidad y 3% de falsas alarmas; prevalencia 1%. ¿$P(\\text{enfermo}\\mid +)$ aprox.?', opts: ['80%', '97%', '21%', '1%'], ok: 2, why: '$0.008/(0.008+0.0297)\\approx 0.21$. La tasa base domina.' },
+		{ q: 'En $w \\leftarrow w - \\eta\\nabla J$, ¿por qué el signo menos?', opts: ['Por convención', 'Porque el gradiente apunta cuesta arriba', 'Para que $\\eta$ sea positivo', 'Porque $J$ es negativo'], ok: 1 },
+		{ q: 'Con $J(w)=(w-1)^2$, ¿para qué $\\eta$ el descenso diverge?', opts: ['$\\eta = 0.3$', '$\\eta = 0.9$', '$\\eta = 1.04$', '$\\eta = 0.04$'], ok: 2, why: 'Cada paso multiplica la distancia por $(1-2\\eta)$: con 1.04 es −1.08, crece en valor absoluto.' },
+		{ q: '¿Qué garantiza la convexidad?', opts: ['Que el gradiente nunca es cero', 'Que todo mínimo local es global', 'Que no hace falta tasa de aprendizaje', 'Que la solución es única siempre'], ok: 1, why: 'Unicidad requiere convexidad estricta (p. ej. $X^\\top X$ definida positiva).' },
+	]}
+/>
+
+<Conexiones
+	items={[
+		{ href: '/regresion/modelo/', titulo: 'Ecuaciones normales', texto: 'Álgebra lineal pura: proyección sobre el espacio columna.' },
+		{ href: '/generativos/bayes/', titulo: 'Clasificadores bayesianos', texto: 'La regla de Bayes convertida en un clasificador (MAP).' },
+		{ href: '/regresion/gradiente/', titulo: 'Descenso de gradiente en 2-D', texto: 'Curvas de nivel, escalado de features y SGD.' },
+		{ href: '/svm/geometria/', titulo: 'Geometría del SVM', texto: 'Producto punto como proyección y distancia a un hiperplano.' },
+	]}
+/>
+
+## Para profundizar
+
+<Recursos items={[R.mml, R.g3b1bLA, R.g3b1bBayes, R.seeingProb, R.sqGD]} />
+
+<Fuente archivos={['ML_Course_Math_Foundations.pdf (sesión complementaria)']} />

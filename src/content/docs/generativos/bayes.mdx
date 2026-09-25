@@ -1,0 +1,117 @@
+---
+title: "Bayes, prior y MAP"
+description: "Probabilidades vs densidades, probabilidad condicional contando, MLE como contar y promediar, generativo vs discriminativo, la regla de Bayes como clasificador, tasas base y la regla MAP."
+---
+
+import BayesTree from '../../../components/sim/BayesTree.tsx';
+import GenDisc from '../../../components/diagrams/GenDisc.astro';
+import Quiz from '../../../components/Quiz.tsx';
+import Solucion from '../../../components/Solucion.astro';
+import Conexiones from '../../../components/Conexiones.astro';
+import Recursos from '../../../components/Recursos.astro';
+import Fuente from '../../../components/Fuente.astro';
+import { R } from '../../../data/recursos';
+
+## Repaso de probabilidad (lo justo)
+
+**P grande vs p chica.** Una **probabilidad** $P$ es un número en [0, 1] para un resultado **discreto** (una clase): uno por resultado y suman 1, p. ej. $P(y=1)=0.4$. Una feature **continua** no funciona así (un valor exacto tiene probabilidad 0): se usa una **densidad** $p(x)$, cuya **área** sobre un tramo es la probabilidad; el área total es 1 y la altura puede superar 1.
+
+**Probabilidad condicional, contando.** $P(A\mid B)$ = «de A dado B»: **restringe** el mundo a los casos donde vale B y **cuenta** la fracción que también tiene A.
+
+> 100 correos: 40 spam, 60 ham. De los 40 spam, 32 contienen «free» ⇒ $p(\text{free}\mid\text{spam}) = 32/40 = 0.8$. De los 60 ham, 6 ⇒ $p(\text{free}\mid\text{ham}) = 0.1$.
+
+Voltear la barra cambia la pregunta: $P(\text{spam}\mid\text{free})$ = de los que dicen «free», ¿qué fracción es spam? En general $P(A\mid B)\ne P(B\mid A)$. Un **likelihood** es «dada la clase», $p(\mathbf{x}\mid y)$; un **posterior** es «dadas las features», $P(y\mid\mathbf{x})$. Bayes convierte uno en otro.
+
+**MLE = contar y promediar.** En toda esta unidad, «máxima verosimilitud» se reduce a: prior $\pi_k = N_k/N$ (40 de 100 ⇒ 0.40), probabilidad de palabra = fracción contada, media = promedio, varianza = promedio de distancias² a la media. Sin cálculo, sin tasa de aprendizaje.
+
+## Dos maneras de separar clases
+
+La logística fue **discriminativa**: ajustó $P(y\mid\mathbf{x})$ directamente, aprendiendo solo dónde cortar. Un modelo **generativo** pregunta: ¿cómo *produce* cada clase sus datos? Aprende $p(\mathbf{x}\mid y)$ y $P(y)$, y luego invierte con Bayes.
+
+<GenDisc />
+
+Saber cómo se ve cada clase da más que una frontera: puedes **generar** muestras sintéticas, **imputar** features faltantes, **detectar outliers** y **agregar una clase** nueva barato (solo ajustar su densidad).
+
+### La receta generativa
+
+1. **Prior** $\pi_k = P(y=k) = N_k/N$: qué tan común es cada clase.
+2. **Likelihood** $p(\mathbf{x}\mid y=k)$: una densidad por clase (gaussiana, producto de probabilidades de palabras…).
+3. **Invertir con Bayes** y predecir el arg max del posterior. La frontera **sale sola**.
+
+## La regla de Bayes como clasificador
+
+$p(y=k,\mathbf{x})$ se puede armar de dos formas: elegir la clase y generar sus features ($\pi_k\,p(\mathbf{x}\mid y=k)$), u observar las features y preguntar la clase ($p(\mathbf{x})P(y=k\mid\mathbf{x})$). Igualando:
+
+$$
+P(y=k\mid\mathbf{x}) = \frac{\pi_k\,p(\mathbf{x}\mid y=k)}{\underbrace{\sum_j \pi_j\,p(\mathbf{x}\mid y=j)}_{p(\mathbf{x})}}
+$$
+
+El denominador (la **evidencia**) es igual para todas las clases: normaliza pero **nunca cambia al ganador**. Para decidir se descarta:
+
+$$
+\boxed{\hat y = \arg\max_k\ \pi_k\,p(\mathbf{x}\mid y=k)}
+$$
+
+Esta regla minimiza la probabilidad de error entre todos los clasificadores; donde los «retratos» ponderados de las clases se traslapan, hasta el mejor debe adivinar: el **error de Bayes** irreducible.
+
+## Tasas base, en concreto
+
+Un test detecta 80% de los enfermos y da 3% de falsas alarmas; prevalencia 1%. El paciente salió positivo:
+
+$$
+P(\text{enf}\mid +) = \frac{0.01\times0.80}{0.01\times0.80 + 0.99\times0.03} = \frac{0.008}{0.0377}\approx 0.21
+$$
+
+Multiplicando por 10 000 aparece el árbol: 80 enfermos positivos, ≈300 falsas alarmas, total ≈380. El test da el **likelihood** $p(+\mid\text{enf})=0.80$; el paciente quiere el **posterior** $P(\text{enf}\mid+)=0.21$.
+
+<BayesTree client:visible />
+
+### Prior × likelihood → posterior: aparece la sigmoide
+
+Con dos clases gaussianas en 1-D, graficando $\pi_k\,p(x\mid y=k)$, la frontera está donde una curva supera a la otra, y el posterior $P(y=1\mid x)$ sube por 0.5 justo ahí **con forma de S**. Esa S no se supone: sale de dos gaussianas, y es la misma sigmoide que la logística ajusta directamente ([LDA](/generativos/lda-qda/) lo demuestra).
+
+## MAP: el nombre de nuestra regla
+
+Predecir la clase de mayor posterior es el estimador **MAP** (*maximum a posteriori*):
+
+$$
+\hat y_\text{MAP} = \arg\max_k P(y=k\mid\mathbf{x}) = \arg\max_k \underbrace{\pi_k}_{\text{prior}}\underbrace{p(\mathbf{x}\mid y=k)}_{\text{likelihood}},\qquad \hat y_\text{MLE} = \arg\max_k p(\mathbf{x}\mid y=k)
+$$
+
+**MAP = MLE + prior**; si todas las clases son igual de comunes, coinciden. La misma idea sirve para ajustar **parámetros**: $\theta_\text{MAP} = \arg\max_\theta p(\mathcal D\mid\theta)\,p(\theta)$: el prior tira la estimación hacia valores razonables, como un regularizador. El suavizado de Laplace de [Naive Bayes](/generativos/naive-bayes/) es exactamente esto.
+
+## Ejercicio
+
+Prior de spam 0.4. $p(\text{free}\mid\text{spam}) = 0.8$, $p(\text{free}\mid\text{ham}) = 0.1$. Si un correo contiene «free», ¿$P(\text{spam}\mid\text{free})$? ¿Qué diría MLE sin prior?
+
+<Solucion>
+
+Scores: spam $0.4\times0.8 = 0.32$; ham $0.6\times0.1 = 0.06$. Posterior $= 0.32/0.38 = 0.842$. MAP ⇒ spam. MLE compara solo $0.8$ vs $0.1$ ⇒ también spam (aquí coinciden porque el likelihood domina).
+
+</Solucion>
+
+<Quiz
+	client:visible
+	id="bayes"
+	preguntas={[
+		{ q: 'El prior de una clase $k$ se estima como $\\pi_k = N_k/K$ (entre el nº de clases).', opts: ['Verdadero', 'Falso'], ok: 1, why: 'El denominador es el total de muestras: $\\pi_k = N_k/N$.' },
+		{ q: 'En la regla de Bayes, el denominador $p(\\mathbf{x})$…', opts: ['cambia al ganador', 'es igual para todas las clases y se puede ignorar al decidir', 'es el prior', 'es la verosimilitud'], ok: 1 },
+		{ q: 'Un modelo generativo modela…', opts: ['solo $P(y\\mid\\mathbf{x})$', '$p(\\mathbf{x}\\mid y)$ y $P(y)$', 'solo la frontera', 'el margen'], ok: 1 },
+		{ q: 'Si todos los priors son iguales, MAP y MLE…', opts: ['difieren siempre', 'coinciden', 'no existen', 'dan probabilidades negativas'], ok: 1 },
+	]}
+/>
+
+<Conexiones
+	items={[
+		{ href: '/clasificacion/metricas/', titulo: 'Precision = posterior', texto: 'La precision de un test es P(enfermo | +): Bayes con tasa base.' },
+		{ href: '/fundamentos/matematicas/', titulo: 'Prior, likelihood, posterior', texto: 'El repaso de probabilidad de la sesión 00.' },
+		{ href: '/clasificacion/logistica/', titulo: 'Discriminativo', texto: 'La logística se salta la densidad y ajusta P(y|x) directo.' },
+		{ href: '/regularizacion/ridge-lasso/', titulo: 'MAP como regularización', texto: 'Un prior sobre los parámetros actúa como una penalización.' },
+	]}
+/>
+
+## Para profundizar
+
+<Recursos items={[R.seeingBayes, R.g3b1bBayes, R.cs229]} />
+
+<Fuente archivos={['ML_Course_Generative_Probabilistic_Models.pdf (slides 3–15)']} />

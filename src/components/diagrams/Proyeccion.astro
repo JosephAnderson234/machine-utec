@@ -1,0 +1,29 @@
+---
+/** Mínimos cuadrados = proyección ortogonal sobre el espacio columna. */
+---
+<figure class="diagram not-content">
+	<svg viewBox="0 0 700 330" role="img" aria-label="Proyección de y sobre el espacio columna de X">
+		<defs>
+			<marker id="pj" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0L10,5L0,10z" fill="var(--sl-color-gray-2)" /></marker>
+			<marker id="pja" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0L10,5L0,10z" fill="var(--sl-color-accent)" /></marker>
+			<marker id="pjr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0L10,5L0,10z" fill="var(--pg-bad)" /></marker>
+		</defs>
+		<polygon points="60,250 430,300 640,200 270,150" class="box-v" />
+		<text x="520" y="285" class="t-s">espacio columna de X</text>
+		<text x="520" y="301" class="t-s">(todas las Xw posibles)</text>
+		<line x1="200" y1="240" x2="330" y2="215" stroke="var(--sl-color-gray-2)" stroke-width="2" marker-end="url(#pj)" />
+		<text x="300" y="240" class="t">a₁</text>
+		<line x1="200" y1="240" x2="260" y2="190" stroke="var(--sl-color-gray-2)" stroke-width="2" marker-end="url(#pj)" />
+		<text x="232" y="188" class="t">a₂</text>
+		<line x1="200" y1="240" x2="450" y2="60" stroke="var(--sl-color-white)" stroke-width="2.4" marker-end="url(#pj)" />
+		<text x="458" y="56" class="t-b">y (target)</text>
+		<line x1="200" y1="240" x2="448" y2="222" stroke="var(--sl-color-accent)" stroke-width="2.6" marker-end="url(#pja)" />
+		<text x="462" y="232" class="t-b" style="fill: var(--sl-color-accent)">ŷ = Xw* = Hy</text>
+		<line x1="450" y1="64" x2="450" y2="216" stroke="var(--pg-bad)" stroke-width="2.2" stroke-dasharray="6 4" marker-end="url(#pjr)" />
+		<text x="460" y="145" class="t" style="fill: var(--pg-bad)">r = y − ŷ</text>
+		<path d="M450,210 h-10 v12" fill="none" stroke="var(--sl-color-gray-3)" />
+		<text x="40" y="30" class="t-b">Xᵀr = 0  ⇔  XᵀXw = Xᵀy</text>
+		<text x="40" y="50" class="t-s">el residual es perpendicular a cada columna aⱼ de X</text>
+	</svg>
+	<figcaption>La predicción está atrapada en el plano de las columnas. El mejor ŷ es el punto del plano más cercano a y: su proyección ortogonal. La matriz sombrero H = X(XᵀX)⁻¹Xᵀ «le pone el gorro» a y y cumple H² = H.</figcaption>
+</figure>

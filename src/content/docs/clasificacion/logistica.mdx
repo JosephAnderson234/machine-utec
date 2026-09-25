@@ -1,0 +1,128 @@
+---
+title: "Sigmoide, odds y frontera de decisión"
+description: "Por qué no ajustar una recta a etiquetas 0/1, la sigmoide, odds y log-odds, derivación de σ, pesos como odds ratios, la frontera lineal y la regresión logística como neurona."
+---
+
+import Sigmoid from '../../../components/sim/Sigmoid.tsx';
+import Neurona from '../../../components/diagrams/Neurona.astro';
+import Quiz from '../../../components/Quiz.tsx';
+import Solucion from '../../../components/Solucion.astro';
+import Conexiones from '../../../components/Conexiones.astro';
+import Recursos from '../../../components/Recursos.astro';
+import Fuente from '../../../components/Fuente.astro';
+import { R } from '../../../data/recursos';
+
+## Una pregunta distinta
+
+Hasta ahora $\hat y\in\mathbb{R}$ (un dial). Ahora el target es una **categoría**: spam/no-spam, benigno/maligno, clic/no-clic (un interruptor). La etiqueta es solo un nombre; la codificamos $y\in\{0,1\}$ y queremos la **probabilidad** de la clase «1» y luego una decisión.
+
+## ¿Por qué no ajustar una recta a los 0/1?
+
+Tentador: mínimos cuadrados sobre $y\in\{0,1\}$ y umbral en 0.5. Tres cosas se rompen:
+
+1. **Se escapa de [0, 1]**: predice 1.3 o −0.2, que no son probabilidades.
+2. **Un punto lejano la inclina**: para achicar su residual enorme, la recta se aplana y arrastra el umbral.
+3. **Castiga tener razón**: el error cuadrático sigue cobrándole a un punto seguro y correcto ($(\hat y-1)^2>0$).
+
+Necesitamos una salida que **viva en (0, 1)** y una pérdida que **deje de molestar** una vez que el punto está firmemente bien. La sigmoide arregla 1 y 2 (se satura, así que un punto lejano casi no la mueve); la pérdida (cross-entropy) arregla 3.
+
+## La sigmoide
+
+$$
+\sigma(z) = \frac{1}{1+e^{-z}},\qquad z = \mathbf{w}^\top\mathbf{x}+b
+$$
+
+Toda su forma sale del término $e^{-z}>0$: con $z\to-\infty$, $\sigma\to0$; con $z=0$, $\sigma=\tfrac12$; con $z\to+\infty$, $\sigma\to1$. Es monótona y suave. Dos hechos que reutilizaremos:
+
+$$
+\sigma(-z) = 1-\sigma(z)\qquad\qquad \sigma'(z) = \sigma(z)\big(1-\sigma(z)\big)
+$$
+
+(la derivada es máxima en $z=0$ y se anula en las colas saturadas).
+
+## ¿Por qué la sigmoide? Odds y log-odds
+
+Un score lineal recorre todo $\mathbb{R}$; una probabilidad no. La idea: **no apretar la recta, sino estirar $p$** sobre toda la recta real quitando sus dos bordes:
+
+| Vista | Rango | Qué hace |
+| --- | --- | --- |
+| Probabilidad $p$ | $(0,1)$ | acotada en ambos lados |
+| **Odds** $\frac{p}{1-p}$ | $(0,\infty)$ | «cuántas veces más probable que no»: 0.5→1, 0.75→3 (3:1), 0.9→9. Quita el **techo** |
+| **Log-odds** $\log\frac{p}{1-p}$ | $(-\infty,\infty)$ | quita el **piso** y la vuelve simétrica (0.5 → 0) |
+
+Como el log-odds tiene el mismo rango que $z$, **modelamos el log-odds como lineal** y despejamos:
+
+$$
+\log\frac{p}{1-p} = z\;\Rightarrow\;\frac{p}{1-p}=e^z\;\Rightarrow\;p = e^z(1-p)\;\Rightarrow\;p(1+e^z) = e^z\;\Rightarrow\;p=\frac{e^z}{1+e^z}=\frac{1}{1+e^{-z}}=\sigma(z)
+$$
+
+**La forma no es una elección**: si el log-odds es lineal, la probabilidad *tiene* que ser la sigmoide.
+
+### Cada peso es un odds ratio
+
+Subir $x_j$ en una unidad suma $w_j$ al log-odds, es decir **multiplica los odds por $e^{w_j}$**, sin importar las demás features. $w_j = 0.7 \Rightarrow e^{0.7}\approx 2$: una unidad más **duplica** los odds. $w_j=0$ los deja igual; $w_j<0$ los achica.
+
+## El modelo y la frontera
+
+$$
+P(y=1\mid\mathbf{x}) = \sigma(\mathbf{w}^\top\mathbf{x}+b),\qquad
+\hat y = \begin{cases}1 & \text{si } \sigma(\mathbf{w}^\top\mathbf{x}+b)\ge 0.5 \iff \mathbf{w}^\top\mathbf{x}+b\ge 0\\ 0 & \text{si no}\end{cases}
+$$
+
+La equivalencia vale porque $\sigma(0)=0.5$. La **frontera** $\mathbf{w}^\top\mathbf{x}+b=0$ es:
+
+- con 1 feature, **un punto** $x^* = -b/w$;
+- con 2, **una recta** (cortar la superficie de probabilidad con el plano $P=0.5$ y proyectar al piso);
+- con $d$, **un hiperplano**.
+
+La regresión logística es un **clasificador lineal**, aunque su superficie de probabilidad sea curva. La distancia a la frontera es la confianza: lejos, la curva se pega a 0 o 1; justo en $x^*$ es una moneda.
+
+<Sigmoid client:visible />
+
+## Una neurona
+
+<Neurona />
+
+:::caution[Preguntas del banco]
+- Una regresión lineal ajustada a $y\in\{0,1\}$ **no** sirve como probabilidad: no está acotada y un punto lejano mueve el umbral.
+- Con umbral 0.5 se predice $\hat y=1$ si $\sigma(\mathbf{w}^\top\mathbf{x}+b)\ge0.5$. El modelo entrega $P(y=1\mid\mathbf{x})$ y la clase llega **después**; el umbral 0.5 es solo el corte por defecto, **movible** según lo que cueste cada error (no requiere clases balanceadas).
+:::
+
+## Ejercicio
+
+$w = 0.7$, $b = -2.1$. ¿Frontera? ¿$P(y=1\mid x=5)$? ¿Cuánto cambian los odds si $x$ sube de 5 a 6?
+
+<Solucion>
+
+- Frontera: $x^* = -b/w = 2.1/0.7 = 3$.
+- $z = 0.7\cdot5-2.1 = 1.4$, $P = \sigma(1.4) = 1/(1+e^{-1.4}) \approx 0.802$.
+- Odds × $e^{0.7}\approx 2.01$: pasan de $e^{1.4}\approx4.06$ a $e^{2.1}\approx8.17$ (se duplican).
+
+</Solucion>
+
+<Quiz
+	client:visible
+	id="logistica"
+	preguntas={[
+		{ q: 'Si $p = 0.75$, los odds son…', opts: ['0.75', '3 (3:1)', '1.1', '0.25'], ok: 1 },
+		{ q: '$\\sigma(0)$ vale…', opts: ['0', '0.5', '1', '$e$'], ok: 1 },
+		{ q: 'La frontera de decisión de la regresión logística (sin features extra) es…', opts: ['curva', 'lineal: $\\mathbf{w}^\\top\\mathbf{x}+b=0$', 'un círculo', 'depende del umbral de forma no lineal'], ok: 1 },
+		{ q: 'Con $w_j = 0$, subir $x_j$ en una unidad…', opts: ['duplica los odds', 'deja los odds igual', 'los anula', 'los invierte'], ok: 1 },
+		{ q: '$\\sigma\'(z)$ es igual a…', opts: ['$\\sigma(z)^2$', '$\\sigma(z)(1-\\sigma(z))$', '$1-\\sigma(z)$', '$e^{-z}$'], ok: 1 },
+	]}
+/>
+
+<Conexiones
+	items={[
+		{ href: '/generativos/lda-qda/', titulo: 'LDA llega a la misma σ', texto: 'Dos gaussianas con Σ compartida dan exactamente P(y=1|x) = σ(wᵀx + b).' },
+		{ href: '/clasificacion/entrenamiento/', titulo: 'Cómo se entrena', texto: 'Cross-entropy (MLE Bernoulli) y el gradiente (p − y)x.' },
+		{ href: '/clasificacion/softmax/', titulo: 'Softmax', texto: 'Más de dos clases: un score por clase; con K = 2 es la sigmoide.' },
+		{ href: '/svm/geometria/', titulo: 'SVM', texto: 'También una frontera lineal, pero elegida por margen máximo, no por verosimilitud.' },
+	]}
+/>
+
+## Para profundizar
+
+<Recursos items={[R.mluLogReg, R.playground, R.islr, R.skLinear]} />
+
+<Fuente archivos={['ML_Course_Logistic_Regression_and_Classification.pdf (slides 4–17)', 'ML_Course/session-04a-logistic-model.ipynb']} />

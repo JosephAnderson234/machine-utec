@@ -1,0 +1,24 @@
+---
+/** Tarjetas que enlazan el tema actual con otros temas del curso. */
+interface Item {
+	href: string;
+	titulo: string;
+	texto: string;
+}
+interface Props {
+	items: Item[];
+	titulo?: string;
+}
+const { items, titulo = 'Conexiones con otros temas' } = Astro.props;
+---
+<aside class="conex not-content">
+	<p class="conex-h">↔ {titulo}</p>
+	<div class="conex-grid">
+		{items.map((it) => (
+			<a class="conex-item" href={it.href}>
+				<b>{it.titulo}</b>
+				<span set:html={it.texto} />
+			</a>
+		))}
+	</div>
+</aside>

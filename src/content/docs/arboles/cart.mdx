@@ -1,0 +1,114 @@
+---
+title: "CART paso a paso"
+description: "Solo n − 1 umbrales importan, barrer ambas features, invariancia a transformaciones monótonas, features categóricas, el algoritmo CART, crecer el ejemplo, criterios de parada, XOR, cortes alineados a los ejes y árboles de regresión."
+---
+
+import TreeBuilder from '../../../components/sim/TreeBuilder.tsx';
+import Quiz from '../../../components/Quiz.tsx';
+import Solucion from '../../../components/Solucion.astro';
+import Conexiones from '../../../components/Conexiones.astro';
+import Recursos from '../../../components/Recursos.astro';
+import Fuente from '../../../components/Fuente.astro';
+import { R } from '../../../data/recursos';
+
+## Solo importan n − 1 umbrales
+
+El umbral $t$ es continuo, así que hay infinitos splits candidatos… pero solo **finitas particiones distintas**: dos umbrales entre el mismo par de valores ordenados dan el **mismo** split. Receta: **ordena la feature y prueba los puntos medios** entre valores consecutivos distintos: a lo más $n-1$ candidatos. La ganancia es una **función escalonada** de $t$, no una curva suave: no hay nada que derivar, se **enumera**.
+
+:::caution[Pregunta del banco]
+«Para una feature continua con $n$ valores distintos basta evaluar $n-1$ umbrales (los puntos medios), porque la ganancia es una función escalonada» → **Verdadero**.
+:::
+
+En el ejemplo: 9 candidatos en $x_1$ y 9 en $x_2$. Gana $x_1\le3.5$ con ganancia $3/14 = 0.2143$; segundo, $x_2\le5.5$ con 0.1800; dos candidatos de $x_2$ dan exactamente 0.
+
+**Costo:** ordenar cada feature una vez cuesta $O(pn\log n)$; luego cada nodo barre sus puntos en $O(pn_m)$ actualizando conteos. Un árbol balanceado cuesta ≈ $O(pn\log n)$ en total.
+
+## Un árbol solo ve el orden de cada feature
+
+Cambia $x_1$ por $\log x_1$: el orden no cambia, así que el árbol es **idéntico** (solo cambia el número impreso del umbral). Por eso **los árboles no necesitan estandarizar**, a diferencia de todos los modelos de las sesiones 02–07.
+
+Pero una **rotación** no es una transformación monótona de una feature: rotar los mismos diez puntos 30° obliga al árbol a pasar de 4 hojas a más. **Los ejes importan.**
+
+### Features categóricas
+
+Una feature con $k$ categorías podría partirse por cualquier subconjunto: $2^{k-1}-1$ posibilidades. **Atajo de Breiman:** ordena las categorías por su tasa de clase 1 y prueba solo los $k-1$ cortes contiguos (probado óptimo para clasificación binaria). Ojo: scikit-learn no implementa splits categóricos (hay que codificar), y una categoría con muchos niveles tiene muchos cortes con los que «tener suerte».
+
+## El algoritmo CART
+
+**BuildTree**(nodo $m$ con puntos $S$):
+
+1. Si se activa un criterio de parada, $m$ es hoja: $c_m\leftarrow$ clase mayoritaria (o media $\bar y$). Fin.
+2. Para cada feature $j$ y cada punto medio $t$ de los valores de $S$, calcula $\Delta I(j,t)$.
+3. Quédate con el mejor $(j^\star,t^\star)$. Si no mejora, $m$ es hoja.
+4. Parte $S$ en $S_L$, $S_R$ y **recursa** en ambos.
+
+**Es codicioso**: el paso 3 se compromete con el mejor split *ahora* y nunca lo reconsidera. Encontrar el árbol globalmente óptimo es **NP-difícil**; CART es una heurística excelente con un modo de falla famoso (XOR, abajo).
+
+### Creciendo el ejemplo
+
+1. Raíz: $x_1\le3.5$, ganancia $3/14 = 0.214$ → accuracy 0.8.
+2. En B: $x_2\le5.5$, ganancia $32/147 = 0.218$ → 0.9.
+3. En D: $x_2\le2.5$, ganancia $4/9 = 0.444$ → 1.0.
+
+Las ganancias **no decrecen** necesariamente: el split más profundo tiene la mayor, porque actúa sobre un nodo chico y muy mezclado.
+
+<TreeBuilder client:visible />
+
+## ¿Cuándo parar? (pre-poda)
+
+Un nodo es hoja si: es **puro**; tiene muy pocos puntos (`min_samples_split`, `min_samples_leaf`); se alcanzó la profundidad (`max_depth`); la mejor ganancia está bajo un piso (`min_impurity_decrease`); o se agotó el presupuesto de hojas (`max_leaf_nodes`). **Sin ninguno, el árbol crece hasta que cada hoja es pura: accuracy de entrenamiento 1.0 y overfitting fuerte.**
+
+### El modo de falla: XOR
+
+En XOR **todo** candidato de la raíz tiene ganancia exactamente 0 (cada mitad sigue 50/50)… y sin embargo el árbol de profundidad 2 «$x_1\le0$ y luego $x_2\le0$» es 100% correcto. Un split que parece inútil es el que hace perfecto al siguiente. Con `min_impurity_decrease = 0.01` el árbol se detiene en la raíz: 1 hoja, 50%. **Por eso se crece primero y se poda después.** (Prueba el modo XOR en el simulador.)
+
+### El otro límite: cortes paralelos a los ejes
+
+Una frontera diagonal limpia le cuesta al árbol una **escalera**: profundidad 2 → 86.9%, 4 → 94.8%, 8 → 95.4%, siempre aproximando. Rota los mismos datos 45° y **un solo split** da 99.9%. Es el **sesgo inductivo** del árbol, como la suavidad lo era del RBF: un modelo se define tanto por lo que no puede expresar como por lo que puede.
+
+## Árboles de regresión
+
+$y\in\mathbb{R}$. La hoja predice la **media** $\bar y_m$; la impureza pasa a ser la suma de errores cuadrados $\text{SSE}(m) = \sum_{i\in m}(y_i-\bar y_m)^2$; se elige $(j,t)$ que minimiza $\text{SSE}(L)+\text{SSE}(R)$. **Mismo algoritmo**: cambia «mayoría» por «media» y «Gini» por «SSE». Un árbol de regresión es una **escalera**: no puede inclinarse, solo escalonar.
+
+**Ocho departamentos** (área 1..8 decenas de m², alquiler 2, 3, 4, 5, 10, 11, 12, 13 centenas de €): una hoja predice 7.5 con SSE = 138. El mejor corte, área ≤ 4.5, predice 3.5 y 11.5 con SSE 5 + 5 = 10: **ganancia 128**. Los umbrales barridos dejan 103.43, 71.33, 40.80, **10.00**, 40.80, 71.33, 103.43. Profundidad 2 llega a SSE 2; profundidad 3, a 0 (un escalón por punto).
+
+:::caution[No extrapola]
+Fuera del rango de entrenamiento, la predicción de un árbol de regresión es **plana para siempre**. Con 80 puntos ruidosos: profundidad 1 subajusta (CV MSE 0.279), profundidad 5 elegida por CV (0.089), profundidad 12 persigue el ruido (0.100).
+:::
+
+## Ejercicio
+
+Barre los umbrales de área para los 8 departamentos y verifica el SSE del corte en 4.5.
+
+<Solucion>
+
+Izquierda $\{2,3,4,5\}$: media 3.5, SSE $=2.25+0.25+0.25+2.25 = 5$. Derecha $\{10,11,12,13\}$: media 11.5, SSE $=5$. Total 10, ganancia $138-10 = 128$. Con el corte en 3.5: izquierda $\{2,3,4\}$ (media 3, SSE 2), derecha $\{5,10,11,12,13\}$ (media 10.2, SSE $27.04+0.04+0.64+3.24+7.84 = 38.8$): total 40.8 ✓.
+
+</Solucion>
+
+<Quiz
+	client:visible
+	id="cart"
+	preguntas={[
+		{ q: 'Para una feature con 10 valores distintos, ¿cuántos umbrales candidatos hay?', opts: ['10', '9', 'infinitos', '$2^{10}$'], ok: 1 },
+		{ q: 'Reemplazar $x_1$ por $\\log x_1$ en un árbol…', opts: ['cambia totalmente el árbol', 'deja el mismo árbol (solo cambia el número del umbral)', 'obliga a estandarizar', 'elimina la feature'], ok: 1 },
+		{ q: 'En XOR, la ganancia de todo split en la raíz es…', opts: ['máxima', 'exactamente 0', 'negativa', '0.5'], ok: 1 },
+		{ q: 'CART es…', opts: ['globalmente óptimo', 'codicioso (greedy)', 'un método de gradiente', 'probabilístico'], ok: 1 },
+		{ q: 'Un árbol de regresión fuera del rango de entrenamiento predice…', opts: ['una extrapolación lineal', 'una constante (plano)', 'cero', 'NaN'], ok: 1 },
+	]}
+/>
+
+<Conexiones
+	items={[
+		{ href: '/arboles/poda/', titulo: 'Poda', texto: 'Crecer primero y cortar después, con α elegido por CV.' },
+		{ href: '/regresion/gradiente/', titulo: 'Sin escalado', texto: 'A diferencia de GD, SVM o kernels, al árbol no le importa la escala.' },
+		{ href: '/kernels/practica/', titulo: 'Sesgo inductivo', texto: 'Cajas alineadas vs campanas suaves: cada modelo tiene su forma favorita.' },
+		{ href: '/regresion/modelo/', titulo: 'Media = mejor constante', texto: 'La misma derivada J′(c) = 0 que da la media en mínimos cuadrados.' },
+	]}
+/>
+
+## Para profundizar
+
+<Recursos items={[R.mluTree, R.sqTree, R.skTree, R.r2d3]} />
+
+<Fuente archivos={['ML_Course_Decision_Trees.pdf (slides 28–41)']} />

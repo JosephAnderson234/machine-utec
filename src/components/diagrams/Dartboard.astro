@@ -1,0 +1,31 @@
+---
+/** Sesgo vs varianza como tiro al blanco. */
+import { rng } from '../ui/math';
+const cases = [
+	{ t: 'sesgo bajo · varianza baja', bx: 0, by: 0, sp: 8 },
+	{ t: 'sesgo bajo · varianza alta', bx: 0, by: 0, sp: 24 },
+	{ t: 'sesgo alto · varianza baja', bx: 30, by: -22, sp: 8 },
+	{ t: 'sesgo alto · varianza alta', bx: 30, by: -22, sp: 24 },
+];
+const r = rng(9);
+const darts = cases.map((c) => Array.from({ length: 10 }, () => [c.bx + c.sp * r.normal(), c.by + c.sp * r.normal()]));
+---
+<figure class="diagram not-content">
+	<svg viewBox="0 0 780 230" role="img" aria-label="Diana de sesgo y varianza">
+		{cases.map((c, i) => {
+			const cx = 100 + i * 193;
+			const cy = 105;
+			const mx = darts[i].reduce((s, d) => s + d[0], 0) / 10;
+			const my = darts[i].reduce((s, d) => s + d[1], 0) / 10;
+			return (
+				<g>
+					{[70, 50, 30, 12].map((rr, k) => <circle cx={cx} cy={cy} r={rr} fill={k === 3 ? 'var(--pg-bad)' : 'none'} fill-opacity="0.35" class="ln" />)}
+					{darts[i].map(([dx, dy]) => <circle cx={cx + dx} cy={cy + dy} r="3.6" fill="var(--pg-c1)" />)}
+					<path d={`M${cx + mx - 6},${cy + my - 6}l12,12M${cx + mx + 6},${cy + my - 6}l-12,12`} stroke="var(--pg-ok)" stroke-width="3" />
+					<text x={cx} y="205" text-anchor="middle" class="t">{c.t}</text>
+				</g>
+			);
+		})}
+	</svg>
+	<figcaption>Cada dardo es un modelo re-entrenado con una muestra nueva; el centro rojo es la verdad. Sesgo = distancia del centro de los dardos (× verde) a la diana; varianza = qué tan esparcidos están.</figcaption>
+</figure>

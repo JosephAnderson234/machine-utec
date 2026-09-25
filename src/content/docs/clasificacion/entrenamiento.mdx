@@ -1,0 +1,120 @@
+---
+title: "Cross-entropy y entrenamiento"
+description: "Por qué no error cuadrático, la verosimilitud Bernoulli, derivación de la cross-entropy, qué premia la pérdida, el gradiente (p − y)x paso a paso, convexidad y regularización."
+---
+
+import LogisticTrainer from '../../../components/sim/LogisticTrainer.tsx';
+import Quiz from '../../../components/Quiz.tsx';
+import Solucion from '../../../components/Solucion.astro';
+import Conexiones from '../../../components/Conexiones.astro';
+import Recursos from '../../../components/Recursos.astro';
+import Fuente from '../../../components/Fuente.astro';
+import { R } from '../../../data/recursos';
+
+## ¿Por qué no error cuadrático?
+
+El error cuadrático **sobre la salida de la sigmoide** da una superficie **no convexa**: una cuenca y luego una meseta/bulto que atrapa al descenso de gradiente. Además el gradiente lleva el factor $\sigma'(z)=p(1-p)$, que casi vale 0 justo cuando el modelo está **seguro y equivocado**: aprende lentísimo cuando más debería corregir. La cross-entropy da **un solo valle convexo**.
+
+## La verosimilitud de una etiqueta
+
+La **verosimilitud** responde: ¿qué tan probables son los datos que *vimos* si este modelo fuera cierto? Es el mismo número que una probabilidad, pero leído como función de $(\mathbf{w},b)$ con los datos fijos.
+
+Para un ejemplo, es la «barra»: la probabilidad que el modelo le da a su etiqueta **verdadera**. Con $p_i = \sigma(\mathbf{w}^\top\mathbf{x}_i+b)$:
+
+$$
+P(y_i\mid\mathbf{x}_i) = \begin{cases}p_i & y_i = 1\\ 1-p_i & y_i=0\end{cases}\;=\;p_i^{\,y_i}(1-p_i)^{1-y_i}\qquad\text{(pmf de Bernoulli)}
+$$
+
+Chequeo: $y_i=1 \Rightarrow p_i^1(1-p_i)^0 = p_i$; $y_i=0\Rightarrow 1-p_i$.
+
+## De la verosimilitud a la log-loss
+
+Con ejemplos independientes, la probabilidad del dataset es el producto: $L(\mathbf{w},b)=\prod_i p_i^{y_i}(1-p_i)^{1-y_i}$. En vez de maximizarla, **minimizamos** $-\log L$. Tres ganancias: el log es creciente (mismo maximizador), convierte el producto (que se desborda a 0) en suma, y el signo menos vuelve «maximizar» en «minimizar una pérdida».
+
+$$
+\begin{aligned}
+-\log L &= -\log\prod_i p_i^{y_i}(1-p_i)^{1-y_i} = -\sum_i \log\big[p_i^{y_i}(1-p_i)^{1-y_i}\big]\\
+&= -\sum_i\big[\log p_i^{y_i} + \log(1-p_i)^{1-y_i}\big] = -\sum_i\big[y_i\log p_i + (1-y_i)\log(1-p_i)\big]
+\end{aligned}
+$$
+
+Promediando:
+
+$$
+\boxed{J(\mathbf{w},b) = -\frac1n\sum_{i=1}^n\big[y_i\log p_i + (1-y_i)\log(1-p_i)\big]}
+$$
+
+Cada sumando es un interruptor: $y_i=1$ paga $-\log p_i$; $y_i=0$ paga $-\log(1-p_i)$. **Minimizar la cross-entropy = máxima verosimilitud** del modelo Bernoulli.
+
+### Qué premia la pérdida
+
+- Seguro y correcto: pérdida ≈ 0.
+- Seguro y **equivocado**: pérdida → ∞ (castigo durísimo).
+- No basta con estar del lado correcto de la frontera: quiere **confianza calibrada**.
+
+## El gradiente, paso a paso
+
+Un ejemplo: $\ell = -[y\log p + (1-y)\log(1-p)]$, con $p=\sigma(z)$, $z=\mathbf{w}^\top\mathbf{x}+b$. Regla de la cadena $\mathbf{x}\to z\to p\to\ell$:
+
+$$
+\frac{\partial\ell}{\partial p} = -\Big[\frac{y}{p}-\frac{1-y}{1-p}\Big] = \frac{p-y}{p(1-p)},\qquad \frac{\partial p}{\partial z}=p(1-p)
+\;\;\Longrightarrow\;\;\frac{\partial\ell}{\partial z} = p-y
+$$
+
+¡Los $p(1-p)$ se cancelan! Con $\partial z/\partial\mathbf{w}=\mathbf{x}$ y $\partial z/\partial b = 1$, promediando:
+
+$$
+\nabla_\mathbf{w}J = \frac1n\sum_i (p_i-y_i)\mathbf{x}_i = \frac1n\mathbf{X}^\top(\mathbf{p}-\mathbf{y}),\qquad \frac{\partial J}{\partial b} = \frac1n\sum_i(p_i-y_i)
+$$
+
+**Exactamente la forma de la regresión lineal**: «error × feature», con $\mathbf{p}-\mathbf{y}$ en lugar del residual. Pero ahora **no hay forma cerrada** (la sigmoide es no lineal), así que se itera $\mathbf{w}\leftarrow\mathbf{w}-\eta\nabla J$.
+
+## Convexa… y finita gracias a la regularización
+
+La Hessiana es $\nabla^2 J = \frac1n\sum_i p_i(1-p_i)\,\mathbf{x}_i\mathbf{x}_i^\top\succeq 0$: una suma con pesos no negativos de productos externos, semidefinida positiva en todas partes ⇒ **un bowl**, el descenso no se atasca.
+
+:::caution[Clases separables]
+Si las clases son **linealmente separables**, sin regularizar los pesos se van a $\infty$ (sigmoides cada vez más afiladas, la verosimilitud siempre puede subir). Solución: sumar $\lambda\|\mathbf{w}\|_2^2$, **el mismo término de ridge**: mantiene $\mathbf{w}$ finito, vuelve $J$ estrictamente convexa (mínimo único), y λ se elige por CV. Estandariza antes.
+:::
+
+<LogisticTrainer client:visible />
+
+## Ejercicio
+
+Un punto con $y=1$ y $p=0.2$. Calcula su pérdida y el gradiente respecto a $z$. Repite con $p=0.99$.
+
+<Solucion>
+
+- $p=0.2$: $\ell=-\log 0.2 = 1.609$; $\partial\ell/\partial z = p-y = -0.8$ (empuja fuerte a subir $z$).
+- $p=0.99$: $\ell = -\log0.99 = 0.010$; $\partial\ell/\partial z = -0.01$ (casi no empuja: ya está bien).
+
+Con error cuadrático $(p-y)^2$, el gradiente sería $2(p-y)p(1-p)$: para $p=0.2$ da $2(-0.8)(0.16) = -0.256$, y para un punto con $p=0.01$ (seguro y equivocado) solo $-0.0196$: casi no aprende.
+
+</Solucion>
+
+<Quiz
+	client:visible
+	id="logit-train"
+	preguntas={[
+		{ q: 'Minimizar la cross-entropy equivale a…', opts: ['minimizar el error cuadrático', 'maximizar la verosimilitud Bernoulli', 'maximizar el margen', 'minimizar $\\|w\\|$'], ok: 1 },
+		{ q: 'El gradiente de la cross-entropy respecto a $\\mathbf{w}$ es…', opts: ['$\\frac1n X^\\top(y - Xw)$', '$\\frac1n X^\\top(p - y)$', '$p(1-p)x$', '$-2X^\\top r$'], ok: 1 },
+		{ q: '¿Por qué no se usa error cuadrático sobre la sigmoide?', opts: ['porque no es derivable', 'porque da una superficie no convexa y gradientes que se apagan', 'porque es muy lento de calcular', 'porque da probabilidades negativas'], ok: 1 },
+		{ q: 'Con clases linealmente separables y $\\lambda = 0$…', opts: ['converge a un $w$ finito único', '$\\|w\\| \\to \\infty$', 'el gradiente es cero desde el inicio', 'la frontera no existe'], ok: 1 },
+		{ q: '¿La regresión logística tiene forma cerrada como OLS?', opts: ['Sí', 'No, se entrena iterativamente'], ok: 1 },
+	]}
+/>
+
+<Conexiones
+	items={[
+		{ href: '/regresion/modelo/', titulo: 'MSE = MLE gaussiana', texto: 'El mismo razonamiento de verosimilitud, con otro modelo de ruido.' },
+		{ href: '/regularizacion/ridge-lasso/', titulo: 'Ridge', texto: 'El λ‖w‖² que estabiliza la logística es literalmente el de ridge.' },
+		{ href: '/svm/margen-suave/', titulo: 'Hinge vs logística', texto: 'La hinge llega exactamente a 0; la logística nunca, todo punto sigue tirando.' },
+		{ href: '/arboles/impureza/', titulo: 'Entropía en árboles', texto: 'La log-loss de la mejor constante de una hoja es su entropía.' },
+	]}
+/>
+
+## Para profundizar
+
+<Recursos items={[R.mluLogReg, R.cs229, R.skLinear]} />
+
+<Fuente archivos={['ML_Course_Logistic_Regression_and_Classification.pdf (slides 18–28)', 'ML_Course/session-04b-training-from-scratch.ipynb']} />

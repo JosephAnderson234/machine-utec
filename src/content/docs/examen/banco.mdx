@@ -1,0 +1,125 @@
+---
+title: "Banco de preguntas oficial"
+description: "Las 31 preguntas del BANCO_DE_PREGUNTAS_ML_PART_1 (CS3061, Teo. 3 - Lab. 31, 2026-2) como quiz interactivo, agrupadas por tema, con la solución oficial y el enlace a la teoría."
+---
+
+import Quiz from '../../../components/Quiz.tsx';
+
+:::note[Cómo usarlo]
+Estas son **todas** las preguntas del banco oficial del profesor Hurtado, con la respuesta y la explicación del propio banco (ampliada donde ayuda). Respóndelas sin mirar; la explicación aparece al contestar. Tu progreso se guarda en este navegador. Cada bloque enlaza a la página de teoría correspondiente.
+:::
+
+## Fundamentos · [teoría](/fundamentos/intro/)
+
+<Quiz
+	client:visible
+	id="banco-fund"
+	titulo="Fundamentos (3)"
+	preguntas={[
+		{ q: '**Afirmación:** en la clasificación, el target $y$ es un valor continuo que puede tomar cualquier número real.', opts: ['Verdadero', 'Falso'], ok: 1, why: 'Eso describe la **regresión**, cuyo target sí es continuo. En clasificación $y$ es discreto: el modelo predice una categoría y separa el espacio de entrada con una frontera de decisión.' },
+		{ q: 'Samuel (1959) definió ML como aprender sin ser programado explícitamente; Mitchell (1997) lo volvió operativo con $T$, $P$ y $E$. Para un filtro de spam, selecciona la afirmación **FALSA**.', opts: ['$T$ es la tarea: etiquetar cada correo entrante como spam o ham', '$P$ es la medida de desempeño: el porcentaje de correos clasificados correctamente', '$E$ es la experiencia: los correos etiquetados por los usuarios, de los que el programa aprende', '$E$ es el algoritmo de entrenamiento elegido y $P$ es el número de parámetros del modelo'], ok: 3, why: '$E$ es la experiencia de la que se aprende (los correos etiquetados), no el algoritmo; y $P$ mide el desempeño, no el tamaño del modelo. Aprender significa que $P$ sobre $T$ **mejore con más** $E$.' },
+		{ q: 'Selecciona la afirmación **VERDADERA** sobre los paradigmas de aprendizaje.', opts: ['El clustering es no supervisado: descubre grupos de puntos similares sin usar etiquetas', 'La regresión es no supervisada porque predice un número en lugar de una categoría', 'El aprendizaje por refuerzo aprende de un dataset fijo de pares entrada-respuesta', 'La reducción de dimensionalidad es un subtipo del aprendizaje supervisado, igual que la clasificación'], ok: 0, why: 'El clustering es no supervisado, igual que la reducción de dimensionalidad (D falsa). La regresión es supervisada con target continuo (B falsa), y RL aprende **actuando** sobre un entorno y recibiendo recompensas (C falsa).' },
+	]}
+/>
+
+## Regresión lineal · [teoría](/regresion/modelo/)
+
+<Quiz
+	client:visible
+	id="banco-reg"
+	titulo="Regresión lineal (4)"
+	preguntas={[
+		{ q: '**Afirmación:** en regresión lineal el residual de un punto es $r_i = y_i - \\hat y_i$, con $y_i$ el valor real y $\\hat y_i$ el predicho.', opts: ['Verdadero', 'Falso'], ok: 0, why: 'Real menos predicho, punto por punto; geométricamente es la brecha vertical entre el punto y la recta. Un buen ajuste hace todos los residuales pequeños a la vez.' },
+		{ q: '**Afirmación:** la función de costo $J(\\mathbf{w}) = \\|\\mathbf{y}-\\mathbf{X}\\mathbf{w}\\|_2^2$ de la regresión lineal es no convexa.', opts: ['Verdadero', 'Falso'], ok: 1, why: 'Es convexa: $\\mathbf{X}^\\top\\mathbf{X}$ es semidefinida positiva ($\\mathbf{v}^\\top\\mathbf{X}^\\top\\mathbf{X}\\mathbf{v} = \\|\\mathbf{X}\\mathbf{v}\\|_2^2 \\ge 0$), así que $J$ no se curva hacia abajo en ninguna dirección y no hay mínimos locales peores que el global; si además es definida positiva, el mínimo es único.' },
+		{ q: '**Afirmación:** en la regla $\\mathbf{w}\\leftarrow\\mathbf{w}-\\eta\\nabla_\\mathbf{w}J$, la tasa de aprendizaje $\\eta$ puede fijarse en 0 sin que el entrenamiento se vea afectado.', opts: ['Verdadero', 'Falso'], ok: 1, why: 'Con $\\eta = 0$ el paso es nulo: los pesos nunca cambian y no se aprende nada. $\\eta$ es un hiperparámetro delicado: muy pequeño se arrastra, muy grande se pasa. El signo menos también es esencial: el gradiente apunta cuesta arriba.' },
+		{ q: 'Mismos datos ajustados con polinomios de grado creciente (1, 2, 3, 5, 9). Aunque las curvas ya no son rectas, se le sigue llamando regresión **lineal**. ¿Por qué?', opts: ['Deja de ser un modelo lineal a partir del grado 2, porque la curva ya no es una recta', 'Sigue siendo lineal, pero exige un algoritmo de ajuste distinto del de la regresión lineal simple', 'Es un modelo no lineal, porque la no linealidad está en los pesos, que dejan de entrar sumados', 'Sigue siendo lineal en los pesos: se añaden columnas $x^2, x^3, \\dots$ y se resuelve igual que antes'], ok: 3, why: '«Lineal» se refiere a los pesos, no a la curva: elevar $x$ solo agrega columnas a la matriz de diseño, misma fórmula cerrada y mismo descenso de gradiente. B es falso (no hace falta otro método) y C invierte dónde está la no linealidad: en las features.' },
+	]}
+/>
+
+## Regularización y selección · [teoría](/regularizacion/sesgo-varianza/)
+
+<Quiz
+	client:visible
+	id="banco-regu"
+	titulo="Regularización, sesgo–varianza y CV (4)"
+	preguntas={[
+		{ q: '**Afirmación:** la regularización lasso, que penaliza $\\|\\mathbf{w}\\|_1 = \\sum_j|w_j|$, tiende a llevar varios pesos exactamente a cero.', opts: ['Verdadero', 'Falso'], ok: 0, why: 'La penalización de valor absoluto aplica un soft-threshold con una zona muerta que anula los pesos pequeños: el lasso hace selección de features automática.' },
+		{ q: '**Afirmación:** la varianza mide cuánto se desvía de forma sistemática el ajuste promedio $\\bar f(x)$ respecto del valor verdadero $f(x)$.', opts: ['Verdadero', 'Falso'], ok: 1, why: 'Esa es la definición de **sesgo**. La varianza es $\\mathbb{E}[(\\hat y(x) - \\bar f(x))^2]$: cuánto tambalea un ajuste individual alrededor del promedio cuando cambia el training set.' },
+		{ q: '**Afirmación:** el underfitting corresponde a un modelo demasiado flexible, con varianza alta y sesgo bajo.', opts: ['Verdadero', 'Falso'], ok: 1, why: 'Está invertido: eso es sobreajuste. El underfitting es el modelo demasiado rígido: ajustes muy parecidos entre sí al cambiar los datos (varianza baja) pero todos desviados de la verdad (sesgo alto).' },
+		{ q: '**Afirmación:** en K-fold cross-validation, cada uno de los $K$ bloques que se dejan fuera por turno es un test set sobre el que se reporta el resultado final.', opts: ['Verdadero', 'Falso'], ok: 1, why: 'Son folds de **validación**: cada uno se turna como validación mientras se entrena con los $K-1$ restantes y se promedian para seleccionar el modelo. El test set queda fuera de toda la selección y se usa una sola vez al final.' },
+	]}
+/>
+
+## Clasificación logística y métricas · [teoría](/clasificacion/logistica/)
+
+<Quiz
+	client:visible
+	id="banco-clf"
+	titulo="Logística y métricas (5)"
+	preguntas={[
+		{ q: '**Afirmación:** un modelo de regresión lineal ajustado a etiquetas $y\\in\\{0,1\\}$ sirve directamente como estimación de probabilidad, porque su salida queda siempre dentro de $[0,1]$.', opts: ['Verdadero', 'Falso'], ok: 1, why: 'La recta no está acotada y predice valores como 1.3 o −0.2; además un punto lejano la inclina y arrastra el umbral. Hace falta una salida que viva en $(0,1)$: la sigmoide.' },
+		{ q: 'Selecciona la afirmación **VERDADERA** sobre cómo se pasa de la probabilidad que da la sigmoide a una clase.', opts: ['El modelo logístico entrega directamente la clase, sin pasar nunca por un valor de probabilidad intermedio', 'Se predice $\\hat y = 1$ cuando $\\sigma(\\mathbf{w}^\\top\\mathbf{x}+b) < 0.5$, es decir, con score negativo', 'Con un umbral de 0.5 se predice $\\hat y = 1$ si $\\sigma(\\mathbf{w}^\\top\\mathbf{x}+b)\\ge 0.5$', 'El umbral de 0.5 solo puede aplicarse si las dos clases tienen exactamente el mismo número de muestras'], ok: 2, why: 'La equivalencia con $\\mathbf{w}^\\top\\mathbf{x}+b\\ge0$ vale porque $\\sigma(0) = 0.5$. A es falsa (entrega $P(y=1\\mid\\mathbf{x})$ y la clase llega después); B invierte la desigualdad; D es falsa: 0.5 es solo el corte por defecto, movible según lo que cueste cada error.' },
+		{ q: '**Afirmación:** la accuracy es el número de predicciones incorrectas dividido entre el total de predicciones.', opts: ['Verdadero', 'Falso'], ok: 1, why: 'Está invertida: accuracy = predicciones correctas / todas las predicciones. Va de 0 a 1 y más alto es mejor.' },
+		{ q: 'Tarea binaria con clase positiva «tiene la enfermedad». Selecciona la afirmación **VERDADERA** sobre la matriz de confusión.', opts: ['Un falso positivo (FP) es un enfermo al que el modelo declaró sano, y es el error que más pesa en un tamizaje', 'Los verdaderos negativos (TN) son los enfermos correctamente detectados, y ocupan la diagonal junto a los TP', 'Un falso negativo (FN) es un enfermo al que el modelo declaró sano; bajar el umbral reduce los FN', 'La diagonal de la matriz reúne los dos tipos de error y, fuera de ella, quedan las predicciones correctas'], ok: 2, why: 'FN es el positivo real declarado negativo: el enfermo que se escapa; bajar el umbral declara positivos a más casos y reduce los FN a costa de más FP. A confunde FP con FN, B llama negativos a los enfermos y D invierte la diagonal (que es la de los aciertos).' },
+		{ q: 'Selecciona la afirmación **VERDADERA** sobre el F1 score.', opts: ['F1 es la media armónica de accuracy y precision, y por eso va de 0 a 1', 'F1 es la media armónica de precision y recall: $F_1 = \\frac{2PR}{P+R}$', 'F1 es el promedio aritmético de precision y recall, así que queda justo a medio camino', 'F1 siempre queda por encima del mayor de precision y recall, porque los combina en un solo número'], ok: 1, why: 'F1 combina precision $TP/(TP+FP)$ y recall $TP/(TP+FN)$, no la accuracy. C confunde media armónica con aritmética; D dice lo contrario: la armónica queda cerca del **menor**, así que con $R=0.80$ y $P=0.21$ da $F_1 = 0.33$.' },
+	]}
+/>
+
+## Modelos generativos · [teoría](/generativos/bayes/)
+
+<Quiz
+	client:visible
+	id="banco-gen"
+	titulo="Naive Bayes, LDA y QDA (4)"
+	preguntas={[
+		{ q: '**Afirmación:** el prior de una clase $k$ se estima como $\\pi_k = N_k/K$: el número de muestras de esa clase dividido entre el número de clases $K$.', opts: ['Verdadero', 'Falso'], ok: 1, why: 'El denominador es el número total de muestras, no el de clases: $\\pi_k = N_k/N$. Ajustar el prior es contar una fracción: 40 correos de spam entre 100 dan $\\pi_\\text{spam} = 0.40$.' },
+		{ q: '**Afirmación:** el likelihood de una feature continua escalar $x_j$ se puede modelar con una gaussiana, $x_j\\mid y=k\\sim\\mathcal N(\\mu_{kj},\\sigma^2_{kj})$.', opts: ['Verdadero', 'Falso'], ok: 0, why: 'Para una feature continua, Gaussian NB modela cada $x_j$ como una campana $\\mathcal N(\\mu,\\sigma^2)$ con solo dos perillas: el centro $\\mu$ y la dispersión $\\sigma$.' },
+		{ q: '**Afirmación:** en QDA se usa una única matriz de covarianza promedio compartida por todas las clases, mientras que en LDA cada clase tiene su propia matriz de covarianza.', opts: ['Verdadero', 'Falso'], ok: 1, why: 'Los nombres están invertidos: LDA comparte una sola $\\Sigma$ agrupada, $\\Sigma = \\sum_k \\frac{N_k}{N}\\Sigma_k$ (frontera recta), y QDA conserva una $\\Sigma_k$ propia por clase (frontera curva).' },
+		{ q: '**Afirmación:** para ajustar una gaussiana por cada feature y por cada clase basta con calcular la media $\\mu_{kj}$ y la varianza $\\sigma^2_{kj}$ de esa feature sobre las muestras de esa clase.', opts: ['Verdadero', 'Falso'], ok: 0, why: 'El ajuste por máxima verosimilitud se reduce a contar y promediar: el prior $\\pi_k = N_k/N$ (con $K-1$ valores libres, ya que $\\sum_k\\pi_k = 1$) más la media y la varianza de cada feature dentro de cada clase, es decir $2Kd$ números.' },
+	]}
+/>
+
+## SVM · [teoría](/svm/geometria/)
+
+<Quiz
+	client:visible
+	id="banco-svm"
+	titulo="Support Vector Machines (6)"
+	preguntas={[
+		{ q: '**Afirmación:** estandarizar las features es opcional en un SVM, porque el método es invariante a la escala en que está medida cada variable.', opts: ['Verdadero', 'Falso'], ok: 1, why: '$\\|\\mathbf{w}\\|$ mezcla todas las features, así que una columna medida en millones domina silenciosamente el margen y decide la frontera casi por sí sola. Estandarizar es el primer paso de cualquier receta con SVM.' },
+		{ q: 'Selecciona la afirmación **VERDADERA** sobre la forma del objetivo del SVM de margen duro.', opts: ['Se minimiza $\\|\\mathbf{w}\\|$ en lugar de $\\frac12\\|\\mathbf{w}\\|^2$ porque la raíz hace el problema más fácil de derivar', 'El ancho de la banda es $\\|\\mathbf{w}\\|/2$, así que un $\\|\\mathbf{w}\\|$ grande produce una banda ancha', 'Usar $\\frac12\\|\\mathbf{w}\\|^2$ no cambia la solución y deja un objetivo cuadrático, convexo y suave, de gradiente $\\mathbf{w}$', 'El 1 del lado derecho de $y_i(\\mathbf{w}^\\top\\mathbf{x}_i+b)\\ge1$ es una constante del método que no se puede elegir'], ok: 2, why: 'Pasar de $2/\\|\\mathbf{w}\\|$ a $\\|\\mathbf{w}\\|$, a $\\|\\mathbf{w}\\|^2$ y a $\\frac12\\|\\mathbf{w}\\|^2$ son transformaciones estrictamente monótonas: el argmin no cambia y la función es más amable (el ½ solo cancela el 2 al derivar). A invierte el argumento, B invierte la relación (la banda mide $2/\\|\\mathbf{w}\\|$) y D es falsa: ese 1 es la unidad que elegimos al fijar la escala.' },
+		{ q: '**Afirmación:** en el SVM de margen duro, los vectores de soporte son los puntos cuya restricción está activa, los que quedan justo sobre una recta de margen.', opts: ['Verdadero', 'Falso'], ok: 0, why: 'En el óptimo cada restricción está activa ($y_i(\\mathbf{w}^\\top\\mathbf{x}_i+b) = 1$) o inactiva ($>1$). Las activas son los vectores de soporte; mover un punto inactivo, mientras siga fuera de la banda, no mueve la frontera.' },
+		{ q: '**Afirmación:** el problema dual del SVM es un problema de programación cuadrática (QP) convexo.', opts: ['Verdadero', 'Falso'], ok: 0, why: 'El dual maximiza $\\sum_i\\alpha_i - \\frac12\\sum_{i,j}\\alpha_i\\alpha_jy_iy_j\\mathbf{x}_i^\\top\\mathbf{x}_j$ sujeto a $\\alpha_i\\ge0$ y $\\sum_i\\alpha_iy_i = 0$: objetivo cuadrático y restricciones lineales, en las $n$ variables $\\alpha_i$ en vez de las $d+1$ de $(\\mathbf{w}, b)$.' },
+		{ q: 'Selecciona la afirmación **FALSA** sobre cómo se reconstruyen $\\mathbf{w}$ y $b$ a partir de los multiplicadores $\\alpha_i$.', opts: ['Como $b$ desaparece del dual, el bias queda indeterminado y se fija en cero por convención', 'Los multiplicadores cumplen $\\sum_i\\alpha_iy_i = 0$, que el dual hereda del término $b$', '$b$ se obtiene de un vector de soporte sobre su recta de margen: $b = y_k - \\mathbf{w}^\\top\\mathbf{x}_k$', 'La predicción es $\\hat y(\\mathbf{x}) = \\operatorname{sign}(\\sum_i\\alpha_iy_i\\mathbf{x}_i^\\top\\mathbf{x}+b)$, sin necesidad de formar $\\mathbf{w}$'], ok: 0, why: '$b$ desaparece del objetivo dual y justamente por eso se recupera aparte con la fórmula de C (promediando sobre los vectores de soporte); fijarlo en cero movería la frontera. B, C y D son correctas y, junto con $\\mathbf{w} = \\sum_i\\alpha_iy_i\\mathbf{x}_i$, reconstruyen el modelo.' },
+		{ q: '**Afirmación:** el SVM es un modelo generativo: modela la densidad de cada clase y por eso entrega directamente $P(y=1\\mid\\mathbf{x})$.', opts: ['Verdadero', 'Falso'], ok: 1, why: 'El SVM optimiza un margen, no una verosimilitud: su salida es un score con signo $f(\\mathbf{x}) = \\mathbf{w}^\\top\\mathbf{x}+b$, no una probabilidad. Es discriminativo; para obtener probabilidades hay que ajustar después una curva logística a los scores.' },
+	]}
+/>
+
+## Kernels · [teoría](/kernels/truco/)
+
+<Quiz
+	client:visible
+	id="banco-kern"
+	titulo="Kernels (2)"
+	preguntas={[
+		{ q: '**Afirmación:** el kernel trick consiste en construir explícitamente el feature map $\\phi(\\mathbf{x})$ y después calcular el producto interno entre esos vectores.', opts: ['Verdadero', 'Falso'], ok: 1, why: 'El truco es exactamente lo contrario: se evalúa $K(\\mathbf{x},\\mathbf{x}\')$ directamente, sin formar nunca $\\phi$. Por eso funciona incluso cuando $\\phi$ es enorme o de dimensión infinita.' },
+		{ q: '**Afirmación:** el kernel RBF $K(\\mathbf{x},\\mathbf{x}\') = \\exp(-\\gamma\\|\\mathbf{x}-\\mathbf{x}\'\\|^2)$ corresponde a un feature map $\\phi$ de dimensión infinita que nunca hay que calcular.', opts: ['Verdadero', 'Falso'], ok: 0, why: 'Al expandir la exponencial en serie de potencias, el RBF mezcla todos los grados polinómicos a la vez: de ahí el $\\phi$ infinito. El kernel igual se evalúa en una línea de código.' },
+	]}
+/>
+
+## Árboles de decisión · [teoría](/arboles/impureza/)
+
+<Quiz
+	client:visible
+	id="banco-tree"
+	titulo="Árboles de decisión (3)"
+	preguntas={[
+		{ q: '**Afirmación:** en un árbol de decisión, una hoja es una región final del espacio de features y predice una constante $c_m$, la misma para todos los puntos que caen en esa región.', opts: ['Verdadero', 'Falso'], ok: 0, why: 'El modelo es $\\hat f(\\mathbf{x}) = \\sum_m c_m\\mathbf{1}\\{\\mathbf{x}\\in B_m\\}$: constante por tramos sobre una partición del espacio. Cada split parte una región en dos y cada hoja se queda con su caja $B_m$ y su única constante $c_m$.' },
+		{ q: '**Afirmación:** la entropía de un nodo es la probabilidad de que dos extracciones al azar pertenezcan a clases distintas, y el Gini es la sorpresa promedio.', opts: ['Verdadero', 'Falso'], ok: 1, why: 'Están intercambiadas. La entropía $-\\sum_k\\hat p_k\\log_2\\hat p_k$ es la **sorpresa promedio** (en bits) de la clase de un punto del nodo; el Gini $1-\\sum_k\\hat p_k^2$ es la **probabilidad de desacuerdo** entre un punto extraído al azar y una clase extraída independientemente de la misma distribución.' },
+		{ q: '**Afirmación:** para una feature continua con $n$ valores distintos basta con evaluar $n-1$ umbrales, los puntos medios entre valores consecutivos ordenados, porque la ganancia es una función escalonada.', opts: ['Verdadero', 'Falso'], ok: 0, why: 'Hay infinitos umbrales posibles, pero solo un número finito de particiones distintas: dos umbrales situados entre el mismo par de valores ordenados producen el mismo split. Por eso no se deriva nada: se ordena la feature y se enumeran los puntos medios.' },
+	]}
+/>
+
+:::tip[Después del banco]
+Pasa al [simulacro extra](/examen/simulacro/): preguntas nuevas con cálculos numéricos que mezclan temas, del estilo de las derivaciones de las slides.
+:::

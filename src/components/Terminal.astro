@@ -1,0 +1,44 @@
+<pre id="term-out"></pre>
+
+<script>
+	const lines = [
+		['p', '>>> w = np.linalg.solve(X.T @ X, X.T @ y)   # ecuaciones normales'],
+		['ok', 'array([ 1.00, -1.00])'],
+		['p', '>>> LogisticRegression(C=1).fit(X, y).score(X_te, y_te)'],
+		['ok', '0.958'],
+		['p', '>>> precision, recall = 80/380, 80/100'],
+		['v', 'F1 = 0.33   # la accuracy de 97% mentía'],
+		['p', '>>> SVC(kernel="rbf", gamma=60).fit(X, y)'],
+		['v', '⚠ 98% de puntos son vectores de soporte → overfit'],
+		['p', '>>> tree.cost_complexity_pruning_path(X, y).ccp_alphas'],
+		['ok', 'array([0.    , 0.1333, 0.1524, 0.2143])'],
+		['p', '>>> print("listo para el parcial")'],
+		['ok', 'listo para el parcial ▌'],
+	];
+	const out = document.getElementById('term-out');
+	if (out) {
+		const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+		let li = 0,
+			ci = 0;
+		const html: string[] = [];
+		const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+		const tick = () => {
+			if (li >= lines.length) return;
+			const [cls, txt] = lines[li];
+			if (reduce) {
+				out.innerHTML = lines.map(([c, t]) => `<span class="${c}">${esc(t)}</span>`).join('\n');
+				return;
+			}
+			ci++;
+			const cur = `<span class="${cls}">${esc(txt.slice(0, ci))}</span>`;
+			out.innerHTML = html.concat(cur).join('\n');
+			if (ci >= txt.length) {
+				html.push(cur);
+				li++;
+				ci = 0;
+				setTimeout(tick, cls === 'p' ? 380 : 160);
+			} else setTimeout(tick, cls === 'p' ? 18 : 8);
+		};
+		setTimeout(tick, 500);
+	}
+</script>

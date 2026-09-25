@@ -1,0 +1,31 @@
+---
+/** La regresión logística como una neurona. */
+const inputs: [string, number][] = [
+	['x₁', 40],
+	['x₂', 110],
+	['1', 180],
+];
+---
+<figure class="diagram not-content">
+	<svg viewBox="0 0 700 220" role="img" aria-label="Neurona logística">
+		<defs><marker id="nr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0L10,5L0,10z" fill="var(--sl-color-gray-3)" /></marker></defs>
+		{inputs.map(([t, y]) => (
+			<g>
+				<circle cx="70" cy={y} r="22" class="box" />
+				<text x="70" y={y + 5} text-anchor="middle" class="t-b">{t}</text>
+			</g>
+		))}
+		<path d="M92,40 L262,100" class="ln" marker-end="url(#nr)" /><text x="170" y="60" class="t">w₁</text>
+		<path d="M92,110 L258,110" class="ln" marker-end="url(#nr)" /><text x="170" y="104" class="t">w₂</text>
+		<path d="M92,180 L262,122" class="ln" marker-end="url(#nr)" /><text x="170" y="168" class="t">b</text>
+		<circle cx="290" cy="110" r="30" class="box-v" /><text x="290" y="118" text-anchor="middle" class="t-b" style="font-size:22px">Σ</text>
+		<path d="M320,110 L398,110" class="ln" marker-end="url(#nr)" /><text x="358" y="98" text-anchor="middle" class="t-s">z = wᵀx + b</text>
+		<rect x="400" y="80" width="90" height="60" rx="12" class="box-a" />
+		<path d="M412,128 C440,128 440,92 478,92" fill="none" stroke="var(--sl-color-accent)" stroke-width="2.4" />
+		<text x="445" y="158" text-anchor="middle" class="t-s">σ(z)</text>
+		<path d="M490,110 L560,110" class="ln" marker-end="url(#nr)" />
+		<text x="566" y="106" class="t-b">P(y = 1 | x)</text>
+		<text x="566" y="126" class="t-s">umbral 0.5 ⇔ z ≥ 0</text>
+	</svg>
+	<figcaption>Suma ponderada y luego la sigmoide. Apilada y repetida, esta pieza es una red neuronal (más adelante en el curso).</figcaption>
+</figure>

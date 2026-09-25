@@ -1,0 +1,108 @@
+---
+title: "Descenso de gradiente"
+description: "Cuándo no basta la fórmula cerrada, la regla de actualización, la tasa de aprendizaje, batch vs estocástico vs mini-batch y por qué estandarizar las features."
+---
+
+import GradientDescent1D from '../../../components/sim/GradientDescent1D.tsx';
+import GDContour from '../../../components/sim/GDContour.tsx';
+import Quiz from '../../../components/Quiz.tsx';
+import Solucion from '../../../components/Solucion.astro';
+import Conexiones from '../../../components/Conexiones.astro';
+import Recursos from '../../../components/Recursos.astro';
+import Fuente from '../../../components/Fuente.astro';
+import { R } from '../../../data/recursos';
+
+## Cuando una fórmula no alcanza
+
+La solución cerrada necesita formar e invertir $\mathbf{X}^\top\mathbf{X}$ ($d\times d$, costo $\sim O(d^3)$). Con $d$ o $n$ enormes es demasiado lento o no cabe en memoria, y **la mayoría de los modelos no tienen forma cerrada** (la logística ya no la tiene). Entonces caminamos cuesta abajo.
+
+## La gran idea
+
+No ves el bowl completo, pero en tu $\mathbf{w}$ actual siempre puedes medir la **pendiente local**:
+
+- El gradiente $\nabla J$ apunta en la dirección de **máximo aumento** (cuesta arriba).
+- Para bajar, paso en la dirección opuesta, $-\nabla J$.
+- Paso pequeño, volver a medir, repetir. Cerca del fondo la pendiente se aplana, así que los pasos se achican solos.
+
+> Un excursionista en neblina espesa: no ve el valle, pero siente con los pies hacia dónde baja el terreno.
+
+## La regla de actualización
+
+Reutilizamos el mismo gradiente de las ecuaciones normales, ahora para **dar un paso** en vez de resolver:
+
+$$
+\nabla_\mathbf{w}J = 2\mathbf{X}^\top(\mathbf{X}\mathbf{w}-\mathbf{y}) = -2\mathbf{X}^\top\mathbf{r},\qquad
+\boxed{\mathbf{w}\leftarrow\mathbf{w}-\eta\,\nabla_\mathbf{w}J}
+$$
+
+$\eta$ es la **tasa de aprendizaje** (learning rate), un hiperparámetro delicado:
+
+- $\eta = 0$: los pesos nunca cambian, **no se aprende nada**.
+- $\eta$ muy pequeño: se arrastra (convergencia lentísima).
+- $\eta$ muy grande: se pasa del valle, oscila o **diverge**.
+- El **signo menos** es esencial: el gradiente apunta cuesta arriba.
+
+<GradientDescent1D client:visible />
+
+## Batch, estocástico o mini-batch
+
+El gradiente $-2\mathbf{X}^\top\mathbf{r}$ es una **suma sobre los puntos**. Las variantes difieren en cuántos puntos usa cada paso:
+
+| Variante | Puntos por paso | Ventaja | Desventaja |
+| --- | --- | --- | --- |
+| **Batch** | los $n$ | gradiente exacto, camino suave | cada paso = una pasada completa por los datos |
+| **Estocástico (SGD)** | 1 al azar | pasos baratísimos, muchos por pasada | ruidoso, tiembla alrededor del mínimo |
+| **Mini-batch** | 32–256 | equilibrio; una multiplicación de matrices en GPU | hay que elegir el tamaño |
+
+¿Por qué aceptar un gradiente ruidoso? **Escala y memoria** (millones de filas no caben), **progreso más rápido** (muchos pasos baratos por pasada), **el ruido ayuda** a escapar de mesetas en modelos no convexos, y **hardware** (un mini-batch es justo lo que acelera una GPU). Como la regresión lineal es convexa, las tres variantes llegan al mismo óptimo.
+
+## El escalado de features moldea el bowl
+
+La curvatura del bowl la fija $\mathbf{X}^\top\mathbf{X}$. Features en escalas muy distintas (metros² vs número de cuartos vs precio en millones) estiran el bowl en un **valle largo y delgado**: un solo $\eta$ no sirve para ambas direcciones y el descenso **zigzaguea**. **Estandarizar** cada feature (media 0, varianza 1) redondea el bowl y el descenso va casi derecho.
+
+<GDContour client:visible />
+
+:::tip[Regla que se repite]
+La solución cerrada no se entera del escalado; **todo método iterativo sí**. Y más adelante: el SVM y el kernel RBF usan distancias, así que también exigen estandarizar. Los **árboles** son la excepción: solo miran el orden de cada feature.
+:::
+
+## Ejercicio
+
+$J(w) = (w-1)^2$, $w_0 = -2.5$. Haz dos pasos con $\eta = 0.3$ y con $\eta = 1.04$.
+
+<Solucion titulo="Solución">
+
+$J'(w) = 2(w-1)$, así que $w_{t+1} = w_t - 2\eta(w_t - 1)$, o bien $w_{t+1}-1 = (1-2\eta)(w_t-1)$.
+
+- $\eta = 0.3$: factor $0.4$. Distancia inicial $-3.5 \to -1.4 \to -0.56$; $w$: $-2.5 \to -0.4 \to 0.44$. Converge monótonamente.
+- $\eta = 1.04$: factor $-1.08$. Distancia $-3.5 \to 3.78 \to -4.08$; $w$: $-2.5 \to 4.78 \to -3.08$. Cambia de lado y **crece**: diverge.
+
+Regla general para esta parábola: converge si $|1-2\eta|<1 \iff 0<\eta<1$; oscila si $0.5<\eta<1$.
+
+</Solucion>
+
+<Quiz
+	client:visible
+	id="reg-gd"
+	preguntas={[
+		{ q: 'En $\\mathbf{w} \\leftarrow \\mathbf{w} - \\eta\\nabla J$, fijar $\\eta = 0$…', opts: ['no afecta el entrenamiento', 'hace que los pesos nunca cambien', 'hace que el modelo diverja', 'equivale a la solución cerrada'], ok: 1 },
+		{ q: '¿Qué variante usa un solo punto aleatorio por paso?', opts: ['Batch', 'Mini-batch', 'Estocástico (SGD)', 'Newton'], ok: 2 },
+		{ q: 'Features sin estandarizar provocan que el descenso de gradiente…', opts: ['converja en un paso', 'zigzaguee en un valle alargado', 'encuentre otro mínimo global', 'no dependa de $\\eta$'], ok: 1 },
+		{ q: '¿Cuál NO depende del escalado de las features?', opts: ['Descenso de gradiente', 'Solución cerrada de OLS (predicciones)', 'SGD', 'Mini-batch'], ok: 1, why: 'Las predicciones de OLS son invariantes a reescalar columnas (los pesos se ajustan); los métodos iterativos no.' },
+	]}
+/>
+
+<Conexiones
+	items={[
+		{ href: '/clasificacion/entrenamiento/', titulo: 'Logística', texto: 'Sin fórmula cerrada: se entrena justo así, con gradiente Xᵀ(p − y)/n.' },
+		{ href: '/svm/margen-suave/', titulo: 'SVM con hinge + SGD', texto: 'La vista «pérdida + penalización» del SVM escala a millones de puntos con SGD.' },
+		{ href: '/fundamentos/matematicas/', titulo: 'Convexidad', texto: 'Por qué en un bowl cualquier camino cuesta abajo llega al mínimo global.' },
+		{ href: '/regularizacion/ridge-lasso/', titulo: 'Lasso por coordenadas', texto: 'Cuando |w| no es derivable, se usa descenso por coordenadas con soft-threshold.' },
+	]}
+/>
+
+## Para profundizar
+
+<Recursos items={[R.sqGD, R.mlcc, R.cs229]} />
+
+<Fuente archivos={['ML_Course_Linear_Regression.pdf (slides 22–28)', 'ML_Course_Math_Foundations.pdf', 'ML_Course/session-02c-gradient-descent.ipynb']} />

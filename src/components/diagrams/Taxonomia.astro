@@ -1,0 +1,33 @@
+---
+/** Taxonomía de paradigmas de aprendizaje. */
+const hijos = [
+	{ x: 150, t: 'Supervisado', s: 'pares (x, y)', c: 'box-a', sub: [['Regresión', 'y continuo'], ['Clasificación', 'y discreto']] },
+	{ x: 400, t: 'No supervisado', s: 'solo x', c: 'box-v', sub: [['Clustering', 'grupos'], ['Reducción de dim.', 'PCA, 2-D maps']] },
+	{ x: 640, t: 'Por refuerzo', s: 'actuar y recibir recompensa', c: 'box-o', sub: [['Política', 'juegos, robótica']] },
+];
+---
+<figure class="diagram not-content">
+	<svg viewBox="0 0 780 250" role="img" aria-label="Taxonomía del aprendizaje automático">
+		<rect x="310" y="10" width="180" height="40" rx="12" class="box" /><text x="400" y="35" text-anchor="middle" class="t-b">Machine learning</text>
+		{hijos.map((h) => (
+			<g>
+				<path d={`M400,50 C400,75 ${h.x},70 ${h.x},95`} class="ln" />
+				<rect x={h.x - 90} y="95" width="180" height="48" rx="12" class={h.c} />
+				<text x={h.x} y="116" text-anchor="middle" class="t-b">{h.t}</text>
+				<text x={h.x} y="133" text-anchor="middle" class="t-s">{h.s}</text>
+				{h.sub.map((s, i) => {
+					const sx = h.sub.length === 1 ? h.x : h.x - 60 + i * 120;
+					return (
+						<g>
+							<path d={`M${h.x},143 C${h.x},165 ${sx},160 ${sx},180`} class="ln" />
+							<rect x={sx - 56} y="180" width="112" height="46" rx="10" class="box" />
+							<text x={sx} y="200" text-anchor="middle" class="t">{s[0]}</text>
+							<text x={sx} y="216" text-anchor="middle" class="t-s">{s[1]}</text>
+						</g>
+					);
+				})}
+			</g>
+		))}
+	</svg>
+	<figcaption>Semi- y auto-supervisado quedan en medio (el motor de los LLM). La regresión es <b>supervisada</b> (y continuo); el clustering es no supervisado; RL aprende actuando, no de un dataset fijo.</figcaption>
+</figure>

@@ -1,0 +1,99 @@
+---
+title: "Simulacro extra (con cálculos)"
+description: "Preguntas nuevas estilo parcial que mezclan temas y piden cálculos: ecuaciones normales, gradiente, ridge/lasso, Bayes, métricas, LDA, margen SVM, dual, kernels, Gini y poda."
+---
+
+import Quiz from '../../../components/Quiz.tsx';
+import Solucion from '../../../components/Solucion.astro';
+
+:::caution[Preguntas propias]
+Estas preguntas **no** son del banco oficial: las armé a partir de los ejemplos numéricos de las slides para practicar el tipo de cálculo que suele aparecer. Cada una trae su explicación.
+:::
+
+<Quiz
+	client:visible
+	id="simulacro-1"
+	titulo="Simulacro · parte A (conceptual)"
+	preguntas={[
+		{ q: '¿Cuál de estos hiperparámetros, al **aumentar**, hace el modelo **más complejo**?', opts: ['λ en ridge', 'α en poda por costo-complejidad', 'C en SVM de margen suave', '`min_samples_leaf` en un árbol'], ok: 2, why: 'C multiplica la pérdida (hinge), no la penalización: C grande = regularización débil ($\\lambda\\propto1/C$).' },
+		{ q: 'LDA y la regresión logística pueden producir la misma forma $\\sigma(\\mathbf{w}^\\top\\mathbf{x}+b)$. ¿Cuál es la diferencia?', opts: ['LDA no es lineal', 'LDA la deriva suponiendo gaussianas con Σ compartida; la logística la ajusta directamente maximizando $P(y\\mid\\mathbf{x})$', 'La logística es generativa', 'No hay diferencia en ningún caso'], ok: 1 },
+		{ q: '¿Qué modelo NO necesita estandarizar las features?', opts: ['SVM con RBF', 'Regresión logística entrenada con GD', 'Árbol de decisión', 'Kernel ridge'], ok: 2, why: 'Un árbol solo mira el orden de cada feature.' },
+		{ q: 'Minimizar el error cuadrático equivale a MLE con ruido gaussiano. Minimizar la cross-entropy equivale a MLE con…', opts: ['ruido de Laplace', 'etiquetas Bernoulli', 'prior uniforme', 'ruido uniforme'], ok: 1 },
+		{ q: 'Un SVM RBF tiene 98% de sus puntos como vectores de soporte y accuracy de entrenamiento 100%. Lo más probable es que…', opts: ['γ es muy pequeño', 'γ es muy grande (overfit)', 'el modelo es óptimo', 'C es infinito y los datos son separables'], ok: 1 },
+		{ q: 'En la vista «pérdida + penalización», ¿qué par es correcto?', opts: ['SVM: log-loss + L1', 'Ridge: hinge + L2', 'SVM: hinge + L2', 'Lasso: log-loss + L2'], ok: 2 },
+		{ q: 'La feature que un árbol usa en la raíz…', opts: ['siempre es la más importante (MDI)', 'no necesariamente es la más importante; importa la suma ponderada de ganancias', 'nunca vuelve a usarse', 'tiene importancia 1'], ok: 1, why: 'En el ejemplo, $x_1$ está en la raíz con 3/7 y $x_2$ suma 4/7.' },
+		{ q: '¿Qué afirmación sobre el teorema del representante es correcta?', opts: ['el óptimo vive en el espacio generado por los datos de entrenamiento', 'solo vale para SVM', 'requiere construir φ', 'implica que $K$ es diagonal'], ok: 0 },
+	]}
+/>
+
+<Quiz
+	client:visible
+	id="simulacro-2"
+	titulo="Simulacro · parte B (cálculo)"
+	preguntas={[
+		{ q: 'Con $\\mathbf{X}^\\top\\mathbf{X} = \\begin{bmatrix}2&0\\\\0&8\\end{bmatrix}$ y $\\mathbf{X}^\\top\\mathbf{y} = (4, 8)$, la solución OLS es…', opts: ['$(2, 1)$', '$(8, 64)$', '$(0.5, 1)$', '$(4, 8)$'], ok: 0, why: 'Sistema diagonal: $w_1 = 4/2$, $w_2 = 8/8$.' },
+		{ q: 'Con los mismos datos y ridge $\\lambda = 2$ (penalizando ambos pesos), la solución es…', opts: ['$(2, 1)$', '$(1, 0.8)$', '$(1, 1)$', '$(0.5, 0.5)$'], ok: 1, why: '$(\\mathbf{X}^\\top\\mathbf{X}+2\\mathbf{I})^{-1}\\mathbf{X}^\\top\\mathbf{y}$: $4/4 = 1$, $8/10 = 0.8$. Encoge más donde la curvatura es menor.' },
+		{ q: 'Test: sensibilidad 90%, falsas alarmas 5%, prevalencia 2%. $P(\\text{enfermo}\\mid+)\\approx$', opts: ['90%', '27%', '2%', '95%'], ok: 1, why: '$0.018/(0.018 + 0.049) = 0.269$.' },
+		{ q: 'TP = 30, FP = 70, FN = 10, TN = 890. El F1 es…', opts: ['0.43', '0.75', '0.30', '0.92'], ok: 0, why: '$P = 0.30$, $R = 0.75$, $F_1 = 2(0.3)(0.75)/1.05 = 0.4286$.' },
+		{ q: 'LDA en 1-D con $\\mu_0 = 1$, $\\mu_1 = 5$, $\\sigma^2 = 1$, priors iguales. La frontera es…', opts: ['$x^* = 3$', '$x^* = 5$', '$x^* = 2.5$', 'no existe'], ok: 0, why: 'Priors iguales ⇒ punto medio.' },
+		{ q: 'Frontera $\\mathbf{w} = (3, 4)$, $b = -5$. La distancia con signo del punto $(3, 4)$ es…', opts: ['20', '4', '5', '−1'], ok: 1, why: '$f = 9+16-5 = 20$; $\\|\\mathbf{w}\\| = 5$; $r = 20/5 = 4$.' },
+		{ q: 'En forma canónica con $\\mathbf{w} = (3, 4)$, el ancho de la banda es…', opts: ['0.4', '10', '2.5', '0.2'], ok: 0, why: '$2/\\|\\mathbf{w}\\| = 2/5$.' },
+		{ q: '$\\mathbf{x} = (1, 1)$, $\\mathbf{z} = (2, -1)$. $K(\\mathbf{x},\\mathbf{z}) = (1+\\mathbf{x}^\\top\\mathbf{z})^2$ vale…', opts: ['1', '4', '9', '0'], ok: 1, why: '$\\mathbf{x}^\\top\\mathbf{z} = 1$, $(1+1)^2 = 4$.' },
+		{ q: 'Nodo $[4, 4]$ partido en $[4, 1]$ y $[0, 3]$. La ganancia de Gini es…', opts: ['0.2', '0.3', '0.5', '0'], ok: 1, why: 'Padre: 0.5. Izquierda $[4,1]$: $1-0.64-0.04 = 0.32$, con peso $5/8$ ⇒ $0.2$. Derecha pura (0). Ganancia $= 0.5 - 0.2 = 0.3$. Si olvidas ponderar ($0.5-0.32$) obtienes 0.18: por eso los pesos importan.' },
+		{ q: 'Un subárbol con $R(T_m) = 0.05$ y 3 hojas; colapsado en un nodo con $R(m) = 0.25$. Su precio de equilibrio $g(m)$ es…', opts: ['0.1', '0.2', '0.067', '0.3'], ok: 0, why: '$(0.25-0.05)/(3-1) = 0.1$.' },
+	]}
+/>
+
+## Problemas de desarrollo
+
+### 1 · Dual del SVM a mano
+
+Puntos $\mathbf{x}_1 = (1,0)$, $y_1 = +1$; $\mathbf{x}_2 = (-1,0)$, $y_2 = -1$. Escribe el dual, resuélvelo y recupera $\mathbf{w}$, $b$ y el margen.
+
+<Solucion>
+
+$\sum\alpha_iy_i = 0 \Rightarrow \alpha_1 = \alpha_2 = \alpha$. Productos: $\mathbf{x}_1^\top\mathbf{x}_1 = \mathbf{x}_2^\top\mathbf{x}_2 = 1$, $\mathbf{x}_1^\top\mathbf{x}_2 = -1$.
+
+$W(\alpha) = 2\alpha - \tfrac12\big(\alpha^2 + \alpha^2 + 2\alpha^2\big) = 2\alpha - 2\alpha^2$. $W' = 2-4\alpha = 0 \Rightarrow \alpha = 0.5$, $W = 0.5$.
+
+$\mathbf{w} = 0.5(1,0) - 0.5(-1,0) = (1,0)$; $b = y_1 - \mathbf{w}^\top\mathbf{x}_1 = 0$. Frontera $x_1 = 0$; banda $2/\|\mathbf{w}\| = 2$ (la distancia entre los puntos). Primal $\tfrac12\|\mathbf{w}\|^2 = 0.5 = W$ ✓.
+
+</Solucion>
+
+### 2 · Gradiente de la cross-entropy
+
+Un punto $\mathbf{x} = (1, 2)$, $y = 0$, con $\mathbf{w} = (1, 1)$, $b = -1$. Calcula $p$, la pérdida y $\nabla_\mathbf{w}\ell$. Da un paso con $\eta = 0.5$.
+
+<Solucion>
+
+$z = 1+2-1 = 2$, $p = \sigma(2) = 0.881$. $\ell = -\log(1-0.881) = 2.127$.
+
+$\nabla_\mathbf{w}\ell = (p-y)\mathbf{x} = 0.881(1,2) = (0.881, 1.762)$; $\partial\ell/\partial b = 0.881$.
+
+Paso: $\mathbf{w} = (1,1) - 0.5(0.881, 1.762) = (0.560, 0.119)$, $b = -1-0.44 = -1.44$. Nuevo $z = 0.560+0.238-1.44 = -0.642$, $p = 0.345$: ya lo clasifica bien.
+
+</Solucion>
+
+### 3 · Descomposición sesgo–varianza con números
+
+Para un punto $x$, la verdad es $f(x) = 10$ y el ruido $\sigma^2 = 4$. Cinco re-entrenamientos predicen 12, 13, 11, 12, 12. Calcula sesgo², varianza y error esperado.
+
+<Solucion>
+
+$\bar f = 60/5 = 12$. Sesgo² $= (12-10)^2 = 4$. Varianza $= \frac15(0+1+1+0+0) = 0.4$. Error esperado $= 4 + 0.4 + 4 = 8.4$. Domina el sesgo: el modelo subajusta en este punto.
+
+</Solucion>
+
+### 4 · Poda: ruta completa
+
+Verifica los tres quiebres de la ruta de los diez puntos: $2/15$, $16/105$, $3/14$.
+
+<Solucion>
+
+Costos $C_\alpha$: 4 hojas $4\alpha$; 3 hojas $\tfrac2{15}+3\alpha$; 2 hojas $\tfrac27+2\alpha$; 1 hoja $\tfrac12+\alpha$.
+
+- 4 vs 3: $4\alpha = \tfrac2{15}+3\alpha \Rightarrow \alpha = \tfrac2{15}$.
+- 3 vs 2: $\tfrac2{15}+3\alpha = \tfrac27+2\alpha \Rightarrow \alpha = \tfrac27-\tfrac2{15} = \tfrac{30-14}{105} = \tfrac{16}{105}$.
+- 2 vs 1: $\tfrac27+2\alpha = \tfrac12+\alpha\Rightarrow\alpha = \tfrac12-\tfrac27 = \tfrac3{14}$.
+
+</Solucion>

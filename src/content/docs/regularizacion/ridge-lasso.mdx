@@ -1,0 +1,136 @@
+---
+title: "Ridge y lasso"
+description: "Por qué los pesos grandes son el síntoma del overfitting, la penalización λΩ(w), ridge (ℓ2) vs lasso (ℓ1), la geometría del rombo, soft-threshold, cómo se optimizan y los caminos de coeficientes."
+---
+
+import L1L2Geometry from '../../../components/sim/L1L2Geometry.tsx';
+import PolyFit from '../../../components/sim/PolyFit.tsx';
+import Quiz from '../../../components/Quiz.tsx';
+import Solucion from '../../../components/Solucion.astro';
+import Conexiones from '../../../components/Conexiones.astro';
+import Recursos from '../../../components/Recursos.astro';
+import Fuente from '../../../components/Fuente.astro';
+import { R } from '../../../data/recursos';
+
+## ¿Por qué los pesos grandes son un problema?
+
+El lado derecho de la U es **alta varianza**: el ajuste oscila violentamente con los datos, y esa violencia viene de **pesos enormes**. Para pasar por cada punto ruidoso, la curva se dobla bruscamente, lo que requiere coeficientes gigantes ($|w_j|\sim10^9$ en grado 12) que casi se cancelan entre sí.
+
+**Pesos grandes = huella del overfitting.** Mantenerlos pequeños ⇒ la curva no puede ondular tanto ⇒ menos varianza.
+
+## La idea: cobrar por pesos grandes
+
+En vez de restringir la familia de modelos, agregamos una penalización:
+
+$$
+J_\lambda(\mathbf{w}) = \underbrace{\|\mathbf{y}-\mathbf{X}\mathbf{w}\|_2^2}_{\text{ajustar los datos}} + \lambda\underbrace{\Omega(\mathbf{w})}_{\text{mantenerse simple}}
+$$
+
+- $\lambda\ge0$ es la **tasa de cambio**: cuánto ajuste pagamos por pesos más chicos. $\lambda=0$ es OLS; $\lambda\to\infty$ aplasta todo a 0.
+- Los dos términos tiran en direcciones opuestas: una cuerda. Cambiamos **un poco de sesgo** por **una gran caída de varianza**.
+- $\lambda$ es un **hiperparámetro**: se elige, no se aprende (con [validación cruzada](/regularizacion/validacion-cruzada/)).
+
+## Ridge ($\ell_2$) y lasso ($\ell_1$)
+
+$$
+\Omega_\text{ridge}(\mathbf{w}) = \|\mathbf{w}\|_2^2 = \sum_j w_j^2,\qquad \Omega_\text{lasso}(\mathbf{w}) = \|\mathbf{w}\|_1 = \sum_j|w_j|
+$$
+
+Ridge es suave ⇒ forma cerrada (solo sumar λ a la diagonal):
+
+$$
+\mathbf{w}^\star_\lambda = (\mathbf{X}^\top\mathbf{X}+\lambda\mathbf{I})^{-1}\mathbf{X}^\top\mathbf{y}
+$$
+
+$\mathbf{X}^\top\mathbf{X}+\lambda\mathbf{I}$ es **definida positiva** para todo $\lambda>0$: ridge es único aun con features colineales o $p>n$, justo donde OLS se rompe. Vía SVD, ridge escala el ajuste en la dirección $j$ por $\sigma_j^2/(\sigma_j^2+\lambda)$: direcciones fuertes pasan casi intactas; las débiles y ruidosas se encogen fuerte.
+
+| | Ridge (ℓ2): solo encoge | Lasso (ℓ1): encoge y **selecciona** |
+| --- | --- | --- |
+| Pesos | todos bajan suave, **ninguno llega a 0** | muchos quedan **exactamente en 0** (esparcidad) |
+| Features correlacionadas | reparte el peso entre ellas (estable) | tiende a quedarse con una (elección inestable) |
+| Optimización | suave ⇒ forma cerrada | convexo pero no derivable en 0 ⇒ sin forma cerrada |
+| Cuándo | muchos efectos pequeños | pocas features hacen el trabajo |
+
+:::tip[Analogía de la slide]
+Ridge es una **perilla de volumen**: baja todo, nunca apaga. Lasso agrega un **botón de mute**. ¿Quieres ambos? **Elastic net** $=\lambda_1\|\mathbf{w}\|_1+\lambda_2\|\mathbf{w}\|_2^2$.
+:::
+
+:::caution[Siempre]
+**Estandariza las features** antes (la penalización depende de la escala) y **no penalices el sesgo** $b$ (no queremos encoger el nivel general del modelo).
+:::
+
+## ¿Por qué el ℓ1 da ceros? La geometría
+
+Penalizar equivale a imponer un **presupuesto** $\|\mathbf{w}\|_q\le t$ (λ grande ⇔ t chico). Las curvas de nivel de la pérdida son **elipses** alrededor del óptimo OLS; encogemos hasta que la elipse **toca por primera vez** la región permitida:
+
+- **Disco ℓ2**: el contacto cae en un punto genérico, ambas coordenadas ≠ 0.
+- **Rombo ℓ1**: tiene **esquinas puntiagudas sobre los ejes**; muy a menudo la elipse toca primero una esquina ⇒ una coordenada = 0.
+
+<L1L2Geometry client:visible />
+
+### El mecanismo: soft-threshold
+
+Con features no correlacionadas cada peso resuelve un problema 1-D, $\min_w (w-a)^2 + \lambda\Omega(w)$, con $a = w_\text{OLS}$:
+
+$$
+\text{ridge: } w = \frac{a}{1+\lambda}\qquad\qquad \text{lasso: } w = \operatorname{sign}(a)\max(|a|-\gamma,\,0),\ \ \gamma = \lambda/2
+$$
+
+Ridge escala proporcionalmente (nunca 0). Lasso **resta** una cantidad fija y tiene una **zona muerta** $|a|\le\gamma$ que manda pesos pequeños a 0: cerca de 0 la pendiente de $|w|$ es constante y le gana a los pesos chicos. Esa torcedura **es** la esquina del rombo.
+
+## Cómo se optimiza cada uno
+
+- **Ridge**: suave y convexo ⇒ gradiente = 0 ⇒ forma cerrada (o descenso de gradiente para datos grandes).
+- **Lasso**: convexo pero con una torcedura en 0 ⇒ se usa el **subgradiente** (cualquier pendiente en $[-1,1]$ en $w=0$). El caballo de batalla es el **descenso por coordenadas**: actualizar un peso a la vez con el soft-threshold (fórmula cerrada por coordenada); los ceros exactos salen solos. **LARS** traza todo el camino (lineal a trozos en λ) de una pasada.
+
+## Caminos de coeficientes
+
+Graficando cada peso contra λ (escala log): en **ridge** todos se encogen suavemente, ninguno toca 0; en **lasso** van cayendo **a 0 uno por uno**: la firma de la selección de features.
+
+## Ridge en acción
+
+Grado alto fijo; mueve λ: muy poco sigue sobreajustando, demasiado sobre-suaviza (sesgo), en medio sigue la señal. Mira cómo las barras de los pesos se encogen.
+
+<PolyFit client:visible initDeg={11} />
+
+:::note[Ejemplo real: diabetes]
+Con λ elegido por CV: **OLS 56.4, ridge 56.5, lasso 56.6** de RMSE de test: casi iguales. Ridge encoge pero conserva todo; **lasso pone en 0 `age`, `s4` y `s6`**. A igual precisión, prefiere el modelo más simple y esparso.
+:::
+
+## Ejercicio
+
+Con features no correlacionadas, $w_\text{OLS} = (3,\ 0.4,\ -1.2)$ y $\lambda = 1$. Calcula ridge y lasso.
+
+<Solucion>
+
+- Ridge: $w = a/(1+\lambda) = a/2 = (1.5,\ 0.2,\ -0.6)$. Nada es cero.
+- Lasso con $\gamma=\lambda/2=0.5$: $\operatorname{sign}(a)\max(|a|-0.5,0) = (2.5,\ 0,\ -0.7)$. El segundo peso ($|0.4|\le0.5$) cae en la zona muerta: **feature eliminada**.
+
+</Solucion>
+
+<Quiz
+	client:visible
+	id="ridge-lasso"
+	preguntas={[
+		{ q: 'Lasso, que penaliza $\\|\\mathbf{w}\\|_1$, tiende a llevar varios pesos exactamente a cero.', opts: ['Verdadero', 'Falso'], ok: 0, why: 'El soft-threshold tiene una zona muerta: selección automática de features.' },
+		{ q: '¿Qué hace ridge con features perfectamente colineales?', opts: ['falla como OLS', 'sigue teniendo solución única porque $X^\\top X + \\lambda I$ es definida positiva', 'elimina una de ellas', 'duplica su peso'], ok: 1 },
+		{ q: 'Con $\\lambda \\to \\infty$ en ridge, los pesos…', opts: ['divergen', 'tienden a 0 (salvo el sesgo, que no se penaliza)', 'igualan a OLS', 'se vuelven esparsos exactamente'], ok: 1 },
+		{ q: 'Geométricamente, lasso produce ceros porque…', opts: ['el disco ℓ2 es más pequeño', 'el rombo ℓ1 tiene esquinas sobre los ejes', 'las elipses son círculos', 'usa descenso de gradiente'], ok: 1 },
+		{ q: '¿Qué algoritmo se usa típicamente para lasso?', opts: ['ecuaciones normales', 'descenso por coordenadas con soft-threshold', 'SMO', 'CART'], ok: 1 },
+	]}
+/>
+
+<Conexiones
+	items={[
+		{ href: '/clasificacion/entrenamiento/', titulo: 'Logística regularizada', texto: 'El mismo λ‖w‖² evita que w → ∞ con clases separables.' },
+		{ href: '/svm/margen-suave/', titulo: 'SVM = hinge + L2', texto: 'El ½‖w‖² del SVM es un ridge; C juega el papel de 1/λ.' },
+		{ href: '/generativos/naive-bayes/', titulo: 'MAP y priors', texto: 'Ridge = MAP con prior gaussiano en w; Laplace smoothing = prior de conteos.' },
+		{ href: '/arboles/poda/', titulo: 'Poda de árboles', texto: 'R(T) + α|T|: la misma receta, penalizando hojas en vez de pesos.' },
+	]}
+/>
+
+## Para profundizar
+
+<Recursos items={[R.skLinear, R.islr, R.sqIndex]} />
+
+<Fuente archivos={['ML_Course_regularization_and_model_selection.pdf (slides 19–26, 33)', 'ML_Course_Linear_Regression.pdf (slides 40–44)', 'ML_Course/session-03b-ridge-lasso.ipynb']} />

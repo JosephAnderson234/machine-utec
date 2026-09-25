@@ -1,0 +1,138 @@
+---
+title: "Impureza y ganancia de información"
+description: "Un modelo que se lee, el ejemplo de 10 puntos, qué constante predice una hoja, entropía como sorpresa, Gini como probabilidad de desacuerdo, error rate, ganancia ponderada, concavidad y por qué no crecer con el error rate."
+---
+
+import ImpurityGain from '../../../components/sim/ImpurityGain.tsx';
+import TreeFlow from '../../../components/diagrams/TreeFlow.astro';
+import Quiz from '../../../components/Quiz.tsx';
+import Solucion from '../../../components/Solucion.astro';
+import Conexiones from '../../../components/Conexiones.astro';
+import Recursos from '../../../components/Recursos.astro';
+import Fuente from '../../../components/Fuente.astro';
+import { R } from '../../../data/recursos';
+
+## Un modelo que se puede leer en voz alta
+
+Las sesiones 02–07 ajustaron pesos a un score lineal (quizás kernelizado) $f(\mathbf{x})=\mathbf{w}^\top\phi(\mathbf{x})+b$; solo cambiaban la pérdida y el regularizador. Hoy **cambia la familia de modelos**: sin productos punto, sin gradientes, sin distancias y **sin escalar features**. Un árbol hace una secuencia de preguntas sí/no y predice una constante al final de cada camino. Es el modelo más interpretable del curso y el ladrillo de los random forests y el boosting.
+
+| Término | Significado |
+| --- | --- |
+| Raíz / nodo interno / hoja | la primera pregunta / una pregunta / una región final |
+| Split $(j,t)$ | test «$x_j\le t$?» que parte un nodo en dos |
+| Impureza | qué tan mezcladas están las etiquetas (puro = una clase) |
+| Ganancia de información | cuánto baja la impureza con un split (se maximiza) |
+| Profundidad / nº de hojas $\lvert T\rvert$ | el tamaño del árbol: su complejidad |
+| Poda | recortar un árbol crecido para no sobreajustar |
+
+## El modelo: constante a trozos sobre cajas
+
+$$
+\hat f(\mathbf{x}) = \sum_{m\in\text{hojas}} c_m\,\mathbf{1}\{\mathbf{x}\in B_m\}
+$$
+
+Un camino raíz→hoja es un **AND de desigualdades**; cada desigualdad es un semiplano y su intersección es una **caja alineada a los ejes**. Quedan dos preguntas: ¿qué constante $c_m$? (fácil) y ¿qué cajas $B_m$? (el trabajo real).
+
+### El ejemplo que llevaremos toda la lección
+
+Diez puntos, dos features, cinco por clase. Clase 0: (1,4), (2,1), (3,9), (6,5), (8,3). Clase 1: (4,8), (5,10), (7,2), (9,6), (10,7). Ninguna recta logra más de 9/10; **cuatro cajas logran 10/10**:
+
+<TreeFlow />
+
+## ¿Qué constante predice una hoja?
+
+Una hoja solo ve sus propios puntos: ¿qué constante $c$ minimiza $\sum_i\ell(y_i,c)$? Depende de la pérdida:
+
+| Pérdida | Mejor constante | Costo mínimo = |
+| --- | --- | --- |
+| 0/1 | la **clase mayoritaria** | error $1-\max_k\hat p_k$ |
+| cuadrática | la **media** $\bar y_m$ ($J'(c) = -2\sum(y_i-c)=0$) | suma de cuadrados dentro del nodo |
+| log-loss (prob.) | la **frecuencia observada** $\hat p$ | **entropía** |
+| Brier (cuadrática sobre prob.) | la frecuencia $\hat p$ | **Gini** |
+| absoluta | la **mediana** | — |
+
+Todo lo que un nodo sabe es su **vector de conteos**: raíz $[5,5]\Rightarrow\hat p=(0.5,0.5)$; nodo B $[2,5]\Rightarrow\hat p=(2/7,5/7)$. El árbol nunca mira *dónde* están los puntos dentro de la caja.
+
+:::tip[La idea clave]
+**La impureza es «el costo de la mejor constante».** No es una fórmula arbitraria: la entropía es la log-loss mínima de la hoja y el Gini su error cuadrático mínimo.
+:::
+
+## Tres medidas de impureza
+
+$$
+\text{error} = 1-\max_k\hat p_k,\qquad \text{Gini} = 1-\sum_k\hat p_k^2,\qquad H = -\sum_k\hat p_k\log_2\hat p_k
+$$
+
+**Entropía = sorpresa promedio.** ¿Qué tan sorprendente es un evento de probabilidad $p$? Queremos $s(1)=0$, $s$ decreciente, y que la sorpresa de eventos independientes se sume: $s(pq)=s(p)+s(q)$. La única solución continua es $s(p)=-\log p$. En bits: certeza 0 bits, moneda 1 bit, evento de 1/4 2 bits. La entropía es el **promedio de preguntas sí/no** necesarias para identificar la clase de un punto del nodo.
+
+**Gini = probabilidad de desacuerdo.** Saca un punto del nodo y, **independientemente**, una etiqueta de la distribución del nodo: Gini es la probabilidad de que **no coincidan**, $\sum_k\hat p_k(1-\hat p_k) = 1-\sum_k\hat p_k^2$. Nodo B: $1-(2/7)^2-(5/7)^2 = 20/49\approx0.408$.
+
+:::caution[Pregunta del banco]
+«La entropía es la probabilidad de que dos extracciones pertenezcan a clases distintas, y el Gini es la sorpresa promedio» → **Falso**: están **intercambiadas**.
+:::
+
+Las tres valen 0 en los extremos puros y son máximas en $p=1/2$ (binario: Gini 0.5, entropía 1 bit). Con $K$ clases el peor caso es $\hat p_k=1/K$: Gini $=1-1/K$, $H=\log_2K$. **Un Gini de 0.667 con 3 clases no es un error: es el máximo.** En el ejemplo: raíz G = 0.500, H = 1.000; B: G = 0.408, H = 0.863; D: G = 0.444, H = 0.918 (¡D no es menor que B! Solo el total **ponderado** baja garantizado).
+
+## Puntuar un split: ganancia de información
+
+$$
+\Delta I(j,t) = I(m) - \frac{n_L}{n_m}I(L) - \frac{n_R}{n_m}I(R)
+$$
+
+«¿Cuántos bits (o cuánto Gini) me compró esta pregunta?». Los pesos $n_L/n_m$, $n_R/n_m$ **no son decorativos**: sin ellos, una hojita pura podría ganarle a un hijo enorme y mezclado. Ejemplo del spam: padre $[60,40]$, Gini 0.48; split «free»: 38 puntos con Gini 0.2659 y 62 con 0.2248 ⇒ ganancia $0.48-0.2404 = 0.2396$.
+
+### El hecho fundamental: concavidad ⇒ ganancia ≥ 0
+
+La fracción del padre es un promedio ponderado de las de los hijos: $\hat p = \frac{n_L}{n_m}\hat p_L+\frac{n_R}{n_m}\hat p_R$. Así, la impureza ponderada de los hijos es la **altura de la cuerda** entre $(\hat p_L,I(\hat p_L))$ y $(\hat p_R,I(\hat p_R))$ evaluada en $\hat p$. Si $I$ es **cóncava**, la curva queda encima de toda cuerda (Jensen) ⇒ $\Delta I\ge0$. **Un split nunca aumenta la impureza.** Gini y entropía son estrictamente cóncavas: ganancia > 0 siempre que $\hat p_L\ne\hat p_R$.
+
+<ImpurityGain client:visible />
+
+### Ganancia cero y el problema del error rate
+
+- **Ganancia cero:** cortando en $x_2\le2.5$ en la raíz, los hijos $[1,1]$ y $[4,4]$ tienen **la misma proporción** que el padre: la cuerda toca la curva, ganancia 0 con las tres medidas. Separó puntos pero no aprendió nada.
+- **Por qué no crecer con el error rate:** en el nodo B, cortar en $x_2\le6.5$ da hijos $[2,2]$ y $[0,3]$: ¡una hoja **pura**! Gini da $6/49\approx0.122$ de ganancia, pero el **error rate da 0**: ambos hijos mantienen la clase mayoritaria 1 y, en ese tramo, el error es una **recta**, así que la cuerda cae sobre la curva. Un algoritmo codicioso con error rate rechazaría el split y pararía. **Crece con Gini o entropía**; el error rate sirve para evaluar el árbol final.
+
+### ¿Gini o entropía?
+
+En la raíz ambos prefieren $x_1\le3.5$ (Gini 0.2143) sobre $x_2\le5.5$ (0.1800); el error rate los empata en 0.2 y no puede elegir. En la práctica Gini y entropía eligen el mismo split la inmensa mayoría de las veces; Gini es el default porque evita un logaritmo. **No te angusties por esto; angústiate por el tamaño del árbol.**
+
+## Ejercicio
+
+Nodo $[6,4]$. Split A: $[5,0]$ y $[1,4]$. Split B: $[3,2]$ y $[3,2]$. Calcula la ganancia de Gini de cada uno.
+
+<Solucion>
+
+Padre: $1-0.6^2-0.4^2 = 0.48$.
+
+- **A**: izq. pura (0); der. $[1,4]$: $1-0.2^2-0.8^2 = 0.32$. Ponderado: $0.5\cdot0+0.5\cdot0.32 = 0.16$. Ganancia $= 0.32$.
+- **B**: ambos hijos con la proporción del padre (0.48): ganancia **0**.
+
+</Solucion>
+
+<Quiz
+	client:visible
+	id="impureza"
+	preguntas={[
+		{ q: 'En un árbol, una hoja es una región final y predice una constante $c_m$ igual para todos sus puntos.', opts: ['Verdadero', 'Falso'], ok: 0 },
+		{ q: 'La entropía es la probabilidad de desacuerdo y el Gini la sorpresa promedio.', opts: ['Verdadero', 'Falso'], ok: 1, why: 'Están intercambiadas.' },
+		{ q: 'El Gini máximo con 3 clases es…', opts: ['0.5', '0.667', '1', '1.585'], ok: 1 },
+		{ q: '¿Por qué la ganancia con Gini nunca es negativa?', opts: ['porque Gini ≤ 0.5', 'porque Gini es cóncava (Jensen)', 'porque se pondera por n', 'porque el árbol es binario'], ok: 1 },
+		{ q: '¿Por qué no se crece un árbol con el error rate?', opts: ['es muy caro', 'es lineal a trozos y puede dar ganancia 0 a un split útil', 'no está definido para 2 clases', 'da ganancias negativas'], ok: 1 },
+		{ q: 'Con pérdida cuadrática, la mejor constante de una hoja de regresión es…', opts: ['la mediana', 'la media', 'la moda', 'el máximo'], ok: 1 },
+	]}
+/>
+
+<Conexiones
+	items={[
+		{ href: '/clasificacion/entrenamiento/', titulo: 'Log-loss', texto: 'La entropía es la cross-entropy de la mejor probabilidad constante.' },
+		{ href: '/arboles/cart/', titulo: 'CART', texto: 'Cómo se usa la ganancia para elegir (j, t) y crecer el árbol.' },
+		{ href: '/generativos/naive-bayes/', titulo: 'El split «free»', texto: 'El mismo ejemplo de spam de la sesión 05, ahora como split.' },
+		{ href: '/fundamentos/matematicas/', titulo: 'Convexidad/concavidad', texto: 'Jensen: una curva cóncava queda encima de sus cuerdas.' },
+	]}
+/>
+
+## Para profundizar
+
+<Recursos items={[R.mluTree, R.r2d3, R.sqTree]} />
+
+<Fuente archivos={['ML_Course_Decision_Trees.pdf (Lecture 08, slides 3–27)', 'BANCO_DE_PREGUNTAS_ML_PART_1.pdf']} />

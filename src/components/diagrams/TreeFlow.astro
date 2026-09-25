@@ -1,0 +1,39 @@
+---
+/** El árbol final de la clase como diagrama de flujo. */
+const n = (x: number, y: number, t: string, s: string, c: string) => ({ x, y, t, s, c });
+const N = [
+	n(390, 40, 'raíz: x₁ ≤ 3.5?', 'n=10 · [5,5] · Gini 0.5', 'box'),
+	n(160, 130, 'hoja A → 0', 'n=3 · [3,0]', 'box-o'),
+	n(560, 130, 'B: x₂ ≤ 5.5?', 'n=7 · [2,5] · Gini 0.408', 'box'),
+	n(400, 220, 'D: x₂ ≤ 2.5?', 'n=3 · [2,1] · Gini 0.444', 'box'),
+	n(680, 220, 'hoja C → 1', 'n=4 · [0,4]', 'box-a'),
+	n(290, 310, 'hoja E → 1', 'n=1 · [0,1]', 'box-a'),
+	n(510, 310, 'hoja F → 0', 'n=2 · [2,0]', 'box-o'),
+];
+const E: [number, number, string][] = [
+	[0, 1, 'sí'],
+	[0, 2, 'no'],
+	[2, 3, 'sí'],
+	[2, 4, 'no'],
+	[3, 5, 'sí'],
+	[3, 6, 'no'],
+];
+---
+<figure class="diagram not-content">
+	<svg viewBox="0 0 800 350" role="img" aria-label="Árbol de decisión de 4 hojas">
+		{E.map(([a, b, l]) => (
+			<g>
+				<path d={`M${N[a].x},${N[a].y + 22} C${N[a].x},${(N[a].y + N[b].y) / 2} ${N[b].x},${(N[a].y + N[b].y) / 2} ${N[b].x},${N[b].y - 22}`} class="ln" />
+				<text x={(N[a].x + N[b].x) / 2 + (N[b].x > N[a].x ? 8 : -8)} y={(N[a].y + N[b].y) / 2} text-anchor={N[b].x > N[a].x ? 'start' : 'end'} class="t-s">{l}</text>
+			</g>
+		))}
+		{N.map((v) => (
+			<g>
+				<rect x={v.x - 95} y={v.y - 22} width="190" height="44" rx="10" class={v.c} />
+				<text x={v.x} y={v.y - 3} text-anchor="middle" class="t-b" style="font-size:13px">{v.t}</text>
+				<text x={v.x} y={v.y + 14} text-anchor="middle" class="t-s">{v.s}</text>
+			</g>
+		))}
+	</svg>
+	<figcaption>[n₀, n₁] son los conteos por clase. Cada camino raíz→hoja es un AND de desigualdades, es decir, una <b>caja</b> alineada a los ejes. 10/10 correctos con 4 cajas, cuando ninguna recta consigue más de 9/10.</figcaption>
+</figure>

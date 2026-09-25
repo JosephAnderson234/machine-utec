@@ -1,0 +1,104 @@
+---
+title: "El truco del kernel"
+description: "El enganche del dual, mapas de features explícitos, una frontera curva es plana en el espacio correcto, la identidad del kernel verificada con números, kernels válidos (simétricos y PSD), la matriz de Gram y reglas de cierre."
+---
+
+import KernelTrick from '../../../components/sim/KernelTrick.tsx';
+import Quiz from '../../../components/Quiz.tsx';
+import Solucion from '../../../components/Solucion.astro';
+import Conexiones from '../../../components/Conexiones.astro';
+import Recursos from '../../../components/Recursos.astro';
+import Fuente from '../../../components/Fuente.astro';
+import { R } from '../../../data/recursos';
+
+## El enganche que dejamos en el dual
+
+Tanto el entrenamiento como la predicción del SVM tocan los datos **solo** a través de productos internos:
+
+$$
+W(\boldsymbol\alpha) = \sum_i\alpha_i-\frac12\sum_{i,j}\alpha_i\alpha_jy_iy_j\underbrace{\mathbf{x}_i^\top\mathbf{x}_j}_{\text{producto interno}},\qquad f(\mathbf{x}) = \sum_i\alpha_iy_i\underbrace{\mathbf{x}_i^\top\mathbf{x}}_{\text{producto interno}}+b
+$$
+
+Ninguna coordenada cruda aparece sola. **Si pudiéramos calcular productos internos en un espacio más rico sin visitarlo**, el SVM trazaría una frontera ahí, y esa frontera, vista desde casa, sería curva. Ese es todo el plan.
+
+## Primero, un mapa de features honesto
+
+Dos anillos concéntricos: está demostrado que **ninguna recta** los separa. Aplica $\phi(\mathbf{x}) = (x_1^2,\ \sqrt2\,x_1x_2,\ x_2^2)$ a cada punto (o, en la versión de la sesión 07, $\phi(\mathbf{x}) = (x_1, x_2, x_1^2+x_2^2)$): un **plano** los separa limpiamente. Traducido de vuelta, el plano $\phi_1+\phi_3 = 2$ es $x_1^2+x_2^2=2$: **un círculo** de radio $\sqrt2$.
+
+> El SVM nunca aprendió nada curvo. Trazó una superficie perfectamente plana, en un espacio donde «plano» significa «círculo» al volver a casa. Todo método de kernels funciona así.
+
+**El problema:** un mapa de grado 2 en $d$ dimensiones necesita $\sim d^2/2$ features; grado $p$, $\sim d^p$. Con $d=1000$ y $p=3$, medio **billón** de números por punto. Construir $\phi$ no escala.
+
+## El truco: el producto interno sin el mapa
+
+Para ese $\phi$ de grado 2:
+
+$$
+\phi(\mathbf{x})^\top\phi(\mathbf{z}) = x_1^2z_1^2+2x_1x_2z_1z_2+x_2^2z_2^2 = (x_1z_1+x_2z_2)^2 = (\mathbf{x}^\top\mathbf{z})^2
+$$
+
+Con números, $\mathbf{x}=(1,2)$, $\mathbf{z}=(3,-1)$: **ruta barata** $\mathbf{x}^\top\mathbf{z} = 3-2 = 1$, al cuadrado 1. **Ruta cara** $\phi(\mathbf{x}) = (1, 2\sqrt2, 4)$, $\phi(\mathbf{z}) = (9,-3\sqrt2,1)$, producto $9-12+4 = 1$. ✓ La ruta barata cuesta $O(d)$ y nunca construye el vector levantado; el ahorro crece sin límite con el grado.
+
+Lo mismo con $K(\mathbf{x},\mathbf{x}')=(1+\mathbf{x}^\top\mathbf{x}')^2$: expandiendo aparece $\phi(\mathbf{x}) = (1,\sqrt2x_1,\sqrt2x_2,x_1^2,x_2^2,\sqrt2x_1x_2)$, un producto de **6 dimensiones** calculado con un escalar al cuadrado.
+
+<KernelTrick client:only="react" />
+
+## El truco, enunciado
+
+Un **kernel** es una función $K(\mathbf{x},\mathbf{x}')$ que es igual a $\phi(\mathbf{x})^\top\phi(\mathbf{x}')$ para algún mapa $\phi$. Reemplaza cada $\mathbf{x}_i^\top\mathbf{x}_j$ del dual por $K(\mathbf{x}_i,\mathbf{x}_j)$ y el SVM ajusta un hiperplano de margen máximo en el espacio $\phi$ **sin calcular una sola coordenada de $\phi$**:
+
+$$
+\max_{\boldsymbol\alpha}\sum_i\alpha_i-\frac12\sum_{i,j}\alpha_i\alpha_jy_iy_j\,K(\mathbf{x}_i,\mathbf{x}_j),\qquad f(\mathbf{x}) = \sum_i\alpha_iy_i\,K(\mathbf{x}_i,\mathbf{x})+b
+$$
+
+Todo lo demás (restricciones, casos KKT, esparcidad, convexidad) se traslada tal cual. El algoritmo ni se entera de que cambió de espacio.
+
+:::caution[Pregunta del banco]
+«El kernel trick consiste en construir explícitamente $\phi(\mathbf{x})$ y luego calcular el producto interno» → **Falso**. Es exactamente lo contrario: se evalúa $K$ directamente, sin formar $\phi$. Por eso funciona aunque $\phi$ sea enorme o de dimensión **infinita**.
+:::
+
+## ¿Qué cuenta como kernel?
+
+$K$ es válido **si y solo si** es **simétrico** ($K(\mathbf{x},\mathbf{x}')=K(\mathbf{x}',\mathbf{x})$) y **semidefinido positivo** (condición de Mercer): toda **matriz de Gram** $K_{ij} = K(\mathbf{x}_i,\mathbf{x}_j)$ cumple $\mathbf{c}^\top\mathbf{K}\mathbf{c}\ge0$ para todo $\mathbf{c}$ (equivalentemente, autovalores ≥ 0). Eso garantiza que existe un $\phi$, aunque nunca lo escribamos.
+
+- **La matriz de Gram es una matriz de similitud**: ordenando filas y columnas por clase, se ven bloques brillantes dentro de cada clase. PSD es el sello algebraico de un producto interno genuino.
+- **Reglas de cierre**: si $K_1, K_2$ son kernels, también lo son $K_1+K_2$, $K_1K_2$ y $aK_1$ con $a>0$. Sumas y productos de similitudes válidas siguen siendo válidos.
+- El kernel sigmoide $\tanh(a\,\mathbf{x}^\top\mathbf{x}'+c)$ se usa a veces pero **no siempre es PSD**.
+
+## Ejercicio
+
+Verifica con $\mathbf{x}=(1,0)$, $\mathbf{z}=(2,3)$ que $(1+\mathbf{x}^\top\mathbf{z})^2 = \phi(\mathbf{x})^\top\phi(\mathbf{z})$ para el $\phi$ de 6 dimensiones.
+
+<Solucion>
+
+Ruta kernel: $\mathbf{x}^\top\mathbf{z} = 2$, $(1+2)^2 = 9$.
+
+Ruta φ: $\phi(\mathbf{x}) = (1,\sqrt2,0,1,0,0)$; $\phi(\mathbf{z}) = (1, 2\sqrt2, 3\sqrt2, 4, 9, 6\sqrt2)$. Producto: $1 + \sqrt2\cdot2\sqrt2 + 0 + 1\cdot4 + 0 + 0 = 1+4+4 = 9$ ✓.
+
+</Solucion>
+
+<Quiz
+	client:visible
+	id="kernel-trick"
+	preguntas={[
+		{ q: 'Un kernel válido debe ser…', opts: ['positivo en todas partes', 'simétrico y semidefinido positivo', 'lineal', 'acotado en [0, 1]'], ok: 1 },
+		{ q: 'Si $K_1$ y $K_2$ son kernels, ¿cuál NO es necesariamente un kernel?', opts: ['$K_1 + K_2$', '$K_1K_2$', '$3K_1$', '$K_1 - K_2$'], ok: 3, why: 'Restar puede romper la semidefinitud positiva.' },
+		{ q: 'Una frontera circular en 2-D, vista en el espacio levantado, es…', opts: ['otra circunferencia', 'un plano', 'un punto', 'imposible'], ok: 1 },
+		{ q: '¿Por qué funciona el truco en el SVM?', opts: ['porque el primal usa coordenadas', 'porque el dual solo usa productos internos', 'porque C es grande', 'porque los datos son separables'], ok: 1 },
+	]}
+/>
+
+<Conexiones
+	items={[
+		{ href: '/svm/dual/', titulo: 'El dual del SVM', texto: 'De dónde sale que solo haya productos internos.' },
+		{ href: '/regresion/evaluacion/', titulo: 'Features polinómicas', texto: 'El mismo φ(x) de la regresión polinómica, pero sin construirlo.' },
+		{ href: '/kernels/practica/', titulo: 'Zoo de kernels', texto: 'Lineal, polinómico, RBF, γ y kernel ridge.' },
+		{ href: '/fundamentos/matematicas/', titulo: 'Producto punto = similitud', texto: 'Un kernel es una similitud con garantía de ser producto interno.' },
+	]}
+/>
+
+## Para profundizar
+
+<Recursos items={[R.sqSVMpl, R.cs229, R.skSVM]} />
+
+<Fuente archivos={['ML_Course_SVM.pdf (slides 62–69)', 'ML_Course_Kernels.pdf (Lecture 07, slides 1–9)', 'ML_Course/session-06b-dual-and-kernel-trick.ipynb', 'ML_Course/session-07-kernels-in-practice.ipynb']} />

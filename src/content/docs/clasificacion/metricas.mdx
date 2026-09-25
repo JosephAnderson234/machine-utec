@@ -1,0 +1,105 @@
+---
+title: "Matriz de confusión, F1 y ROC"
+description: "Accuracy y por qué miente con clases desbalanceadas, TP/FP/FN/TN, precision, recall, F1 como media armónica, el umbral como perilla, ROC y AUC, con el tamizaje de la slide y el caso de cáncer de mama."
+---
+
+import ThresholdROC from '../../../components/sim/ThresholdROC.tsx';
+import Quiz from '../../../components/Quiz.tsx';
+import Solucion from '../../../components/Solucion.astro';
+import Conexiones from '../../../components/Conexiones.astro';
+import Recursos from '../../../components/Recursos.astro';
+import Fuente from '../../../components/Fuente.astro';
+import { R } from '../../../data/recursos';
+
+## Accuracy: el primer número
+
+$$
+\text{accuracy} = \frac{\text{predicciones correctas}}{\text{todas las predicciones}}
+$$
+
+Va de 0 a 1, **más alto es mejor** (ojo: no es «incorrectas / total», pregunta del banco). Tamizando a 10 000 personas por una enfermedad con 1% de prevalencia, un modelo acierta 9 680: **96.8%**, suena excelente. Pero trata igual todos los errores y no dice **de qué tipo** son.
+
+:::danger[La accuracy miente con clases desbalanceadas]
+«Siempre di sano» en ese tamizaje saca **99%** de accuracy y **0% de recall**: no atrapa a nadie. Un tamizaje de cáncer que nunca dice «positivo» es muy «preciso» y completamente peligroso.
+:::
+
+## La matriz de confusión
+
+| | predice 0 (negativo) | predice 1 (positivo) |
+| --- | --- | --- |
+| **real 0** | **TN** (verdadero negativo) | **FP** (falsa alarma, «gritó lobo») |
+| **real 1** | **FN** (se escapó) | **TP** (verdadero positivo) |
+
+La **diagonal** son los aciertos (TN, TP); fuera de ella, los dos tipos de error. Con «positivo = tiene la enfermedad»: **FN = enfermo declarado sano** (el error peligroso en un tamizaje); **FP = sano marcado como enfermo**.
+
+Ejemplo de la slide (10 000 personas, 1%): **TN = 9 600, FP = 300, FN = 20, TP = 80**.
+
+## Precision, recall y F1
+
+$$
+\text{precision} = \frac{TP}{TP+FP}\;\;\text{(de los que marqué, ¿cuántos eran?)}\qquad
+\text{recall} = \frac{TP}{TP+FN}\;\;\text{(de los reales, ¿cuántos atrapé?)}
+$$
+
+$$
+F_1 = \frac{2PR}{P+R}\quad\text{(media armónica)}
+$$
+
+En el ejemplo: precision $=80/380 = 0.21$, recall $=80/100 = 0.80$, $F_1 = \frac{2(0.21)(0.80)}{1.01} = 0.33$. La media aritmética sería 0.51; la **armónica se queda cerca del menor** de los dos, así que no se puede «hacer trampa» sacando uno alto y el otro bajo. Un veredicto mucho más sobrio que 96.8%.
+
+**Se intercambian**: bajar el umbral atrapa más enfermos (recall ↑, FN ↓) pero sube las falsas alarmas (precision ↓).
+
+:::tip[Conexión con Bayes]
+Esa precision de 21% es exactamente $P(\text{enfermo}\mid +)$ del [árbol de Bayes](/generativos/bayes/): un caso vivo de $P(A\mid B)\ne P(B\mid A)$. El recall es $P(+\mid\text{enfermo})$, la *sensibilidad*.
+:::
+
+## Barriendo el umbral: la curva ROC
+
+El 0.5 es solo una elección. Moviéndolo, TPR (= recall) y FPR $=\frac{FP}{FP+TN}$ se intercambian. La **ROC** grafica ese trade-off para **todos** los umbrales; el **AUC** (área bajo la curva) resume la calidad del *ranking*: 1.0 perfecto, 0.5 azar. ROC/AUC juzgan los scores independientemente de dónde pongas el umbral; luego eliges el punto de operación que tu aplicación necesita.
+
+<ThresholdROC client:visible />
+
+## Caso real: cáncer de mama
+
+scikit-learn breast cancer: 569 casos, 30 features; logística estandarizada, partición estratificada 75/25. **Accuracy 0.958, precision 0.967, recall 0.967, F1 0.967, ROC-AUC 0.995**; confusión TN = 50, FP = 3, FN = 3, TP = 87: solo 3 malignos se escaparon.
+
+## Ejercicio
+
+TP = 40, FP = 10, FN = 60, TN = 890. Calcula accuracy, precision, recall y F1. ¿Qué harías con el umbral si esto es un tamizaje?
+
+<Solucion>
+
+- Accuracy $=(40+890)/1000 = 0.93$.
+- Precision $=40/50 = 0.80$. Recall $=40/100 = 0.40$.
+- $F_1 = 2(0.8)(0.4)/1.2 = 0.533$.
+
+En un tamizaje los FN (enfermos que se escapan) son lo más caro: **bajar el umbral** para subir el recall, aceptando más falsas alarmas que luego se confirman con otra prueba.
+
+</Solucion>
+
+<Quiz
+	client:visible
+	id="metricas"
+	preguntas={[
+		{ q: 'La accuracy es el nº de predicciones incorrectas dividido entre el total.', opts: ['Verdadero', 'Falso'], ok: 1, why: 'Está invertido: correctas / todas.' },
+		{ q: 'Con positivo = «tiene la enfermedad», ¿qué es VERDADERO?', opts: ['Un FP es un enfermo declarado sano', 'Los TN son los enfermos detectados', 'Un FN es un enfermo declarado sano; bajar el umbral reduce los FN', 'La diagonal reúne los errores'], ok: 2 },
+		{ q: '¿Qué es VERDADERO sobre F1?', opts: ['media armónica de accuracy y precision', 'media armónica de precision y recall: $2PR/(P+R)$', 'promedio aritmético de P y R', 'siempre queda por encima del mayor de P y R'], ok: 1, why: 'Con R = 0.80 y P = 0.21, F1 = 0.33: cerca del menor.' },
+		{ q: 'Un AUC de 0.5 significa…', opts: ['clasificador perfecto', 'ranking al azar', 'recall de 50%', 'umbral en 0.5'], ok: 1 },
+		{ q: 'Subir el umbral de decisión normalmente…', opts: ['sube recall y baja precision', 'sube precision y baja recall', 'no cambia nada', 'sube ambos'], ok: 1 },
+	]}
+/>
+
+<Conexiones
+	items={[
+		{ href: '/generativos/bayes/', titulo: 'Bayes y tasas base', texto: 'La precision de un test es un posterior; con prevalencia baja se desploma.' },
+		{ href: '/clasificacion/logistica/', titulo: 'El umbral', texto: 'La logística entrega P(y=1|x); la clase (y la matriz) dependen del umbral.' },
+		{ href: '/svm/margen-suave/', titulo: 'SVM sin probabilidades', texto: 'El SVM da un score con signo; para ROC basta, para probabilidades hace falta Platt.' },
+		{ href: '/arboles/poda/', titulo: 'Probabilidades de un árbol', texto: 'p̂ de la hoja: extremas y mal calibradas en árboles profundos.' },
+	]}
+/>
+
+## Para profundizar
+
+<Recursos items={[R.mluPR, R.mluROC, R.skMetrics, R.mlcc]} />
+
+<Fuente archivos={['ML_Course_Logistic_Regression_and_Classification.pdf (slides 29–36)', 'ML_Course/session-04c-evaluation.ipynb', 'BANCO_DE_PREGUNTAS_ML_PART_1.pdf']} />

@@ -1,0 +1,147 @@
+---
+title: "LDA y QDA (análisis discriminante gaussiano)"
+description: "La covarianza y sus elipses, la distancia de Mahalanobis, ajustar μₖ y Σₖ, QDA vs LDA, el discriminante δₖ, por qué Σ compartida da una frontera lineal, LDA a mano y generativo vs discriminativo."
+---
+
+import GaussianClassifier from '../../../components/sim/GaussianClassifier.tsx';
+import Quiz from '../../../components/Quiz.tsx';
+import Solucion from '../../../components/Solucion.astro';
+import Conexiones from '../../../components/Conexiones.astro';
+import Recursos from '../../../components/Recursos.astro';
+import Fuente from '../../../components/Fuente.astro';
+import { R } from '../../../data/recursos';
+
+## Features correlacionadas necesitan covarianza
+
+La matriz de covarianza $\Sigma$ da forma a la gaussiana. En 2-D, $\Sigma = \begin{bmatrix}\sigma_1^2 & \sigma_{12}\\ \sigma_{12} & \sigma_2^2\end{bmatrix}$: la diagonal es la dispersión de cada feature; el término fuera de la diagonal, **cuánto se mueven juntas**.
+
+| $\Sigma$ | Forma | Modelo |
+| --- | --- | --- |
+| $\mathbf{I}$ (esférica) | círculo | — |
+| diagonal | elipse **alineada a los ejes** | Naive Bayes |
+| completa ($\sigma_{12}\ne0$) | elipse **inclinada** | LDA / QDA |
+
+## Leer el exponente: la distancia de Mahalanobis
+
+Una gaussiana puntúa un punto con un número en su exponente. En 1-D es el z-score al cuadrado, $D^2 = \big(\frac{x-\mu}{\sigma}\big)^2$: «¿a cuántas σ del centro?». En varias dimensiones, «dividir por σ» se vuelve multiplicar por $\Sigma^{-1}$, que rota a los ejes de la elipse y divide por la dispersión en cada uno:
+
+$$
+D^2(\mathbf{x}) = (\mathbf{x}-\boldsymbol\mu)^\top\Sigma^{-1}(\mathbf{x}-\boldsymbol\mu),\qquad
+\mathcal N(\mathbf{x};\boldsymbol\mu,\Sigma) = \frac{1}{(2\pi)^{d/2}|\Sigma|^{1/2}}e^{-\frac12 D^2(\mathbf{x})}
+$$
+
+La densidad depende de $\mathbf{x}$ solo por $D^2$: sus curvas de nivel **son** las elipses. Dos puntos a la misma distancia euclidiana del centro pueden estar a distinta distancia de Mahalanobis: un paso a lo largo del eje ancho (alta varianza) es «normal» y cuesta menos ($D=1.0$) que el mismo paso a través del eje angosto ($D\approx2.1$). Mahalanobis = euclidiana medida en las unidades de la propia elipse.
+
+## Cada clase, una gaussiana completa
+
+$p(\mathbf{x}\mid y=k) = \mathcal N(\mathbf{x};\boldsymbol\mu_k,\Sigma_k)$, $\pi_k = N_k/N$. La MLE es otra vez contar y promediar:
+
+$$
+\boldsymbol\mu_k = \frac{1}{N_k}\sum_{i:y_i=k}\mathbf{x}_i,\qquad \Sigma_k = \frac1{N_k}\sum_{i:y_i=k}(\mathbf{x}_i-\boldsymbol\mu_k)(\mathbf{x}_i-\boldsymbol\mu_k)^\top
+$$
+
+Dos maneras de usar la dispersión:
+
+- **QDA**: cada clase conserva **su propia** $\Sigma_k$ (su propia elipse).
+- **LDA**: todas comparten **una** $\Sigma$ agrupada (*pooled*), el promedio ponderado $\Sigma = \sum_k \frac{N_k}{N}\Sigma_k$ (misma elipse, solo se mueve el centro).
+
+:::caution[Pregunta del banco]
+«En QDA se usa una única matriz de covarianza compartida y en LDA cada clase tiene la suya» → **Falso**: los nombres están invertidos. **L**DA = frontera **L**ineal = Σ compartida.
+:::
+
+## El discriminante: un score gaussiano por clase
+
+$\delta_k(\mathbf{x}) = \log(\text{prior}\times\text{likelihood})$ sin la constante común:
+
+$$
+\delta_k(\mathbf{x}) = \underbrace{\log\pi_k}_{\text{ventaja inicial}} - \underbrace{\tfrac12(\mathbf{x}-\boldsymbol\mu_k)^\top\Sigma_k^{-1}(\mathbf{x}-\boldsymbol\mu_k)}_{\text{Mahalanobis al centro}} - \underbrace{\tfrac12\log|\Sigma_k|}_{\text{castigo por elipse holgada}}
+$$
+
+Se lee: una ventaja por ser clase común, menos qué tan lejos está $\mathbf{x}$ del centro en unidades de la elipse, menos un castigo por una elipse grande y floja. Expandiendo el término del medio:
+
+$$
+(\mathbf{x}-\boldsymbol\mu_k)^\top\Sigma_k^{-1}(\mathbf{x}-\boldsymbol\mu_k) = \underbrace{\mathbf{x}^\top\Sigma_k^{-1}\mathbf{x}}_{\text{cuadrático en }\mathbf{x}} - 2\boldsymbol\mu_k^\top\Sigma_k^{-1}\mathbf{x} + \boldsymbol\mu_k^\top\Sigma_k^{-1}\boldsymbol\mu_k
+$$
+
+- **QDA** ($\Sigma_k$ propias): el término $\mathbf{x}^\top\Sigma_k^{-1}\mathbf{x}$ **sobrevive** en $\delta_1-\delta_0$ ⇒ frontera **cuadrática** $\mathbf{x}^\top\mathbf{A}\mathbf{x}+\mathbf{w}^\top\mathbf{x}+b=0$ (puede envolver a la clase más compacta).
+- **LDA** ($\Sigma$ compartida): $\mathbf{x}^\top\Sigma^{-1}\mathbf{x}$ y $\log|\Sigma|$ son **idénticos** en todas las clases y **se cancelan**. Cada score queda lineal, $\delta_k = \mathbf{w}_k^\top\mathbf{x}+b_k$ con $\mathbf{w}_k=\Sigma^{-1}\boldsymbol\mu_k$, y la frontera es
+
+$$
+\mathbf{w}^\top\mathbf{x}+b=0,\qquad \mathbf{w}=\Sigma^{-1}(\boldsymbol\mu_1-\boldsymbol\mu_0),\qquad b = -\tfrac12(\boldsymbol\mu_1+\boldsymbol\mu_0)^\top\Sigma^{-1}(\boldsymbol\mu_1-\boldsymbol\mu_0)+\log\frac{\pi_1}{\pi_0}
+$$
+
+:::tip[El gran puente]
+Bajo LDA, $P(y=1\mid\mathbf{x}) = \sigma(\mathbf{w}^\top\mathbf{x}+b)$: **la misma forma logística** de la sesión 04, aquí **derivada** de dos gaussianas en vez de **ajustada**.
+:::
+
+<GaussianClassifier client:only="react" />
+
+## LDA a mano (1-D)
+
+Medias $\mu_0=2$, $\mu_1=6$, varianza compartida $\sigma^2$. Especializando:
+
+$$
+w = \frac{\mu_1-\mu_0}{\sigma^2},\qquad x^* = \frac{\mu_0+\mu_1}{2} - \frac{\sigma^2}{\mu_1-\mu_0}\log\frac{\pi_1}{\pi_0}
+$$
+
+- Priors iguales: el log es 0 ⇒ $x^* = 4$, el **punto medio** («gana la media más cercana»).
+- Con $\sigma^2 = 4$: $w = 1$, $b=-4$ ⇒ $P(y=1\mid x)=\sigma(x-4)$.
+- Priors distintos: el término del log **desliza** $x^*$ hacia la clase **más rara**, achicando su territorio.
+
+En más dimensiones, $\mathbf{w}=\Sigma^{-1}(\boldsymbol\mu_1-\boldsymbol\mu_0)$ es la flecha entre las medias (reescalada por la dispersión compartida) y la frontera es su bisectriz perpendicular (en la métrica de $\Sigma$).
+
+## De LDA a QDA con una perilla
+
+Mezcla cada covarianza entre la agrupada y la propia: $\Sigma_k(t) = (1-t)\Sigma_\text{pooled}+t\,\Sigma_k$. Con $t=0$ es LDA (recta); con $t=1$, QDA (curva). La frontera se dobla **exactamente tanto** como difieran las formas/inclinaciones de las elipses.
+
+**Costo:** LDA ajusta una Σ; QDA una por clase ($d(d+1)/2$ números cada una: 3 en 2-D, 465 con $d=30$). Más perillas = más varianza = necesita más datos (sesgo–varianza otra vez). Con $d$ grande, QDA necesita regularización.
+
+## Generativo vs discriminativo
+
+LDA y la logística llegan a la misma $\sigma(\mathbf{w}^\top\mathbf{x}+b)$ por caminos distintos, y eso cambia su comportamiento según cuántos datos haya (Ng y Jordan, 2001): **el generativo aprende más rápido** (baja complejidad muestral) y se estanca un poco más arriba; **el discriminativo necesita más datos** pero termina más abajo.
+
+| Generativo (NB, LDA, QDA) | Discriminativo (logística) |
+| --- | --- |
+| aprende con pocos ejemplos | menos supuestos: solo la frontera |
+| puede generar datos, imputar, detectar outliers | suele ser más preciso con muchos datos |
+| agregar una clase es barato | gana cuando los supuestos generativos son falsos |
+| **pero:** supuestos fuertes | **pero:** necesita más datos; no genera ni imputa |
+
+**Regla práctica:** ¿pocos datos o necesitas la densidad? → generativo. ¿Muchos datos y solo quieres la etiqueta? → discriminativo.
+
+## Ejercicio
+
+$\mu_0 = 0$, $\mu_1 = 4$, $\sigma^2 = 2$, $\pi_1 = 0.25$. ¿Dónde está la frontera LDA?
+
+<Solucion>
+
+$x^* = \frac{0+4}{2} - \frac{2}{4}\log\frac{0.25}{0.75} = 2 - 0.5\cdot(-1.0986) = 2.549$. La frontera se corrió de 2 hacia la clase 1 (la rara): ahora se necesita más evidencia para predecir la clase 1.
+
+</Solucion>
+
+<Quiz
+	client:visible
+	id="lda"
+	preguntas={[
+		{ q: 'LDA produce una frontera lineal porque…', opts: ['usa la sigmoide', 'la Σ compartida hace que el término $\\mathbf{x}^\\top\\Sigma^{-1}\\mathbf{x}$ se cancele', 'asume independencia', 'minimiza la hinge'], ok: 1 },
+		{ q: 'La distancia de Mahalanobis…', opts: ['ignora la forma de la nube', 'mide distancia en unidades de la elipse de covarianza', 'es siempre igual a la euclidiana', 'solo existe en 1-D'], ok: 1 },
+		{ q: 'Con priors distintos, la frontera LDA se desplaza…', opts: ['hacia la clase más común', 'hacia la clase más rara', 'no se mueve', 'al origen'], ok: 1 },
+		{ q: '¿Qué modelo necesita más datos para estimar sus parámetros?', opts: ['LDA', 'QDA', 'Naive Bayes', 'todos igual'], ok: 1 },
+		{ q: 'El posterior de LDA tiene la forma…', opts: ['$\\sigma(\\mathbf{w}^\\top\\mathbf{x}+b)$', 'un escalón', 'softmax de distancias euclidianas', 'uniforme'], ok: 0 },
+	]}
+/>
+
+<Conexiones
+	items={[
+		{ href: '/clasificacion/logistica/', titulo: 'Logística', texto: 'La misma σ(wᵀx + b), pero ajustada directo sin suponer gaussianas.' },
+		{ href: '/generativos/naive-bayes/', titulo: 'Naive Bayes', texto: 'QDA con Σₖ diagonal: sin inclinación.' },
+		{ href: '/regularizacion/sesgo-varianza/', titulo: 'Sesgo–varianza', texto: 'QDA: más flexible (menos sesgo) pero más varianza.' },
+		{ href: '/kernels/practica/', titulo: 'RBF', texto: 'El kernel RBF es una campana gaussiana centrada en cada punto.' },
+	]}
+/>
+
+## Para profundizar
+
+<Recursos items={[R.skLDA, R.islr, R.cs229]} />
+
+<Fuente archivos={['ML_Course_Generative_Probabilistic_Models.pdf (slides 24–37)', 'ML_Course/session-05b-lda-qda.ipynb', 'ML_Course/session-05c-comparing-generative-models.ipynb']} />

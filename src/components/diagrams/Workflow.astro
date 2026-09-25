@@ -1,0 +1,28 @@
+---
+/** El flujo de trabajo de ML es un ciclo. */
+const pasos = ['1 · Plantear T, P, E', '2 · Recolectar datos', '3 · Features', '4 · Entrenar', '5 · Evaluar', '6 · Desplegar', '7 · Monitorear'];
+const R = 120, cx = 390, cy = 150;
+const pos = pasos.map((_, i) => {
+	const a = -Math.PI / 2 + (2 * Math.PI * i) / pasos.length;
+	return [cx + 1.9 * R * Math.cos(a), cy + R * Math.sin(a)];
+});
+---
+<figure class="diagram not-content">
+	<svg viewBox="0 0 780 300" role="img" aria-label="Ciclo de trabajo de machine learning">
+		<defs><marker id="wf" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0L10,5L0,10z" fill="var(--sl-color-accent)" /></marker></defs>
+		<ellipse cx={cx} cy={cy} rx={1.9 * R} ry={R} fill="none" class="ln" stroke-dasharray="3 6" />
+		{pos.map(([x, y], i) => {
+			const [x2, y2] = pos[(i + 1) % pos.length];
+			return <path d={`M${x + (x2 - x) * 0.3},${y + (y2 - y) * 0.3} L${x + (x2 - x) * 0.7},${y + (y2 - y) * 0.7}`} class="ln-a" marker-end="url(#wf)" />;
+		})}
+		{pos.map(([x, y], i) => (
+			<g>
+				<rect x={x - 78} y={y - 18} width="156" height="36" rx="10" class={i === 3 ? 'box-a' : i === 6 ? 'box-o' : 'box'} />
+				<text x={x} y={y + 5} text-anchor="middle" class="t">{pasos[i]}</text>
+			</g>
+		))}
+		<text x={cx} y={cy - 4} text-anchor="middle" class="t-b">ciclo, no línea</text>
+		<text x={cx} y={cy + 16} text-anchor="middle" class="t-s">el monitoreo detecta drift y vuelve a empezar</text>
+	</svg>
+	<figcaption>La mayor parte del esfuerzo está en obtener y limpiar datos, no en el algoritmo: más datos y mejores features suelen ganarle a un modelo más sofisticado.</figcaption>
+</figure>

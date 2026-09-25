@@ -1,0 +1,71 @@
+---
+title: "Softmax (más de dos clases)"
+description: "Un score lineal por clase, la función softmax, cross-entropy con one-hot, gradiente p − y y por qué la sigmoide es el caso K = 2."
+---
+
+import Softmax from '../../../components/sim/Softmax.tsx';
+import Quiz from '../../../components/Quiz.tsx';
+import Solucion from '../../../components/Solucion.astro';
+import Conexiones from '../../../components/Conexiones.astro';
+import Recursos from '../../../components/Recursos.astro';
+import Fuente from '../../../components/Fuente.astro';
+import { R } from '../../../data/recursos';
+
+## Un score por clase
+
+Para $K$ clases, cada una tiene sus propios pesos y score lineal $z_k = \mathbf{w}_k^\top\mathbf{x}+b_k$. La **softmax** los convierte en probabilidades positivas que suman 1:
+
+$$
+p_k = \frac{e^{z_k}}{\sum_{j=1}^K e^{z_j}},\qquad \sum_k p_k = 1,\qquad \hat y = \arg\max_k p_k
+$$
+
+Cada frontera entre un par de clases sigue siendo **una recta** (donde $z_i = z_j$): el plano queda partido en regiones convexas.
+
+- **Pérdida:** cross-entropy con la etiqueta en **one-hot** ($y_k = 1$ solo para la clase verdadera): $\ell = -\sum_k y_k\log p_k = -\log p_{\text{verdadera}}$.
+- **Gradiente:** $\partial\ell/\partial z_k = p_k - y_k$: otra vez la forma «residual» $\mathbf{p}-\mathbf{y}$.
+
+<Softmax client:visible />
+
+## La sigmoide es softmax con K = 2
+
+Con dos clases: $p_1 = \frac{e^{z_1}}{e^{z_0}+e^{z_1}} = \frac{1}{1+e^{-(z_1-z_0)}} = \sigma(z_1-z_0)$. Solo importa la **diferencia** de scores (sumar una constante a todos no cambia nada), así que la logística binaria con $z = z_1 - z_0$ es el caso particular. Un score por clase, softmax, cross-entropy: **todo se traslada**.
+
+:::note[En la práctica]
+Se implementa de forma estable restando $\max_k z_k$ antes de exponenciar (no cambia el resultado y evita desbordes). En scikit-learn, `LogisticRegression` multiclase usa softmax (multinomial). El notebook 04d la aplica a los dígitos 0–9.
+:::
+
+## Ejercicio
+
+Logits $z = (2,\ 1,\ 0)$, clase verdadera = la primera. Calcula $p$, la pérdida y el gradiente.
+
+<Solucion>
+
+$e^z = (7.389,\ 2.718,\ 1)$, suma $= 11.107$. $p = (0.665,\ 0.245,\ 0.090)$.
+
+$\ell = -\log 0.665 = 0.408$. Gradiente $p-y = (-0.335,\ 0.245,\ 0.090)$: sube el logit correcto y baja los demás, en proporción a cuánta probabilidad les dio el modelo.
+
+</Solucion>
+
+<Quiz
+	client:visible
+	id="softmax"
+	preguntas={[
+		{ q: 'Sumar 5 a todos los logits…', opts: ['multiplica las probabilidades por $e^5$', 'no cambia las probabilidades', 'hace que sumen 5', 'cambia el arg max'], ok: 1 },
+		{ q: 'Con $K=2$, softmax equivale a…', opts: ['la ReLU', 'la sigmoide de $z_1 - z_0$', 'el hinge', 'un árbol de profundidad 1'], ok: 1 },
+		{ q: 'El gradiente de la cross-entropy respecto al logit $z_k$ es…', opts: ['$p_k(1-p_k)$', '$p_k - y_k$', '$-\\log p_k$', '$y_k / p_k$'], ok: 1 },
+	]}
+/>
+
+<Conexiones
+	items={[
+		{ href: '/clasificacion/entrenamiento/', titulo: 'Cross-entropy binaria', texto: 'El mismo gradiente p − y; softmax solo lo generaliza a K clases.' },
+		{ href: '/svm/margen-suave/', titulo: 'SVM multiclase', texto: 'El SVM es intrínsecamente binario: one-vs-rest u one-vs-one + votación.' },
+		{ href: '/arboles/cart/', titulo: 'Árboles multiclase', texto: 'Los árboles manejan K clases gratis: Gini máximo = 1 − 1/K.' },
+	]}
+/>
+
+## Para profundizar
+
+<Recursos items={[R.cs229, R.skLinear]} />
+
+<Fuente archivos={['ML_Course_Logistic_Regression_and_Classification.pdf (slide 37)', 'ML_Course/session-04d-softmax-multiclass.ipynb']} />

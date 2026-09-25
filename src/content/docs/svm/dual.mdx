@@ -1,0 +1,182 @@
+---
+title: "Lagrange, KKT y el problema dual"
+description: "El multiplicador como precio, tasa y fuerza; el Lagrangiano como juego min-max; dualidad débil y fuerte; KKT y holgura complementaria; derivación del dual del SVM; recuperar w y b; el ejemplo resuelto por el dual."
+---
+
+import LagrangeWall from '../../../components/sim/LagrangeWall.tsx';
+import DualFlow from '../../../components/diagrams/DualFlow.astro';
+import Quiz from '../../../components/Quiz.tsx';
+import Solucion from '../../../components/Solucion.astro';
+import Conexiones from '../../../components/Conexiones.astro';
+import Recursos from '../../../components/Recursos.astro';
+import Fuente from '../../../components/Fuente.astro';
+import { R } from '../../../data/recursos';
+
+## ¿Cuánto te cuesta una regla?
+
+Todos los problemas de esta sección tienen la forma $\min_x J(x)$ s.a. $g(x)\ge0$. Ejemplo: minimizar $J(x)=(x-3)^2$ con $x\le1$ ($g(x)=1-x\ge0$). Sin la regla, $x=3$ y $J=0$. La pared lo prohíbe, así que la respuesta se desliza **sobre la pared**: $x=1$, $J=4$. Dos cosas pasaron: el valor empeoró, y $J'(1) = -4\ne0$: «igualar la derivada a cero» ya no encuentra la respuesta.
+
+Mejor pregunta: **¿cuánto vale esta regla?** Si empujamos la pared un poco, ¿cuánto mejora el mejor valor? Esa **tasa de cambio** es el multiplicador.
+
+- Con la pared en $c$: $J^\star(c) = (c-3)^2$ para $c<3$. Su pendiente en $c=1$ es $2(1-3) = -4$: mover la pared $\varepsilon$ mejora $J^\star$ en $\approx4\varepsilon$ ($c=1.1$ da 3.61, una ganancia de $0.39\approx4\times0.1$). Esa tasa es $\alpha=4$.
+- Más espacio nunca empeora, así que la pendiente nunca es positiva: **$\alpha\ge0$**.
+
+<LagrangeWall client:visible />
+
+## El Lagrangiano: una función que conoce el precio
+
+$$
+L(x,\alpha) = J(x) - \alpha\,g(x) = (x-3)^2-\alpha(1-x)
+\qquad\Rightarrow\qquad \frac{\partial L}{\partial x} = 2(x-3)+\alpha = 0 \Rightarrow \alpha = 2(3-x)
+$$
+
+Una ecuación, dos incógnitas; lo cierra que hay solo **dos finales posibles**:
+
+- **Pared holgada**: no cuesta nada, $\alpha = 0$, $x=3$ (legal solo si $c\ge3$).
+- **Pared apretada**: la respuesta está sobre ella, $x=c$, $\alpha = 2(3-c)$.
+
+Con $x\le1$ la primera rama quiere $x=3$ (prohibido) ⇒ segunda: $\alpha = 4$, el mismo 4 de la pendiente. Con $x\le5$, $x=3$ ya es legal ⇒ $\alpha=0$.
+
+**¿Por qué «fuerza»?** En $x=1$, $J'(1)=-4$: el objetivo todavía quiere ir a la derecha. Pero $\partial L/\partial x = -4+4 = 0$: el multiplicador aporta exactamente el empujón que falta. **Precio, tasa y fuerza** son tres lecturas del mismo número; una regla que no presiona vale 0 en las tres.
+
+### Dos variables: los gradientes se alinean
+
+$\min u_1^2+u_2^2$ s.a. $u_1+u_2-2\ge0$. El óptimo es el punto de la recta más cercano al origen, $(1,1)$. Ahí $\nabla J = (2,2) = 2\nabla g$ ⇒ $\alpha=2$. Si $\nabla J$ no fuera paralelo a $\nabla g$, parte de $-\nabla J$ apuntaría **a lo largo** del borde: podrías deslizarte, seguir legal y bajar. Solo cuando $\nabla J$ apunta derecho hacia fuera del borde no queda a dónde ir.
+
+## El Lagrangiano *es* el problema con restricciones
+
+Dale $\alpha$ a un **oponente** que elige cualquier $\alpha\ge0$ para hacer $L$ lo más grande posible, con $x$ congelado:
+
+- $x$ cumple con holgura ($g>0$): $-\alpha g<0$, lo mejor es $\alpha=0$ ⇒ queda $J(x)$.
+- $x$ viola ($g<0$): $-\alpha g = \alpha|g|$ crece sin límite ⇒ multa infinita.
+- $x$ justo en la pared ($g=0$): el término se anula para todo $\alpha$. Un precio positivo solo es posible aquí.
+
+$$
+\max_{\alpha\ge0}L(x,\alpha) = \begin{cases}J(x) & g(x)\ge0\\ +\infty & g(x)<0\end{cases}\qquad\Rightarrow\qquad \min_x\max_{\alpha\ge0}L = \min_{x:\,g(x)\ge0}J(x)
+$$
+
+### Primal y dual
+
+Jugar primero nosotros es el **primal** ($\min_x\max_\alpha L$); dejar que el oponente se comprometa primero es el **dual** ($\max_\alpha\min_x L$). Comprometerse primero solo puede perjudicar: $\max\min\le\min\max$ (**dualidad débil**, vale para cualquier problema). Si además el objetivo es un bowl y las reglas son semiespacios (convexidad), la brecha es **cero**: **dualidad fuerte**, resolver uno resuelve el otro.
+
+En el ejemplo: $\min_x L$ da $x = 3-\alpha/2$ y la **función dual** $q(\alpha) = 2\alpha - \alpha^2/4$. Maximizando: $q'(\alpha)=2-\alpha/2=0\Rightarrow\alpha^\star=4$, $q(4)=4$ = valor primal. Y $x = 3-4/2 = 1$: el dual devolvió la respuesta sin mirar la restricción directamente.
+
+## De vuelta al SVM: un precio por punto
+
+$$
+L(\mathbf{w},b,\boldsymbol\alpha) = \tfrac12\|\mathbf{w}\|^2 - \sum_{i=1}^n \alpha_i\big[y_i(\mathbf{w}^\top\mathbf{x}_i+b)-1\big],\qquad \alpha_i\ge0
+$$
+
+Los precios no interactúan (cada $\alpha_i$ está en un solo término), así que el oponente juega el juego de una regla en cada punto. $\alpha_i$ es cuánto **presiona** el punto $i$ sobre la frontera.
+
+<DualFlow />
+
+### Condiciones KKT
+
+En el óptimo de un problema convexo como este valen a la vez:
+
+1. **Estacionariedad**: $\nabla_\mathbf{w}L = 0$, $\partial L/\partial b=0$.
+2. **Factibilidad primal**: $y_if(\mathbf{x}_i)\ge1$.
+3. **Factibilidad dual**: $\alpha_i\ge0$ (una pared empuja, nunca jala).
+4. **Holgura complementaria**: $\alpha_i\,[y_if(\mathbf{x}_i)-1] = 0$ para todo $i$.
+
+La 4 es un producto de dos no negativos forzado a 0: o el **precio es cero** o la **restricción está apretada**. Nadie puede estar **lejos y ser caro**:
+
+- Estrictamente fuera de la banda ($y_if>1$) ⇒ $\alpha_i=0$.
+- Precio positivo ($\alpha_i>0$) ⇒ $y_if = 1$: el punto está exactamente en una recta de margen.
+
+Como $\mathbf{w}=\sum_i\alpha_iy_i\mathbf{x}_i$ (abajo), todo punto con $\alpha_i=0$ no aporta nada: **la frontera se construye solo con vectores de soporte**. Esta es la prueba prometida. (Ojo: un punto puede tocar el margen y tener $\alpha_i = 0$; lo prohibido es «lejos y con precio».)
+
+## Derivando el dual
+
+**Paso 1 — estacionariedad:**
+
+$$
+\nabla_\mathbf{w}L = \mathbf{w}-\sum_i\alpha_iy_i\mathbf{x}_i = 0\Rightarrow \boxed{\mathbf{w}=\sum_i\alpha_iy_i\mathbf{x}_i}\qquad
+\frac{\partial L}{\partial b} = -\sum_i\alpha_iy_i = 0\Rightarrow\boxed{\sum_i\alpha_iy_i = 0}
+$$
+
+La primera es una receta para $\mathbf{w}$; la segunda, una restricción sobre los precios. $b$ desaparece (por eso se recupera aparte).
+
+**Paso 2 — sustituir:** $L = \tfrac12\mathbf{w}^\top\mathbf{w}-\sum_i\alpha_iy_i\mathbf{w}^\top\mathbf{x}_i - b\underbrace{\sum_i\alpha_iy_i}_{=0}+\sum_i\alpha_i$. Con la receta, $\sum_i\alpha_iy_i\mathbf{w}^\top\mathbf{x}_i = \mathbf{w}^\top\mathbf{w}$, así que $L = \sum_i\alpha_i-\tfrac12\|\mathbf{w}\|^2$, y $\|\mathbf{w}\|^2 = \sum_{i,j}\alpha_i\alpha_jy_iy_j\mathbf{x}_i^\top\mathbf{x}_j$:
+
+$$
+\boxed{\max_{\boldsymbol\alpha}\ W(\boldsymbol\alpha)=\sum_{i=1}^n\alpha_i-\frac12\sum_{i=1}^n\sum_{j=1}^n\alpha_i\alpha_jy_iy_j\,\mathbf{x}_i^\top\mathbf{x}_j\quad\text{s.a.}\quad \alpha_i\ge0,\ \ \sum_i\alpha_iy_i=0}
+$$
+
+Otra vez un **QP convexo**, ahora en $n$ variables $\alpha_i$ (en vez de las $d+1$ de $(\mathbf{w},b)$). Por dualidad fuerte, $\max W = \min\tfrac12\|\mathbf{w}\|^2$. Y **los datos entran solo como productos internos $\mathbf{x}_i^\top\mathbf{x}_j$**: esa línea es toda la razón de existir de los kernels.
+
+> Vista primal: «¿dónde pongo la recta?». Vista dual: «¿cuánto empuja cada punto la recta?». Misma respuesta, otra pregunta.
+
+$\sum_i\alpha_iy_i=0$ dice que la presión total de la clase + equilibra la de la clase −: la frontera está **en equilibrio**.
+
+### Recuperar el modelo
+
+- $\mathbf{w} = \sum_i\alpha_iy_i\mathbf{x}_i$ (solo vectores de soporte).
+- $b$: toma un vector de soporte $\mathbf{x}_k$ sobre su recta de margen: $y_kf(\mathbf{x}_k)=1$; multiplicando por $y_k$ ($y_k^2=1$): $b = y_k-\mathbf{w}^\top\mathbf{x}_k$. En la práctica se **promedia** sobre todos esos $k$ (estabilidad numérica).
+- Predicción: $\hat y(\mathbf{x}) = \operatorname{sign}\big(\sum_i\alpha_iy_i\,\mathbf{x}_i^\top\mathbf{x}+b\big)$: ni siquiera hace falta formar $\mathbf{w}$.
+
+:::caution[Pregunta del banco]
+«Como $b$ desaparece del dual, queda indeterminado y se fija en 0 por convención» → **Falso**. Precisamente porque desaparece, se recupera aparte con $b=y_k-\mathbf{w}^\top\mathbf{x}_k$; fijarlo en 0 movería la frontera.
+:::
+
+## El dual más pequeño y el ejemplo de la clase
+
+<Solucion titulo="Dos puntos: un parábola en una variable">
+
+$\mathbf{x}_+=(1,1)$, $y=+1$; $\mathbf{x}_-=(-1,-1)$, $y=-1$. La restricción $\alpha_1-\alpha_2=0$ fuerza $\alpha_1=\alpha_2=\alpha$. Con $\mathbf{x}_+^\top\mathbf{x}_+=\mathbf{x}_-^\top\mathbf{x}_-=2$, $\mathbf{x}_+^\top\mathbf{x}_-=-2$:
+
+$W(\alpha) = 2\alpha-\tfrac12(\alpha^2\cdot2+\alpha^2\cdot2+2\alpha^2\cdot2) = 2\alpha-4\alpha^2$. $W'=2-8\alpha=0\Rightarrow\alpha=\tfrac14$, $W=\tfrac14$.
+
+$\mathbf{w} = \tfrac14(1,1)-\tfrac14(-1,-1)=(\tfrac12,\tfrac12)$, $b = 1-\mathbf{w}^\top\mathbf{x}_+ = 0$, $\tfrac12\|\mathbf{w}\|^2=\tfrac14 = W$ ✓ (dualidad fuerte).
+
+</Solucion>
+
+<Solucion titulo="Tres puntos: (2,0)+, (0,2)+, (0,0)− por el dual">
+
+Óptimo dual: $\alpha_1=\tfrac12$, $\alpha_2=\tfrac12$, $\alpha_3=1$.
+
+- Balance: $\tfrac12+\tfrac12-1=0$ ✓
+- $\mathbf{w}=\tfrac12(2,0)+\tfrac12(0,2)-1\cdot(0,0) = (1,1)$ ✓
+- $b = 1-(1,1)^\top(2,0) = -1$ ✓
+- $W = \sum\alpha_i-\tfrac12\|\mathbf{w}\|^2 = 2-1 = 1$ = primal ✓
+- Identidad gratis en margen duro: $\sum_i\alpha_i = \|\mathbf{w}\|^2 = 2$ ✓
+
+$\mathbf{x}_4=(3,3)$ con $y_4f=5>1$ ⇒ por holgura complementaria $\alpha_4=0$: bórralo y nada cambia.
+
+</Solucion>
+
+## ¿Para qué molestarse con el dual?
+
+- **Kernels**: los datos solo aparecen como $\mathbf{x}_i^\top\mathbf{x}_j$ → cámbialo por $K(\mathbf{x}_i,\mathbf{x}_j)$ y la frontera se curva gratis.
+- **Esparcidad explícita**: la mayoría de $\alpha_i$ son exactamente 0 ⇒ modelo chico y predicción rápida.
+- **Intercambio de dimensión**: $n$ variables sin importar $d$: gana cuando hay muchísimas features (texto, genómica).
+- **Interpretabilidad**: $\alpha_i$ ordena qué tan influyente fue cada punto.
+- **Contra**: necesita la matriz $n\times n$ de productos internos; con millones de puntos conviene el primal o SGD.
+
+<Quiz
+	client:visible
+	id="svm-dual"
+	preguntas={[
+		{ q: 'La holgura complementaria dice que…', opts: ['todos los $\\alpha_i$ son positivos', '$\\alpha_i[y_if(\\mathbf{x}_i)-1]=0$: o el precio es 0 o la restricción está activa', '$\\sum\\alpha_i = 0$', '$b = 0$'], ok: 1 },
+		{ q: 'El dual del SVM es un QP convexo.', opts: ['Verdadero', 'Falso'], ok: 0, why: 'Objetivo cuadrático y restricciones lineales, en las $n$ variables $\\alpha_i$.' },
+		{ q: '¿Cuál es FALSA sobre reconstruir $\\mathbf{w}$ y $b$?', opts: ['$b$ queda indeterminado y se fija en 0 por convención', '$\\sum_i\\alpha_iy_i=0$ viene del término $b$', '$b = y_k - \\mathbf{w}^\\top\\mathbf{x}_k$ con un vector de soporte', '$\\hat y = \\operatorname{sign}(\\sum_i\\alpha_iy_i\\mathbf{x}_i^\\top\\mathbf{x}+b)$'], ok: 0 },
+		{ q: 'La dualidad débil ($\\max\\min \\le \\min\\max$)…', opts: ['requiere convexidad', 'vale para cualquier problema', 'solo vale para el SVM', 'implica brecha cero'], ok: 1 },
+		{ q: 'En el dual, los datos aparecen solo como…', opts: ['coordenadas crudas', 'productos internos $\\mathbf{x}_i^\\top\\mathbf{x}_j$', 'distancias al origen', 'etiquetas'], ok: 1 },
+	]}
+/>
+
+<Conexiones
+	items={[
+		{ href: '/kernels/truco/', titulo: 'El truco del kernel', texto: 'Cambiar xᵢᵀxⱼ por K(xᵢ, xⱼ) en este mismo dual.' },
+		{ href: '/svm/margen-suave/', titulo: 'Margen suave', texto: 'El único cambio en el dual: 0 ≤ αᵢ ≤ C.' },
+		{ href: '/regularizacion/ridge-lasso/', titulo: 'Presupuesto vs penalización', texto: 'Penalizar λΩ(w) equivale a restringir Ω(w) ≤ t: otra vez un multiplicador.' },
+		{ href: '/svm/geometria/', titulo: 'Vectores de soporte', texto: 'Aquí se prueba lo que allá era intuición: solo los postes sostienen la carpa.' },
+	]}
+/>
+
+## Para profundizar
+
+<Recursos items={[R.boyd, R.cs229, R.sqSVMpl]} />
+
+<Fuente archivos={['ML_Course_SVM.pdf (slides 31–49)', 'ML_Course/session-06b-dual-and-kernel-trick.ipynb']} />

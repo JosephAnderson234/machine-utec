@@ -1,0 +1,18 @@
+---
+/** Train / validación / test y sus roles. */
+---
+<figure class="diagram not-content">
+	<svg viewBox="0 0 760 170" role="img" aria-label="Partición train, validación y test">
+		<text x="20" y="22" class="t-s">barajar una vez, congelar la partición</text>
+		<rect x="20" y="35" width="500" height="44" rx="10" class="box-a" /><text x="270" y="62" text-anchor="middle" class="t-b">train (~70%)</text>
+		<rect x="526" y="35" width="105" height="44" rx="10" class="box-v" /><text x="578" y="62" text-anchor="middle" class="t-b">validación</text>
+		<rect x="637" y="35" width="105" height="44" rx="10" class="box-o" /><text x="690" y="62" text-anchor="middle" class="t-b">test</text>
+		<text x="270" y="105" text-anchor="middle" class="t">ajusta los parámetros (w, b)</text>
+		<text x="578" y="105" text-anchor="middle" class="t">elige modelo e</text>
+		<text x="578" y="121" text-anchor="middle" class="t">hiperparámetros (λ, C…)</text>
+		<text x="690" y="105" text-anchor="middle" class="t">nota final,</text>
+		<text x="690" y="121" text-anchor="middle" class="t">se usa UNA vez</text>
+		<text x="380" y="158" text-anchor="middle" class="t-s">Si el test influye en cualquier decisión (data leakage), la nota final queda optimista.</text>
+	</svg>
+	<figcaption>Nunca evalúes con los datos de entrenamiento. La validación cruzada (sesión 03) reemplaza el bloque de validación por K bloques rotativos.</figcaption>
+</figure>

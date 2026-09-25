@@ -1,0 +1,155 @@
+---
+title: "Margen suave, C y la pérdida hinge"
+description: "Datos no separables, holguras ξ, el parámetro C, el dual con 0 ≤ α ≤ C, los tres casos KKT, eliminar ξ para obtener hinge + L2, comparación de pérdidas, receta práctica y malentendidos frecuentes."
+---
+
+import SoftMarginSVM from '../../../components/sim/SoftMarginSVM.tsx';
+import Quiz from '../../../components/Quiz.tsx';
+import Solucion from '../../../components/Solucion.astro';
+import Conexiones from '../../../components/Conexiones.astro';
+import Recursos from '../../../components/Recursos.astro';
+import Fuente from '../../../components/Fuente.astro';
+import { R } from '../../../data/recursos';
+
+## Los datos reales no son separables
+
+Las clases se traslapan, hay etiquetas mal puestas, un punto raro se mete en la otra clase. Entonces **ningún** $(\mathbf{w},b)$ cumple $y_if(\mathbf{x}_i)\ge1$ para todos: el margen duro es **infactible**. Peor: aun cuando separar es posible, insistir puede reducir el margen a una astilla por un solo outlier: overfitting con otro nombre.
+
+**Arreglo: dejar de exigir y empezar a cobrar.** Un punto puede romper su margen pero paga en proporción a cuánto invade.
+
+## Holguras: una exención pagada por punto
+
+$$
+y_i(\mathbf{w}^\top\mathbf{x}_i+b)\ge 1-\xi_i,\qquad \xi_i\ge0
+$$
+
+| $\xi_i$ | Situación |
+| --- | --- |
+| $0$ | cumple la regla original: fuera de la banda |
+| $0<\xi_i\le1$ | entró a la banda pero sigue del lado correcto |
+| $\xi_i>1$ | cruzó la frontera: **mal clasificado** |
+
+Sin precio, el solver pondría todos los $\xi_i$ enormes y $\mathbf{w}=0$. Así que se suman al objetivo:
+
+$$
+\boxed{\min_{\mathbf{w},b,\boldsymbol\xi}\ \underbrace{\tfrac12\|\mathbf{w}\|^2}_{\text{banda ANCHA}}+C\underbrace{\sum_{i=1}^n\xi_i}_{\text{POCAS invasiones}}\quad\text{s.a.}\quad y_i(\mathbf{w}^\top\mathbf{x}_i+b)\ge1-\xi_i,\ \ \xi_i\ge0}
+$$
+
+## C: el tipo de cambio entre ancho y violaciones
+
+- **C grande**: invadir es caro ⇒ el optimizador retuerce la frontera para mantener $\xi\approx0$ ⇒ **margen angosto**, pocos vectores de soporte, **alta varianza**. Con $C\to\infty$ se recupera el margen duro.
+- **C pequeño**: invadir es barato ⇒ compra una banda ancha y suave, tolera violaciones ⇒ **muchos vectores de soporte, alto sesgo**.
+
+C es el dial de regularización del SVM, el mismo trade-off sesgo–varianza que λ en ridge, **pero invertido**: C grande = regularización **débil** ($\lambda\propto1/C$). En la slide: C = 0.05 → margen 2.19, 38 SVs; C = 1 → 0.95, 17 SVs; C = 100 → 0.55, 12 SVs.
+
+<SoftMarginSVM client:only="react" />
+
+## El dual con margen suave: un solo cambio
+
+Repitiendo la derivación con los $\xi_i$ (y multiplicadores $\mu_i\ge0$ para $\xi_i\ge0$), $\partial L/\partial\xi_i = C-\alpha_i-\mu_i=0$ agrega una sola restricción nueva, $\alpha_i\le C$:
+
+$$
+\max_{\boldsymbol\alpha}\sum_i\alpha_i-\frac12\sum_{i,j}\alpha_i\alpha_jy_iy_j\,\mathbf{x}_i^\top\mathbf{x}_j\quad\text{s.a.}\quad \boxed{0\le\alpha_i\le C},\ \ \sum_i\alpha_iy_i=0
+$$
+
+Todo lo demás igual: mismo objetivo, misma restricción de balance, solo productos internos. **C es un tope a cuánto puede empujar un punto**: ningún outlier, por extremo que sea, ejerce más de C unidades de presión. Eso hace robusto al margen suave.
+
+### KKT clasifica cada punto en tres casos
+
+| $\alpha_i$ | Condición | Significado |
+| --- | --- | --- |
+| $\alpha_i=0$ | $y_if(\mathbf{x}_i)\ge1$, $\xi_i=0$ | sobre o fuera del margen: espectador |
+| $0<\alpha_i<C$ | $y_if(\mathbf{x}_i)=1$, $\xi_i=0$ | vector de soporte **libre**, justo sobre la recta |
+| $\alpha_i=C$ | $y_if(\mathbf{x}_i)\le1$, $\xi_i\ge0$ | dentro de la banda o del lado equivocado: empuja al máximo |
+
+Solo el caso del medio da $b$: $b=y_k-\mathbf{w}^\top\mathbf{x}_k$ en un vector de soporte libre. Si no hay ninguno, $b$ queda en un intervalo y los solvers toman su punto medio. (Ahora los vectores de soporte incluyen **todo** punto con $\xi_i>0$, no solo los que tocan el margen.)
+
+## Eliminar ξ: aparece la hinge
+
+Con $(\mathbf{w},b)$ fijo, sea $m_i=y_if(\mathbf{x}_i)$. La holgura debe cumplir $\xi_i\ge0$ y $\xi_i\ge1-m_i$, y cuesta $C\xi_i>0$, así que el optimizador toma la mínima legal: $\xi_i^\star=\max(0,1-m_i)$. Sustituyendo:
+
+$$
+\min_{\mathbf{w},b}\ \underbrace{\tfrac12\|\mathbf{w}\|^2}_{\text{regularización }L_2}+C\sum_{i=1}^n\underbrace{\max\big(0,\,1-y_if(\mathbf{x}_i)\big)}_{\text{pérdida hinge}}
+$$
+
+**El SVM no es una especie exótica**: es un modelo lineal entrenado con **pérdida + penalización**, la receta de las sesiones 03–04, donde la pérdida resulta ser la hinge. Los tres casos de holgura son tres tramos de una misma curva: a la derecha de $m=1$ paga 0; entre 0 y 1 paga pero está bien; a la izquierda de 0 está mal. El costo sube linealmente.
+
+### Hinge frente a las pérdidas conocidas
+
+- **0/1**: lo que de verdad nos importa, pero es un escalón (gradiente plano con un salto): imposible de optimizar.
+- **Hinge**: convexa y **exactamente 0** una vez que $m\ge1$: los puntos correctos con holgura se ignoran.
+- **Logística**: convexa, pero **nunca llega a 0**: todo punto sigue tirando de la frontera para siempre.
+- **Cuadrática**: vuelve a subir para $m>1$: castiga por ser *demasiado* correcto. No sirve para clasificar.
+
+La zona plana de la hinge **es** la historia de los vectores de soporte vista como pérdida: un punto con pérdida 0 y gradiente 0 no puede influir en el ajuste.
+
+| Vista geométrica | Vista de pérdida |
+| --- | --- |
+| maximizar la banda vacía | minimizar hinge + penalización L2 |
+| restricciones y multiplicadores | sin restricciones |
+| los vectores de soporte sostienen la frontera | puntos con pérdida 0 tienen gradiente 0 |
+| lleva al dual y a los kernels | lleva a SGD sobre datos enormes |
+
+## En la práctica
+
+1. **Estandariza** las features: $\|\mathbf{w}\|$ mezcla todas, así que una columna en millones domina el margen en silencio. **No es opcional** (y el escalador se ajusta solo con los folds de entrenamiento).
+2. **Empieza lineal**. Si funciona bien, para: más rápido e interpretable.
+3. Si no, **RBF** y grilla log de **C y γ juntos** con validación cruzada.
+4. **Inspecciona los vectores de soporte**: si casi todos lo son, C es muy chico (o γ muy grande).
+
+**Lo que el SVM simple no da:**
+
+- **Probabilidades**: la salida es un score con signo, no $P(y=1\mid\mathbf{x})$. Las librerías ajustan una logística a los scores (*Platt scaling*), con CV extra, y puede contradecir el signo del score.
+- **Más de dos clases**: es binario. One-vs-rest ($K$ clasificadores) u one-vs-one ($K(K-1)/2$, lo que hace `sklearn.svm.SVC`) + votación.
+- **Entrenamiento barato en datos enormes**: kernel SVM cuesta $\sim O(n^2)$–$O(n^3)$ y la matriz $n\times n$. Más allá de $\sim10^5$ puntos, SVM lineal con SGD/hinge.
+
+:::caution[Malentendidos que corrige la slide]
+- «El SVM maximiza la distancia a las **medias** de las clases» → No: solo a los puntos **más cercanos**.
+- «C grande = más regularización» → **Al revés**.
+- «El kernel mapea a más dimensiones y luego corremos un SVM lineal ahí» → Conceptualmente sí; **computacionalmente no**: nunca construimos los vectores mapeados.
+- «Más vectores de soporte = mejor ajuste» → Suele ser lo contrario: indica C chico o kernel muy flexible.
+- «El ±1 es una constante fundamental» → Es la unidad que elegimos al fijar la escala.
+- «El SVM es generativo y da $P(y=1\mid\mathbf{x})$» → No: optimiza un margen, es **discriminativo**.
+:::
+
+## Ejercicio
+
+$\mathbf{w}=(1,1)$, $b=-1$, $C=1$. Puntos: $A=(2,1)$, $y=+1$; $B=(0.5,0.3)$, $y=+1$; $C_p=(1,1)$, $y=-1$. Calcula $m_i$, $\xi_i$ y el objetivo.
+
+<Solucion>
+
+- $A$: $f=2$, $m=2$ ⇒ $\xi=0$ (fuera de la banda).
+- $B$: $f=-0.2$, $m=-0.2$ ⇒ $\xi=1.2>1$ (mal clasificado).
+- $C_p$: $f=1$, $m=-1$ ⇒ $\xi=2$ (mal clasificado, lejos).
+
+Objetivo $=\tfrac12\cdot2 + 1\cdot(0+1.2+2) = 4.2$.
+
+</Solucion>
+
+<Quiz
+	client:visible
+	id="svm-soft"
+	preguntas={[
+		{ q: 'Estandarizar las features es opcional en un SVM porque es invariante a la escala.', opts: ['Verdadero', 'Falso'], ok: 1, why: '$\\|\\mathbf{w}\\|$ mezcla todas las features: una columna en millones domina el margen.' },
+		{ q: 'El SVM es un modelo generativo que entrega $P(y=1\\mid\\mathbf{x})$.', opts: ['Verdadero', 'Falso'], ok: 1, why: 'Optimiza un margen: da un score con signo. Es discriminativo.' },
+		{ q: 'Un punto con $\\xi_i = 0.4$ está…', opts: ['fuera de la banda', 'dentro de la banda pero bien clasificado', 'mal clasificado', 'sobre la frontera'], ok: 1 },
+		{ q: 'En el dual de margen suave, el único cambio es…', opts: ['$\\alpha_i \\ge C$', '$0 \\le \\alpha_i \\le C$', '$\\sum\\alpha_i = C$', 'desaparece $\\sum\\alpha_iy_i=0$'], ok: 1 },
+		{ q: 'Aumentar C tiende a…', opts: ['ensanchar el margen', 'estrechar el margen y reducir los vectores de soporte', 'aumentar el sesgo', 'regularizar más'], ok: 1 },
+		{ q: 'La hinge $\\max(0, 1-m)$ vale 0 cuando…', opts: ['$m \\ge 0$', '$m \\ge 1$', '$m \\le 1$', 'nunca'], ok: 1 },
+	]}
+/>
+
+<Conexiones
+	items={[
+		{ href: '/regularizacion/ridge-lasso/', titulo: 'Pérdida + penalización', texto: 'Hinge + ½‖w‖² es la receta de ridge con otra pérdida; λ ∝ 1/C.' },
+		{ href: '/clasificacion/entrenamiento/', titulo: 'Log-loss', texto: 'La logística nunca llega a 0; la hinge sí, y por eso el modelo es esparso.' },
+		{ href: '/kernels/practica/', titulo: 'C y γ juntos', texto: 'Con kernel RBF, C y γ se eligen en una grilla log por validación cruzada.' },
+		{ href: '/clasificacion/metricas/', titulo: 'Scores y ROC', texto: 'El score con signo del SVM basta para trazar una ROC, aunque no sea probabilidad.' },
+	]}
+/>
+
+## Para profundizar
+
+<Recursos items={[R.sqSVMpl, R.skSVM, R.cs229]} />
+
+<Fuente archivos={['ML_Course_SVM.pdf (slides 50–75)', 'ML_Course/session-06a-margin-and-soft-margin.ipynb', 'BANCO_DE_PREGUNTAS_ML_PART_1.pdf']} />

@@ -1,0 +1,44 @@
+---
+title: "Recursos web recomendados"
+description: "Material externo de calidad para profundizar cada tema: visualizaciones interactivas, videos, libros gratuitos y documentación de scikit-learn."
+---
+
+import Recursos from '../../components/Recursos.astro';
+import { R } from '../../data/recursos';
+
+Todos los enlaces fueron verificados (septiembre 2026). Cada página de teoría ya enlaza los que le corresponden; aquí están todos juntos.
+
+## Visualizaciones interactivas
+
+Explicaciones que se animan al hacer scroll. Complementan muy bien los simuladores de esta web.
+
+<Recursos items={[R.r2d3, R.r2d3b, R.mluLinReg, R.mluBiasVar, R.mluSplits, R.mluCV, R.mluLogReg, R.mluPR, R.mluROC, R.mluTree, R.mluRF, R.mluDoubleDescent, R.playground, R.seeingProb, R.seeingBayes]} />
+
+## Videos
+
+<Recursos items={[R.sqIndex, R.sqGD, R.sqSVM, R.sqSVMpl, R.sqTree, R.g3b1bLA, R.g3b1bBayes]} />
+
+## Libros y apuntes gratuitos
+
+<Recursos items={[R.islr, R.mml, R.cs229, R.boyd, R.mlcc]} />
+
+:::note[Qué leer de ISLR para el parcial]
+Cap. 2 (sesgo–varianza), cap. 3 (regresión lineal), cap. 4 (logística, LDA, QDA, Naive Bayes, matriz de confusión y ROC), cap. 5 (validación cruzada), cap. 6 (ridge y lasso), cap. 8 (árboles) y cap. 9 (SVM y kernels). Es el libro más cercano al nivel del curso.
+:::
+
+## Documentación práctica (scikit-learn)
+
+<Recursos items={[R.skLinear, R.skCV, R.skMetrics, R.skNB, R.skLDA, R.skSVM, R.skKR, R.skTree, R.skPrune]} />
+
+## Material del curso
+
+Los notebooks prácticos del curso (`lessons/ML_Course`) replican desde cero, en NumPy, cada idea de estas páginas y la comparan con scikit-learn:
+
+| Sesión | Notebooks |
+| --- | --- |
+| 01 · Introducción | `01a` datos estructurados · `01b` no estructurados · `01c` EDA y limpieza · `01d` train/val/test · `01e` primer pipeline |
+| 02 · Regresión lineal | `02a` modelo y costo · `02b` ecuaciones normales · `02c` descenso de gradiente · `02d` evaluación y complejidad |
+| 03 · Regularización | `03a` sesgo–varianza · `03b` ridge y lasso · `03c` selección con CV |
+| 04 · Logística | `04a` modelo · `04b` entrenamiento desde cero · `04c` evaluación · `04d` softmax |
+| 05 · Generativos | `05a` Gaussian NB · `05b` LDA/QDA · `05c` comparación |
+| 06–07 · SVM y kernels | `06a` margen y margen suave · `06b` dual y kernel trick · `07` kernels en práctica |

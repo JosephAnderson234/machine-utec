@@ -1,0 +1,131 @@
+---
+title: "Naive Bayes"
+description: "La maldición de la distribución conjunta, independencia condicional, decidir en log-espacio, Naive Bayes gaussiano, Bernoulli y multinomial para texto, el spam a mano y el suavizado de Laplace."
+---
+
+import NaiveBayesSpam from '../../../components/sim/NaiveBayesSpam.tsx';
+import GaussianClassifier from '../../../components/sim/GaussianClassifier.tsx';
+import Quiz from '../../../components/Quiz.tsx';
+import Solucion from '../../../components/Solucion.astro';
+import Conexiones from '../../../components/Conexiones.astro';
+import Recursos from '../../../components/Recursos.astro';
+import Fuente from '../../../components/Fuente.astro';
+import { R } from '../../../data/recursos';
+
+## La maldición de la conjunta
+
+Para usar Bayes necesitamos $p(\mathbf{x}\mid y=k)$, una densidad sobre **todo el vector** $\mathbf{x}=(x_1,\dots,x_d)$. En alta dimensión es imposible de estimar: con solo 20 features sí/no (palabras), la conjunta necesita $2^{20}\approx$ **1 000 000** de probabilidades por clase.
+
+**Naive Bayes** corta el nudo con una suposición audaz: **independencia condicional** de las features dada la clase:
+
+$$
+p(\mathbf{x}\mid y=k) = \prod_{j=1}^d p(x_j\mid y=k)
+$$
+
+Con eso bastan **20** números por clase (uno por palabra). «Naive» (ingenuo) porque finge que, sabiendo la clase, las features no llevan información conjunta.
+
+## Decidir en log-espacio
+
+Multiplicar muchas probabilidades chicas se desborda a 0 (30 factores ≈ 0.1 dan $10^{-30}$). Tomando logs, los productos se vuelven sumas y **el ganador no cambia** (el log es creciente):
+
+$$
+\hat y = \arg\max_k\Big[\log\pi_k + \sum_{j=1}^d\log p(x_j\mid y=k)\Big]
+$$
+
+La regla es la misma para todo Naive Bayes; solo cambia el modelo por feature:
+
+| Tipo de feature | Variante | $p(x_j\mid y=k)$ | Estimación (MLE) |
+| --- | --- | --- | --- |
+| continua | **Gaussiano** | $\mathcal N(x_j;\mu_{kj},\sigma_{kj}^2)$ | media y varianza de $x_j$ en la clase $k$ |
+| presencia de palabra (0/1) | **Bernoulli** | fracción de docs de la clase con la palabra | contar |
+| conteo de palabras | **Multinomial** | frecuencia de la palabra en la clase | contar |
+
+## Naive Bayes gaussiano
+
+Cada feature continua es su propia campana 1-D (dos perillas: centro $\mu$ y dispersión $\sigma$; el exponente es el z-score al cuadrado). Un producto de campanas por eje da **elipses alineadas a los ejes (sin inclinación)**; aun así la frontera se puede curvar.
+
+Parámetros totales: $K$ priors (con $K-1$ libres, porque $\sum_k\pi_k=1$) $+\ 2Kd$ números (media y varianza por clase y feature). **Nada más.**
+
+:::caution[Preguntas del banco]
+- El likelihood de una feature continua **se puede** modelar como $x_j\mid y=k\sim\mathcal N(\mu_{kj},\sigma^2_{kj})$ → Verdadero.
+- Para ajustar una gaussiana por feature y por clase **basta** con calcular $\mu_{kj}$ y $\sigma^2_{kj}$ sobre las muestras de esa clase → Verdadero (MLE = contar y promediar).
+:::
+
+Mira la elipse diagonal de NB frente a la inclinada de QDA (modo «Naive Bayes»):
+
+<GaussianClassifier client:only="react" />
+
+## Naive Bayes para texto
+
+El texto no tiene ejes $x_1, x_2$: primero se convierte en features. **Bolsa de palabras**: se fija un vocabulario y cada palabra es una feature (presencia en Bernoulli, conteo en Multinomial). Un filtro de spam no analiza gramática: pregunta palabra por palabra «¿aparece más en spam o en ham?» y **multiplica los votos**. Solo hay que estimar ≈ (vocabulario × clases) números, cada uno un conteo.
+
+### Spam a mano (los números de la slide)
+
+Priors $\pi_\text{spam}=0.40$, $\pi_\text{ham}=0.60$. Mensaje: «free money now».
+
+| | free | money | now |
+| --- | --- | --- | --- |
+| spam | 0.80 | 0.70 | 0.55 |
+| ham | 0.10 | 0.08 | 0.30 |
+
+$$
+\text{spam: } 0.40\times0.80\times0.70\times0.55 = 0.1232\qquad \text{ham: } 0.60\times0.10\times0.08\times0.30 = 0.00144
+$$
+
+$$
+P(\text{spam}\mid\text{palabras}) = \frac{0.1232}{0.1232+0.00144}\approx 0.99\quad(\text{odds}\approx 86{:}1)
+$$
+
+<NaiveBayesSpam client:visible />
+
+## Suavizado de Laplace, y una advertencia
+
+Si «lottery» nunca apareció en ningún ham, $p(\text{lottery}\mid\text{ham}) = 0$ y **ese solo cero anula todo el producto** de ham, por muy «ham» que sean las otras palabras. **Suavizado de Laplace (add-α):**
+
+$$
+p(w\mid y=k) = \frac{\text{count}(w,k)+\alpha}{\text{total}(k)+\alpha V}
+$$
+
+con $V$ el tamaño del vocabulario (en Bernoulli, $V=2$ resultados por palabra) y $\alpha=1$ típico. Es una **estimación MAP**: el $+\alpha$ actúa como un prior de $\alpha$ conteos imaginados por palabra; ninguna probabilidad vuelve a ser 0.
+
+:::caution[Sobreconfianza]
+La independencia condicional casi siempre es **falsa** («free» y «money» van juntas). Aun así NB suele **clasificar** bien: el arg max puede ser correcto aunque la probabilidad esté muy mal calibrada, típicamente **sobreconfiada**. Confía en la etiqueta, no en el 0.99.
+:::
+
+## Ejercicio
+
+Con los datos de la tabla, el mensaje es solo «now». ¿Qué clase gana? ¿Y si el prior de spam fuera 0.2?
+
+<Solucion>
+
+- $\pi=0.4$: spam $0.4\times0.55 = 0.22$; ham $0.6\times0.30=0.18$ ⇒ spam ($0.22/0.40 = 0.55$).
+- $\pi=0.2$: spam $0.2\times0.55 = 0.11$; ham $0.8\times0.30 = 0.24$ ⇒ **ham**. Con evidencia débil, el prior decide.
+
+</Solucion>
+
+<Quiz
+	client:visible
+	id="nb"
+	preguntas={[
+		{ q: 'La suposición «naive» es…', opts: ['features independientes (sin condición)', 'features condicionalmente independientes dada la clase', 'clases equiprobables', 'covarianza compartida'], ok: 1 },
+		{ q: '¿Por qué se suman logaritmos?', opts: ['porque cambia al ganador', 'para evitar desbordamiento a 0 con productos de muchas probabilidades', 'porque el log es convexo', 'para normalizar'], ok: 1 },
+		{ q: 'Con una palabra nunca vista en ham y $\\alpha = 0$…', opts: ['no pasa nada', 'el score de ham se vuelve 0', 'gana ham', 'el prior se ignora'], ok: 1 },
+		{ q: 'Las elipses de NB gaussiano son…', opts: ['inclinadas según la correlación', 'alineadas a los ejes (Σ diagonal)', 'círculos siempre', 'iguales para todas las clases'], ok: 1 },
+		{ q: 'El suavizado de Laplace es un ejemplo de…', opts: ['MLE', 'MAP', 'validación cruzada', 'boosting'], ok: 1 },
+	]}
+/>
+
+<Conexiones
+	items={[
+		{ href: '/generativos/lda-qda/', titulo: 'LDA y QDA', texto: 'Quitar la independencia: Σ completa que se inclina. NB = QDA con Σ diagonal.' },
+		{ href: '/generativos/bayes/', titulo: 'MAP', texto: 'El +α es un prior; la regla de decisión es MAP.' },
+		{ href: '/arboles/cart/', titulo: 'El split «free» en árboles', texto: 'El mismo ejemplo de spam reaparece como split con ganancia de Gini 0.2396.' },
+		{ href: '/clasificacion/metricas/', titulo: 'Calibración', texto: 'Una probabilidad sobreconfiada puede dar buena accuracy y mala log-loss.' },
+	]}
+/>
+
+## Para profundizar
+
+<Recursos items={[R.skNB, R.sqIndex, R.cs229]} />
+
+<Fuente archivos={['ML_Course_Generative_Probabilistic_Models.pdf (slides 16–23)', 'ML_Course/session-05a-gaussian-naive-bayes.ipynb']} />

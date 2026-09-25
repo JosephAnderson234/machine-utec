@@ -1,0 +1,96 @@
+---
+title: "Validación cruzada y selección de modelos"
+description: "Por qué una sola partición es una lotería, K-fold paso a paso, la curva de CV para elegir λ, la regla de 1 error estándar, data leakage y el flujo train/CV/test."
+---
+
+import KFold from '../../../components/sim/KFold.tsx';
+import Quiz from '../../../components/Quiz.tsx';
+import Solucion from '../../../components/Solucion.astro';
+import Conexiones from '../../../components/Conexiones.astro';
+import Recursos from '../../../components/Recursos.astro';
+import Fuente from '../../../components/Fuente.astro';
+import { R } from '../../../data/recursos';
+
+## Todavía hay que elegir λ (o el grado)
+
+Todo modelo tiene **hiperparámetros**: settings que eliges, no que se aprenden (λ de ridge/lasso, el grado, C y γ del SVM, el α de poda). Una sola partición train/validación es **ruidosa**: el «mejor λ» depende de qué puntos cayeron en validación, y con pocos datos cada punto separado es precioso.
+
+## K-fold, paso a paso
+
+1. Parte los datos (de entrenamiento) en $K$ bloques iguales (típico $K=5$ o $10$).
+2. Para cada $k$: entrena con los $K-1$ bloques restantes y **valida** en el bloque $k$.
+3. Promedia los $K$ errores ⇒ un score para ese valor del hiperparámetro.
+4. Repite sobre una grilla de valores (λ en escala log) y quédate con el mínimo.
+5. **Re-entrena** con todos los datos de entrenamiento usando el valor elegido y evalúa **una vez** en el test.
+
+$$
+\text{CV}(\lambda) = \frac1K\sum_{k=1}^K \text{Error}_k(\lambda),\qquad \lambda^\star = \arg\min_\lambda \text{CV}(\lambda)
+$$
+
+Cada punto se usa para validar **exactamente una vez**: una estimación más honesta y de menor varianza del error de generalización.
+
+<KFold client:visible />
+
+:::caution[Pregunta del banco]
+«En K-fold, cada uno de los K bloques que se dejan fuera es un **test set** sobre el que se reporta el resultado final» → **Falso**. Son folds de **validación**: se usan para *elegir* el modelo. El test set queda fuera de toda la selección y se usa una sola vez al final.
+:::
+
+## La curva de CV y la regla de 1 SE
+
+La curva CV vs λ tiene otra vez forma de **U**: poca penalización sobreajusta (izquierda), demasiada subajusta (derecha). Se grafica con ±1 **error estándar** entre folds.
+
+**Regla de 1 SE:** entre todos los λ cuyo error CV está a menos de un SE del mínimo, elige el **más fuerte** (el modelo más simple). Las diferencias menores a un SE son ruido: obtienes un modelo más simple, estable e interpretable **gratis**. La misma regla se usa para podar árboles.
+
+## Data leakage: el pecado capital
+
+Hay fuga cuando información de evaluación influye en el entrenamiento, y los scores salen optimistas. Formas típicas:
+
+- Elegir hiperparámetros mirando el **test**.
+- **Estandarizar** (o imputar, o seleccionar features) usando *todo* el dataset antes de partir. El escalador se ajusta **solo con los folds de entrenamiento** y luego se aplica a validación/test (en scikit-learn: `Pipeline` + `GridSearchCV`).
+- Series de tiempo partidas al azar (hay que respetar el orden temporal).
+
+:::note[Maldición del ganador]
+Si comparas muchos modelos en el mismo conjunto de validación, el ganador parece mejor de lo que es (incluso con datos de puro ruido). Por eso el test, visto una sola vez, da la nota honesta. Para evaluar el propio procedimiento de selección existe la **CV anidada**.
+:::
+
+## Todo junto: el barrido de complejidad
+
+Barriendo el grado de 0 a 18: el RMSE de entrenamiento no deja de bajar mientras el de validación traza la U; se elige el mínimo de validación (grado 8 en la slide). Es el trade-off sesgo–varianza **resuelto con datos**.
+
+## Ejercicio
+
+Tienes 1000 ejemplos. Reservas 200 para test. Con los 800 restantes haces 5-fold CV para 10 valores de λ. ¿Cuántos modelos entrenas en total y con cuántos puntos cada uno?
+
+<Solucion>
+
+- CV: $5 \text{ folds} \times 10 \text{ valores} = 50$ modelos, cada uno con $800\cdot\tfrac45 = 640$ puntos (validando en 160).
+- Luego **1** modelo final con los 800 puntos y el λ elegido, evaluado una vez en los 200 de test.
+- Total: **51** entrenamientos.
+
+</Solucion>
+
+<Quiz
+	client:visible
+	id="cv"
+	preguntas={[
+		{ q: 'En K-fold, ¿cuántas veces se usa cada punto como validación?', opts: ['0', '1', '$K-1$', '$K$'], ok: 1 },
+		{ q: '¿Cuándo se ajusta el `StandardScaler` correctamente?', opts: ['con todo el dataset antes de partir', 'solo con los folds de entrenamiento, y se aplica a validación', 'solo con el test', 'no importa'], ok: 1 },
+		{ q: 'La regla de 1 SE elige…', opts: ['el λ con menor error de entrenamiento', 'el λ más fuerte dentro de 1 SE del mínimo de CV', 'el λ más débil', 'el promedio de λ'], ok: 1 },
+		{ q: '¿Por qué no basta una sola partición train/validación?', opts: ['porque es más lenta', 'porque el mejor λ depende de qué puntos cayeron en validación (alta varianza)', 'porque no permite test', 'porque sobreajusta el test'], ok: 1 },
+	]}
+/>
+
+<Conexiones
+	items={[
+		{ href: '/kernels/practica/', titulo: 'C y γ del SVM', texto: 'Se eligen juntos con una grilla log y CV, nunca con accuracy de entrenamiento.' },
+		{ href: '/arboles/poda/', titulo: 'α de poda', texto: 'La ruta de poda da una lista corta de subárboles; CV elige uno (y la regla 1 SE).' },
+		{ href: '/fundamentos/intro/', titulo: 'Train/val/test', texto: 'CV reemplaza el bloque de validación fijo por K bloques rotativos.' },
+		{ href: '/regularizacion/sesgo-varianza/', titulo: 'La U', texto: 'CV es el instrumento que encuentra el fondo de la curva en U.' },
+	]}
+/>
+
+## Para profundizar
+
+<Recursos items={[R.mluCV, R.skCV, R.mluSplits]} />
+
+<Fuente archivos={['ML_Course_regularization_and_model_selection.pdf (slides 27–34)', 'ML_Course/session-03c-model-selection-cv.ipynb', 'ML_Course/session-01d-train-val-test.ipynb']} />

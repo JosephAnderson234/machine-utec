@@ -1,0 +1,157 @@
+---
+title: "Modelo, costo y ecuaciones normales"
+description: "Regresión lineal desde cero, la matriz de diseño, residuales, mínimos cuadrados, convexidad, ecuaciones normales, proyección, matriz sombrero y la justificación por máxima verosimilitud."
+---
+
+import LinearFit from '../../../components/sim/LinearFit.tsx';
+import Proyeccion from '../../../components/diagrams/Proyeccion.astro';
+import Quiz from '../../../components/Quiz.tsx';
+import Solucion from '../../../components/Solucion.astro';
+import Conexiones from '../../../components/Conexiones.astro';
+import Recursos from '../../../components/Recursos.astro';
+import Fuente from '../../../components/Fuente.astro';
+import { R } from '../../../data/recursos';
+
+La regresión lineal es el **esqueleto** de todo el curso: un modelo con perillas, una pérdida que medir, y dos maneras de encontrar las mejores perillas (fórmula cerrada o descenso de gradiente). Todo lo que viene después cambia una de esas piezas.
+
+## Glosario rápido
+
+| Término | Significado |
+| --- | --- |
+| Feature | variable de entrada que describe un ejemplo |
+| Target (label) | el número que predecimos |
+| Peso $w_j$ / sesgo $b$ | cuánto cuenta la feature $j$ / nivel base |
+| Predicción $\hat y$ | la salida del modelo |
+| Residual $r_i = y_i-\hat y_i$ | real menos predicho, un ejemplo |
+| MSE / RMSE | media de residuales² / su raíz (en unidades del target) |
+| $R^2$ | fracción de la variación explicada (1 = perfecto, 0 = como la media) |
+
+## De una recta a un hiperplano
+
+Con una feature el modelo es una **recta** $\hat y = wx + b$; con dos, un **plano** $\hat y = w_1x_1 + w_2x_2 + b$; con $d$, un **hiperplano**. Cada peso $w_j$ es la pendiente a lo largo de la feature $j$.
+
+### La matriz de diseño
+
+Apilamos los ejemplos como filas y agregamos una **columna de unos** para absorber el sesgo ($w_0=b$):
+
+$$
+\underbrace{\begin{bmatrix}1 & x_{11} & \cdots & x_{1,d-1}\\ 1 & x_{21} & \cdots & x_{2,d-1}\\ \vdots & & & \vdots\\ 1 & x_{n1} & \cdots & x_{n,d-1}\end{bmatrix}}_{\mathbf{X}\in\mathbb{R}^{n\times d}}
+\underbrace{\begin{bmatrix}w_0\\ w_1\\ \vdots\\ w_{d-1}\end{bmatrix}}_{\mathbf{w}\in\mathbb{R}^{d}}
+=\underbrace{\begin{bmatrix}\hat y_1\\ \hat y_2\\ \vdots\\ \hat y_n\end{bmatrix}}_{\hat{\mathbf{y}}\in\mathbb{R}^{n}}
+\qquad\Longleftrightarrow\qquad \hat{\mathbf{y}} = \mathbf{X}\mathbf{w}
+$$
+
+Cada predicción es el **producto punto** de una fila con $\mathbf{w}$: $\hat y_i = \mathbf{x}_i^\top\mathbf{w}$. Las $n$ predicciones salen de **una** multiplicación de matrices.
+
+## ¿Qué significa «cerca»? Residuales al cuadrado
+
+El residual $r_i = y_i-\hat y_i$ es la brecha **vertical** entre el punto y la recta. Sumamos sus cuadrados por tres razones:
+
+1. **Los signos no se cancelan.** Residuales crudos pueden sumar ≈ 0 incluso con una recta mala.
+2. **Los errores grandes pesan más.** $r^2$ crece rápido: el ajuste se esfuerza en evitar errores grandes (y por eso es sensible a outliers).
+3. **Es conveniente.** Una suma de cuadrados es suave y cuadrática ⇒ da una **solución cerrada**.
+
+$$
+J(\mathbf{w}) = \sum_{i=1}^n (y_i-\hat y_i)^2 = \|\mathbf{y}-\mathbf{X}\mathbf{w}\|_2^2,\qquad \mathbf{w}^\star = \arg\min_\mathbf{w} J(\mathbf{w})
+$$
+
+<LinearFit client:visible />
+
+## El costo es un bowl convexo
+
+Expandiendo, $J$ es una cuadrática en $\mathbf{w}$:
+
+$$
+J(\mathbf{w}) = \mathbf{w}^\top(\mathbf{X}^\top\mathbf{X})\mathbf{w} - 2(\mathbf{X}^\top\mathbf{y})^\top\mathbf{w} + \mathbf{y}^\top\mathbf{y}
+$$
+
+La matriz de curvatura $\mathbf{X}^\top\mathbf{X}$ es **semidefinida positiva**: para todo $\mathbf{v}$, $\mathbf{v}^\top\mathbf{X}^\top\mathbf{X}\mathbf{v} = \|\mathbf{X}\mathbf{v}\|_2^2\ge 0$. Así que $J$ se curva hacia arriba en toda dirección: **un solo bowl**, sin mínimos locales peores que el global. Si además $\mathbf{X}^\top\mathbf{X}$ es definida positiva (features no colineales), el mínimo es **único**.
+
+:::caution[Pregunta del banco]
+«$J(\mathbf{w})=\|\mathbf{y}-\mathbf{X}\mathbf{w}\|_2^2$ es no convexa» → **Falso**, por el argumento de arriba.
+:::
+
+## Las ecuaciones normales (ruta del cálculo)
+
+En el fondo del bowl todas las pendientes son 0. Derivando término a término (reglas $\nabla_\mathbf{w}(\mathbf{a}^\top\mathbf{w})=\mathbf{a}$ y $\nabla_\mathbf{w}(\mathbf{w}^\top\mathbf{M}\mathbf{w}) = 2\mathbf{M}\mathbf{w}$ para $\mathbf{M}$ simétrica):
+
+$$
+\nabla_\mathbf{w}J = 2\mathbf{X}^\top\mathbf{X}\mathbf{w} - 2\mathbf{X}^\top\mathbf{y} = 2\mathbf{X}^\top(\mathbf{X}\mathbf{w}-\mathbf{y}) = -2\mathbf{X}^\top\mathbf{r}
+$$
+
+Igualando a cero:
+
+$$
+\boxed{\mathbf{X}^\top\mathbf{X}\,\mathbf{w} = \mathbf{X}^\top\mathbf{y}}\qquad\Longrightarrow\qquad \mathbf{w}^\star = (\mathbf{X}^\top\mathbf{X})^{-1}\mathbf{X}^\top\mathbf{y}
+$$
+
+:::note[En la práctica]
+Se **resuelve el sistema** (`np.linalg.solve`, `lstsq`) en vez de invertir. Si $\mathbf{X}^\top\mathbf{X}$ es singular (features colineales, $d>n$) se usa la pseudo-inversa… o **ridge**, que suma $\lambda\mathbf{I}$ y la vuelve siempre invertible.
+:::
+
+## La misma respuesta, vista como proyección (ruta geométrica)
+
+Lee $\mathbf{X}$ por columnas: $\mathbf{X}\mathbf{w} = w_1\mathbf{a}_1 + \dots + w_d\mathbf{a}_d$. Cualquier predicción es una combinación de las columnas: vive en el **espacio columna**. El target $\mathbf{y}$ normalmente sobresale de ese plano; lo mejor que podemos hacer es el punto del plano más cercano a $\mathbf{y}$: su **proyección ortogonal**.
+
+<Proyeccion />
+
+Si $\hat{\mathbf{y}}$ es el punto más cercano, el residual es perpendicular a cada columna: $\mathbf{X}^\top\mathbf{r} = \mathbf{0}$, que son **exactamente las ecuaciones normales**. Dos derivaciones muy distintas (minimizar un bowl / bajar una perpendicular) llegan a lo mismo: por eso los mínimos cuadrados son tan centrales.
+
+### La matriz sombrero
+
+Sustituyendo $\mathbf{w}^\star$: $\hat{\mathbf{y}} = \underbrace{\mathbf{X}(\mathbf{X}^\top\mathbf{X})^{-1}\mathbf{X}^\top}_{\mathbf{H}}\mathbf{y}$. $\mathbf{H}$ «pone el gorro» a $\mathbf{y}$. Es un proyector: $\mathbf{H}^2 = \mathbf{H}$ (proyectar dos veces = proyectar una), es simétrica, y $\mathbf{I}-\mathbf{H}$ proyecta sobre lo que sobra: $\mathbf{r} = (\mathbf{I}-\mathbf{H})\mathbf{y}$. Sus diagonales $H_{ii}$ son los *leverages*.
+
+## ¿Por qué cuadrados? Máxima verosimilitud con ruido gaussiano
+
+Modela cada target como recta + error aleatorio: $y_i = \mathbf{x}_i^\top\mathbf{w} + \varepsilon_i$, con $\varepsilon_i \overset{iid}{\sim}\mathcal N(0,\sigma^2)$. Cada $y_i$ es una muestra de una campana centrada en la recta. La **verosimilitud** es qué tan probables son los datos observados si la recta fuera $\mathbf{w}$:
+
+$$
+L(\mathbf{w}) = \prod_{i=1}^n \frac{1}{\sqrt{2\pi\sigma^2}}\exp\!\left(-\frac{(y_i-\mathbf{x}_i^\top\mathbf{w})^2}{2\sigma^2}\right)
+\quad\Longrightarrow\quad
+\log L(\mathbf{w}) = -\frac{1}{2\sigma^2}\sum_{i=1}^n (y_i-\mathbf{x}_i^\top\mathbf{w})^2 + \text{cte.}
+$$
+
+El log es monótono (no mueve el maximizador) y convierte el producto en suma; la constante no depende de $\mathbf{w}$. Lo único que depende de $\mathbf{w}$ es $-\sum r_i^2$: **maximizar la verosimilitud = minimizar la suma de cuadrados**. Los mínimos cuadrados son lo que *implica* el ruido gaussiano, no una elección arbitraria. (Con ruido de Laplace saldría el error **absoluto**, más robusto a outliers.)
+
+## Ejercicio
+
+Tres puntos: $(0,1), (1,2), (2,2)$. Ajusta $\hat y = w_0 + w_1 x$ con las ecuaciones normales.
+
+<Solucion titulo="Solución paso a paso">
+
+$\mathbf{X} = \begin{bmatrix}1&0\\1&1\\1&2\end{bmatrix}$, $\mathbf{y} = (1,2,2)^\top$.
+
+$\mathbf{X}^\top\mathbf{X} = \begin{bmatrix}3&3\\3&5\end{bmatrix}$, $\mathbf{X}^\top\mathbf{y} = \begin{bmatrix}5\\6\end{bmatrix}$.
+
+Resolviendo $\begin{bmatrix}3&3\\3&5\end{bmatrix}\mathbf{w} = \begin{bmatrix}5\\6\end{bmatrix}$: de la resta de ecuaciones, $2w_1 = 1 \Rightarrow w_1 = 0.5$; luego $3w_0 + 1.5 = 5 \Rightarrow w_0 = 7/6 \approx 1.167$.
+
+Residuales: $r = (1-1.167,\ 2-1.667,\ 2-2.167) = (-0.167,\ 0.333,\ -0.167)$. Verifica $\mathbf{X}^\top\mathbf{r} = (0,\ 0.333-0.333) = \mathbf{0}$ ✔ (ortogonalidad).
+
+</Solucion>
+
+<Quiz
+	client:visible
+	id="reg-modelo"
+	preguntas={[
+		{ q: 'El residual del punto $i$ es…', opts: ['$\\hat y_i - y_i$', '$y_i - \\hat y_i$', '$|y_i - \\bar y|$', '$(y_i - \\hat y_i)^2$'], ok: 1, why: 'Real menos predicho: la brecha vertical entre el punto y la recta.' },
+		{ q: '¿Por qué $\\mathbf{X}^\\top\\mathbf{X}$ garantiza un costo convexo?', opts: ['Porque es invertible siempre', 'Porque $\\mathbf{v}^\\top\\mathbf{X}^\\top\\mathbf{X}\\mathbf{v} = \\|\\mathbf{X}\\mathbf{v}\\|^2 \\ge 0$', 'Porque es diagonal', 'Porque tiene traza positiva'], ok: 1 },
+		{ q: 'Geométricamente, $\\hat{\\mathbf{y}} = \\mathbf{X}\\mathbf{w}^\\star$ es…', opts: ['la proyección ortogonal de $\\mathbf{y}$ sobre el espacio columna de $\\mathbf{X}$', 'el vector $\\mathbf{y}$ normalizado', 'la media de las columnas', 'el eigenvector principal'], ok: 0 },
+		{ q: 'La matriz sombrero cumple…', opts: ['$\\mathbf{H}^2 = \\mathbf{I}$', '$\\mathbf{H}^2 = \\mathbf{H}$', '$\\mathbf{H}^\\top = -\\mathbf{H}$', '$\\mathbf{H}\\mathbf{y} = \\mathbf{r}$'], ok: 1, why: 'Proyectar dos veces es proyectar una. $(\\mathbf{I}-\\mathbf{H})\\mathbf{y} = \\mathbf{r}$.' },
+		{ q: 'Minimizar la suma de cuadrados equivale a máxima verosimilitud si el ruido es…', opts: ['uniforme', 'gaussiano', 'de Laplace', 'Bernoulli'], ok: 1, why: 'Laplace daría error absoluto; Bernoulli da la cross-entropy de la logística.' },
+	]}
+/>
+
+<Conexiones
+	items={[
+		{ href: '/regresion/gradiente/', titulo: 'Descenso de gradiente', texto: 'El mismo gradiente −2Xᵀr, usado para dar pasos en vez de resolver.' },
+		{ href: '/regularizacion/ridge-lasso/', titulo: 'Ridge', texto: 'Sumar λ a la diagonal de XᵀX: siempre invertible y menos varianza.' },
+		{ href: '/clasificacion/entrenamiento/', titulo: 'Logística', texto: 'Otra MLE (Bernoulli) y otra vez el gradiente «error × feature».' },
+		{ href: '/kernels/practica/', titulo: 'Kernel ridge', texto: 'La misma idea en un espacio de features enorme: α = (K + λI)⁻¹y.' },
+	]}
+/>
+
+## Para profundizar
+
+<Recursos items={[R.mluLinReg, R.islr, R.skLinear, R.g3b1bLA]} />
+
+<Fuente archivos={['ML_Course_Linear_Regression.pdf (Lecture 02, slides 1–21)', 'ML_Course/session-02a-model-and-cost.ipynb', 'ML_Course/session-02b-normal-equations.ipynb']} />

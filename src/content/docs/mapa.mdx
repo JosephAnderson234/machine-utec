@@ -1,0 +1,60 @@
+---
+title: "Mapa conceptual del curso"
+description: "Cómo se relacionan regresión, regularización, logística, modelos generativos, SVM, kernels y árboles. Mapa interactivo y las grandes ideas transversales."
+---
+
+import ConceptMap from '../../components/sim/ConceptMap.tsx';
+import Recursos from '../../components/Recursos.astro';
+import { R } from '../../data/recursos';
+
+Los temas de esta primera parte **no son nueve algoritmos sueltos**. Son variaciones de unas pocas ideas que se repiten. Si entiendes esas ideas, cada lección nueva es «lo mismo, con un cambio». Este mapa te muestra exactamente cuál es ese cambio.
+
+<ConceptMap client:load />
+
+## Las cinco ideas que lo conectan todo
+
+### 1. Todo modelo = pérdida + penalización
+
+Casi todo lo que vimos se escribe como *minimizar un error de ajuste más un costo por complejidad*:
+
+| Modelo | Pérdida (ajuste) | Penalización (complejidad) | Perilla |
+| --- | --- | --- | --- |
+| Regresión lineal (OLS) | $\sum_i (y_i - \mathbf{w}^\top\mathbf{x}_i)^2$ | ninguna | — |
+| Ridge | $\sum_i (y_i - \mathbf{w}^\top\mathbf{x}_i)^2$ | $\lambda\Vert \mathbf{w}\Vert _2^2$ | $\lambda$ ↑ ⇒ más simple |
+| Lasso | $\sum_i (y_i - \mathbf{w}^\top\mathbf{x}_i)^2$ | $\lambda\Vert \mathbf{w}\Vert _1$ | $\lambda$ ↑ ⇒ más ceros |
+| Logística regularizada | $-\sum_i [y_i\log p_i + (1-y_i)\log(1-p_i)]$ | $\lambda\Vert \mathbf{w}\Vert _2^2$ | $\lambda$ ↑ ⇒ más simple |
+| SVM margen suave | $C\sum_i \max(0,\,1-y_i f(\mathbf{x}_i))$ (hinge) | $\tfrac12\Vert \mathbf{w}\Vert ^2$ | $C$ ↑ ⇒ **más complejo** ($\lambda \propto 1/C$) |
+| Kernel ridge | $\Vert \mathbf{y}-\mathbf{K}\boldsymbol\alpha\Vert ^2$ | $\lambda\,\boldsymbol\alpha^\top\mathbf{K}\boldsymbol\alpha$ | $\lambda$, $\gamma$ |
+| Árbol podado | $R(T)$ = impureza ponderada de las hojas | $\alpha\,\lvert T\rvert $ (nº de hojas) | $\alpha$ ↑ ⇒ más pequeño |
+
+:::tip[Pregunta típica]
+«¿C grande en un SVM es más o menos regularización?» → **Menos.** C multiplica a la pérdida, no a la penalización. Es el error más común del tema (lo dice la slide de *misconceptions*).
+:::
+
+### 2. Máxima verosimilitud explica las pérdidas
+
+Las pérdidas no son arbitrarias: salen de suponer cómo se generan los datos y maximizar la verosimilitud.
+
+- **Ruido gaussiano** $y = \mathbf{w}^\top\mathbf{x} + \varepsilon$, $\varepsilon\sim\mathcal N(0,\sigma^2)$ ⇒ maximizar la verosimilitud = **minimizar el error cuadrático**.
+- **Etiquetas Bernoulli** $y\sim\text{Bernoulli}(\sigma(z))$ ⇒ −log-verosimilitud = **cross-entropy**.
+- **Modelos generativos**: la MLE se reduce a **contar y promediar** ($\pi_k = N_k/N$, medias, varianzas, covarianzas).
+- Agregar un **prior** convierte MLE en **MAP**; el suavizado de Laplace y la penalización ridge son priors disfrazados.
+
+### 3. Sesgo–varianza es la brújula
+
+Cada perilla de complejidad (grado, $\lambda$, $C$, $\gamma$, profundidad, $\alpha$) mueve el modelo por la misma curva en U: poca flexibilidad ⇒ **sesgo** alto (underfit); mucha ⇒ **varianza** alta (overfit). La **validación cruzada** es el árbitro que elige el punto de la U, **nunca** el test set.
+
+### 4. Lineal en los pesos ≠ lineal en x
+
+La regresión polinómica, los kernels y (conceptualmente) las redes neuronales comparten un truco: **transformar las features** $\phi(\mathbf{x})$ y luego usar un modelo lineal. La curva se dobla en $x$ pero el problema sigue siendo lineal en $\mathbf{w}$. El kernel hace esto sin construir nunca $\phi$.
+
+### 5. Tres familias de clasificadores
+
+| | ¿Qué modela? | Frontera | Salida |
+| --- | --- | --- | --- |
+| **Discriminativos probabilísticos** (logística, softmax) | $P(y\mid\mathbf{x})$ directo | lineal (sin features extra) | probabilidad |
+| **Generativos** (NB, LDA, QDA) | $p(\mathbf{x}\mid y)$ y $P(y)$, luego Bayes | LDA lineal, QDA cuadrática | probabilidad (NB sobreconfiado) |
+| **De margen** (SVM) | solo la frontera más segura | lineal o curva (kernel) | un score con signo, **no** probabilidad |
+| **Árboles** | particiones en cajas | escalonada, alineada a los ejes | clase o $\hat p$ de la hoja |
+
+<Recursos items={[R.mluBiasVar, R.islr, R.cs229, R.sqIndex]} />

@@ -1,0 +1,137 @@
+---
+title: "Geometría y margen máximo"
+description: "Etiquetas ±1, tres hechos vectoriales, distancia de un punto a un hiperplano derivada, margen funcional vs geométrico, normalización canónica, banda 2/‖w‖, el SVM de margen duro y el ejemplo de tres puntos."
+---
+
+import MarginExplorer from '../../../components/sim/MarginExplorer.tsx';
+import Quiz from '../../../components/Quiz.tsx';
+import Solucion from '../../../components/Solucion.astro';
+import Conexiones from '../../../components/Conexiones.astro';
+import Recursos from '../../../components/Recursos.astro';
+import Fuente from '../../../components/Fuente.astro';
+import { R } from '../../../data/recursos';
+
+## ¿Qué recta apostarías?
+
+La logística y LDA terminan trazando una recta, pero ninguna pregunta **cuál recta es la más segura**. Cuando las clases son separables, **infinitas** rectas logran 100% en entrenamiento: la accuracy de entrenamiento no puede elegir. Pero discrepan en todo el resto del espacio, y ahí viven los puntos de test.
+
+Una recta que roza un punto es **frágil**: mueve un poco ese punto y la predicción cambia. Una recta con espacio a ambos lados tolera el empujón. **El SVM elige la recta con más espacio vacío alrededor**: el margen máximo.
+
+## Notación (¡un cambio!)
+
+$y_i\in\{-1,+1\}$ (antes $\{0,1\}$), $f(\mathbf{x}) = \mathbf{w}^\top\mathbf{x}+b$ el score, $\hat y = \operatorname{sign}f(\mathbf{x})$. El relabel hace que un producto reemplace un chequeo de dos casos:
+
+$$
+y_i\,f(\mathbf{x}_i) > 0 \iff \text{el punto } i \text{ está bien clasificado}
+$$
+
+## Tres hechos vectoriales (todo el kit)
+
+1. **Longitud y vector unitario.** $\|\mathbf{w}\| = \sqrt{\mathbf{w}^\top\mathbf{w}}$; $\hat{\mathbf{w}} = \mathbf{w}/\|\mathbf{w}\|$ tiene longitud 1 (dirección pura). Caminar $t$ unidades a lo largo de $\hat{\mathbf{w}}$ recorre exactamente $t$.
+2. **El producto punto es una sombra.** $\mathbf{w}^\top\mathbf{x}/\|\mathbf{w}\| = \|\mathbf{x}\|\cos\theta$: cuánto avanza $\mathbf{x}$ en la dirección de $\mathbf{w}$.
+3. **$\mathbf{w}$ es perpendicular a su frontera.** Si $\mathbf{p},\mathbf{q}$ están en $H=\{\mathbf{x}:\mathbf{w}^\top\mathbf{x}+b=0\}$, restando $\mathbf{w}^\top\mathbf{p}+b=0$ y $\mathbf{w}^\top\mathbf{q}+b=0$ queda $\mathbf{w}^\top(\mathbf{q}-\mathbf{p})=0$: $\mathbf{w}$ es la **normal** de $H$.
+
+## Distancia de un punto a la frontera, derivada
+
+Baja una perpendicular de $\mathbf{x}$ a $H$; cae en $\mathbf{x}_p$. Ese viaje es a lo largo de la normal: $\mathbf{x} = \mathbf{x}_p + r\,\hat{\mathbf{w}}$ para un único número con signo $r$. Metiéndolo en el score:
+
+$$
+f(\mathbf{x}) = \mathbf{w}^\top(\mathbf{x}_p + r\hat{\mathbf{w}}) + b = \underbrace{(\mathbf{w}^\top\mathbf{x}_p+b)}_{=0,\ \mathbf{x}_p\in H} + r\,\frac{\mathbf{w}^\top\mathbf{w}}{\|\mathbf{w}\|} = r\|\mathbf{w}\|
+\quad\Longrightarrow\quad
+\boxed{r = \frac{\mathbf{w}^\top\mathbf{x}+b}{\|\mathbf{w}\|}}
+$$
+
+¡El pie $\mathbf{x}_p$ se borró solo! El **signo** de $r$ dice de qué lado está el punto; $|r|$ es la distancia geométrica real. El score crudo $f$ **no** es una distancia: dividir por $\|\mathbf{w}\|$ lo convierte (un paso a lo largo de $\hat{\mathbf{w}}$ sube el score exactamente $\|\mathbf{w}\|$).
+
+Ejemplo: $\mathbf{w}=(1,1)$, $b=-1$, $\|\mathbf{w}\|=\sqrt2$. $r(2,0) = (2+0-1)/\sqrt2 = +0.707$; $r(0,0) = -1/\sqrt2 = -0.707$.
+
+## Margen funcional vs geométrico
+
+| | Fórmula | Qué es |
+| --- | --- | --- |
+| **Funcional** $\hat\gamma_i$ | $y_i f(\mathbf{x}_i)$ | valor de la función: el sombrero avisa «todavía no es distancia» |
+| **Geométrico** $\gamma_i$ | $\hat\gamma_i/\Vert \mathbf{w}\Vert  = y_i\,r(\mathbf{x}_i)$ | distancia real con signo, positiva si el punto está bien |
+
+Multiplica $\mathbf{w}^\top\mathbf{x}+b=0$ por $c>0$: **misma recta**, pero $\hat\gamma$ se multiplica por $c$ y $\gamma$ no cambia. Por eso «maximizar el margen funcional» **no tiene sentido** (basta escalar $\mathbf{w}$). El margen del dataset es el **menor** margen geométrico, $\gamma=\min_i\gamma_i$, y es lo que maximizamos. ($c$ negativo cambiaría qué lado es «positivo».)
+
+## Gastar la libertad: normalización canónica
+
+Como $(\mathbf{w},b)$ tiene escala libre, elegimos la que deja el álgebra limpia:
+
+$$
+\min_i\; y_i(\mathbf{w}^\top\mathbf{x}_i+b) = 1
+$$
+
+Los puntos más cercanos tienen margen funcional exactamente 1, la condición «todos bien» es $y_i(\mathbf{w}^\top\mathbf{x}_i+b)\ge1$, y las rectas punteadas son $f=\pm1$. **Ese 1 no es mágico: es una unidad que elegimos**, como elegir medir en metros.
+
+### ¿Qué tan ancha es la banda? $2/\|\mathbf{w}\|$
+
+Desde la recta $-1$, camina $t$ a lo largo de $\hat{\mathbf{w}}$: el score sube $t\|\mathbf{w}\|$. Para llegar a $+1$ debe subir 2 ⇒ $t = 2/\|\mathbf{w}\|$. Intuición: el score es una **rampa**; $\|\mathbf{w}\|$ es su pendiente. Rampa empinada ⇒ banda angosta; rampa plana ⇒ banda ancha. Ensanchar el margen = **aplanar la rampa** manteniendo cada punto a altura ≥ 1 de su lado.
+
+<MarginExplorer client:visible />
+
+## El SVM de margen duro
+
+$$
+\max_{\mathbf{w},b}\frac{2}{\|\mathbf{w}\|}\ \ \text{s.a.}\ \ y_i(\mathbf{w}^\top\mathbf{x}_i+b)\ge1
+\qquad\Longleftrightarrow\qquad
+\boxed{\min_{\mathbf{w},b}\ \tfrac12\|\mathbf{w}\|^2\ \ \text{s.a.}\ \ y_i(\mathbf{w}^\top\mathbf{x}_i+b)\ge 1\ \ \forall i}
+$$
+
+Pasar de $2/t$ a $t$, a $t^2$ y a $\tfrac12t^2$ son transformaciones **estrictamente monótonas**: el argmin no se mueve. $\tfrac12\|\mathbf{w}\|^2$ es una cuadrática suave y convexa (sin raíz), con gradiente $\mathbf{w}$ (el ½ está solo para cancelar el 2).
+
+**¿Qué tipo de problema es?** Objetivo convexo + restricciones lineales (intersección de semiespacios, también convexa) = **programa cuadrático (QP)**: todo mínimo local es global; sin reinicios aleatorios. **Margen duro** = restricciones innegociables: si las clases no son separables, el problema es **infactible** (no tiene respuesta). Se arregla con [holguras](/svm/margen-suave/).
+
+### Los vectores de soporte
+
+En el óptimo cada restricción está **activa** ($y_if(\mathbf{x}_i)=1$, el punto toca una recta de margen) o **inactiva** ($>1$, estrictamente fuera de la banda). Las activas son los **vectores de soporte**. Mueve un punto inactivo, mientras siga fuera de la banda, y la frontera **no se mueve ni un milímetro**.
+
+> Una carpa se sostiene con unos pocos postes. Mueve una silla dentro de la carpa y la lona no se mueve; mueve un poste y cambia toda. Los vectores de soporte son los postes.
+
+Consecuencias: el modelo se guarda como unos pocos puntos con pesos; predecir cuesta proporcional al nº de vectores de soporte; y el SVM es **sensible a los puntos más cercanos a la frontera** (justo los más propensos a estar mal etiquetados).
+
+## El ejemplo de tres puntos, en papel
+
+$\mathbf{x}_1=(2,0),\ y_1=+1$; $\mathbf{x}_2=(0,2),\ y_2=+1$; $\mathbf{x}_3=(0,0),\ y_3=-1$.
+
+<Solucion titulo="Resolverlo">
+
+Por simetría entre ejes, la frontera es perpendicular a $(1,1)$: $\mathbf{w}=a(1,1)$, $a>0$. Con los tres puntos sobre sus rectas de margen:
+
+- $y_3 f(\mathbf{x}_3) = -(0+b) = 1 \Rightarrow b=-1$.
+- $y_1 f(\mathbf{x}_1) = 2a+b = 1 \Rightarrow a = 1$.
+
+$\mathbf{w}=(1,1)$, $b=-1$, frontera $x_1+x_2=1$. Verificación: $y_1f=2-1=1$ ✓, $y_2f = 1$ ✓, $y_3f = 1$ ✓. Banda $=2/\sqrt2=\sqrt2\approx1.414$; objetivo $\tfrac12\|\mathbf{w}\|^2 = 1$.
+
+¿Podría existir una banda más ancha? No: $(0,0)$ y $(2,0)$ están a 2 de distancia… y la frontera también debe esquivar $(0,2)$. Empujarla hacia cualquier clase viola una restricción.
+
+Un cuarto punto $\mathbf{x}_4=(3,3)$, $y_4=+1$: $y_4f = 6-1 = 5>1$, muy fuera de la banda ⇒ no cambia nada ($\alpha_4 = 0$, lo veremos en el dual).
+
+</Solucion>
+
+<Quiz
+	client:visible
+	id="svm-geo"
+	preguntas={[
+		{ q: 'La distancia con signo de $\\mathbf{x}$ a $\\mathbf{w}^\\top\\mathbf{x}+b=0$ es…', opts: ['$\\mathbf{w}^\\top\\mathbf{x}+b$', '$(\\mathbf{w}^\\top\\mathbf{x}+b)/\\|\\mathbf{w}\\|$', '$\\|\\mathbf{x}\\|$', '$b/\\|\\mathbf{w}\\|$'], ok: 1 },
+		{ q: 'Si multiplicas $(\\mathbf{w}, b)$ por 3…', opts: ['el margen geométrico se triplica', 'el margen funcional se triplica y el geométrico no cambia', 'la frontera se mueve', 'la banda se ensancha'], ok: 1 },
+		{ q: 'Sobre $\\tfrac12\\|\\mathbf{w}\\|^2$, ¿qué es VERDADERO?', opts: ['se minimiza $\\|\\mathbf{w}\\|$ porque la raíz facilita derivar', 'el ancho de la banda es $\\|\\mathbf{w}\\|/2$', 'no cambia la solución y deja un objetivo cuadrático, convexo y suave de gradiente $\\mathbf{w}$', 'el 1 de la restricción es una constante que no se puede elegir'], ok: 2 },
+		{ q: 'En margen duro, los vectores de soporte son…', opts: ['todos los puntos', 'los puntos con restricción activa, justo sobre una recta de margen', 'los más lejanos', 'los mal clasificados'], ok: 1 },
+		{ q: 'Si las clases no son linealmente separables, el SVM de margen duro…', opts: ['converge igual', 'es infactible', 'usa automáticamente un kernel', 'da margen negativo'], ok: 1 },
+	]}
+/>
+
+<Conexiones
+	items={[
+		{ href: '/fundamentos/matematicas/', titulo: 'Producto punto', texto: 'La proyección y la norma son todo el kit geométrico del SVM.' },
+		{ href: '/svm/dual/', titulo: 'Lagrange y el dual', texto: 'Por qué solo los vectores de soporte importan: es un teorema (KKT).' },
+		{ href: '/clasificacion/logistica/', titulo: 'Logística', texto: 'También frontera lineal, pero elegida por verosimilitud; todos los puntos influyen.' },
+		{ href: '/regularizacion/ridge-lasso/', titulo: 'Ridge', texto: 'Minimizar ½‖w‖² es la misma penalización L2.' },
+	]}
+/>
+
+## Para profundizar
+
+<Recursos items={[R.sqSVM, R.skSVM, R.cs229]} />
+
+<Fuente archivos={['ML_Course_SVM.pdf (Lecture 06, slides 3–30)', 'ML_Course/session-06a-margin-and-soft-margin.ipynb']} />

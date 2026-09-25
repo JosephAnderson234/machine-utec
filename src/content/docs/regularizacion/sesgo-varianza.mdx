@@ -1,0 +1,123 @@
+---
+title: "El trade-off sesgo–varianza"
+description: "Train vs validación, la curva de complejidad, el experimento de re-muestrear, sesgo y varianza precisos, la descomposición del error con su derivación y el ejemplo del alquiler."
+---
+
+import BiasVariance from '../../../components/sim/BiasVariance.tsx';
+import Dartboard from '../../../components/diagrams/Dartboard.astro';
+import Quiz from '../../../components/Quiz.tsx';
+import Solucion from '../../../components/Solucion.astro';
+import Conexiones from '../../../components/Conexiones.astro';
+import Recursos from '../../../components/Recursos.astro';
+import Fuente from '../../../components/Fuente.astro';
+import { R } from '../../../data/recursos';
+
+**Más flexibilidad siempre baja el error de entrenamiento.** El arte es mantener bajo el error de **generalización**. Esta unidad hace precisa esa tensión y la gobierna con regularización y selección de modelos.
+
+## Diagnóstico con dos errores
+
+Ajusta con train y mide el error en train **y** validación; la comparación es el diagnóstico:
+
+| Caso | Train | Validación | Lectura |
+| --- | --- | --- | --- |
+| Underfit (grado 1) | alto (0.38) | alto (0.70) | demasiado simple para captar el patrón |
+| Bien (grado 4) | bajo (0.08) | bajo (0.16) | ambos bajos y cercanos: el objetivo |
+| Overfit (grado 12) | ínfimo (0.03) | enorme (7.69) | brecha grande: memorizó el ruido |
+
+**La curva de complejidad:** el error de entrenamiento cae monótonamente con la complejidad; el de validación tiene forma de **U** (underfit a la izquierda, overfit a la derecha). El punto dulce es el mínimo de la U. Un error de entrenamiento bajo **no prueba** nada: puede ser memorización.
+
+## El experimento mental: re-muestrear y re-ajustar
+
+Solo vemos **un** training set, pero es una muestra aleatoria de un proceso $y = f(x)+\varepsilon$. Imagina sacar muchos training sets nuevos del mismo proceso y re-ajustar el mismo modelo en cada uno: datos distintos → ajustes distintos. Promédialos: $\bar f(x) = \mathbb{E}[\hat y(x)]$. Dos cosas pueden salir mal:
+
+- $\bar f$ puede estar **lejos de la verdad** → **sesgo**.
+- Los ajustes pueden **dispersarse mucho** → **varianza**.
+
+<BiasVariance client:visible />
+
+<Dartboard />
+
+## Definiciones precisas
+
+En cada entrada $x$, promediando sobre training sets re-muestreados:
+
+- **Sesgo** $= \bar f(x) - f(x)$: error sistemático que la familia de modelos no puede quitarse.
+- **Varianza** $= \mathbb{E}\big[(\hat y(x)-\bar f(x))^2\big]$: cuánto tambalea un ajuste alrededor del promedio cuando cambia el training set.
+- **Ruido irreducible** $\sigma^2$: la varianza de $\varepsilon$, presente aun con el modelo perfecto.
+
+:::caution[Trampa del banco]
+«La **varianza** mide cuánto se desvía sistemáticamente el ajuste promedio $\bar f$ del valor verdadero» → **Falso**: eso es el **sesgo**. Y «underfitting = modelo demasiado flexible con varianza alta y sesgo bajo» → **Falso**: está invertido.
+:::
+
+## La ecuación
+
+Para pérdida cuadrática, el error esperado en un punto nuevo se parte **exactamente** en tres:
+
+$$
+\mathbb{E}\big[(y-\hat y)^2\big] = \underbrace{(\bar f - f)^2}_{\text{sesgo}^2} + \underbrace{\mathbb{E}\big[(\hat y-\bar f)^2\big]}_{\text{varianza}} + \underbrace{\sigma^2}_{\text{ruido}}
+$$
+
+No puedes anular ambos: bajar uno suele subir el otro. La U de validación **es** sesgo² + varianza (+ σ²): el sesgo² cae con la complejidad, la varianza sube, y el valle de la suma es la mejor complejidad.
+
+### Derivación (opcional pero sale en exámenes)
+
+Tres hechos: (1) **linealidad**: $\mathbb{E}[aX+bY] = a\mathbb{E}[X]+b\mathbb{E}[Y]$; (2) $\text{Var}(Z) = \mathbb{E}[(Z-\mathbb{E}Z)^2]$ y $\mathbb{E}[Z-\mathbb{E}Z]=0$; (3) **independencia**: si $X\perp Y$ y $\mathbb{E}[X]=0$, entonces $\mathbb{E}[XY]=0$.
+
+<Solucion titulo="Ver la derivación completa">
+
+Fija un punto de test $x$. $y = f + \varepsilon$ con $\mathbb{E}[\varepsilon]=0$, $\text{Var}(\varepsilon)=\sigma^2$, $\varepsilon$ independiente del training set. $\hat y$ depende del training set y $\bar f := \mathbb{E}[\hat y]$.
+
+**Identidad clave.** Para una constante $a$ y cualquier $Z$ aleatorio: $\mathbb{E}[(a-Z)^2] = (a-\mathbb{E}Z)^2 + \text{Var}(Z)$.
+*Prueba:* escribe $a - Z = (a-\mathbb{E}Z) + (\mathbb{E}Z - Z)$ y eleva al cuadrado. El término cruzado es $2(a-\mathbb{E}Z)\,\mathbb{E}[\mathbb{E}Z - Z] = 0$ (hecho 1). Queda $(a-\mathbb{E}Z)^2 + \mathbb{E}[(Z-\mathbb{E}Z)^2]$. ∎
+
+**Paso 1 — separar el ruido.** $\mathbb{E}[(y-\hat y)^2] = \mathbb{E}[(f-\hat y+\varepsilon)^2] = \mathbb{E}[(f-\hat y)^2] + 2\mathbb{E}[(f-\hat y)\varepsilon] + \mathbb{E}[\varepsilon^2]$. El término cruzado es 0 (hecho 3: $\varepsilon\perp\hat y$ y de media cero) y $\mathbb{E}[\varepsilon^2]=\sigma^2$.
+
+**Paso 2 — aplicar la identidad** con $a=f$, $Z=\hat y$: $\mathbb{E}[(f-\hat y)^2] = (f-\bar f)^2 + \text{Var}(\hat y)$.
+
+Juntando: $\mathbb{E}[(y-\hat y)^2] = \text{sesgo}^2 + \text{varianza} + \sigma^2$. ∎
+
+</Solucion>
+
+## En euros: el alquiler de un departamento
+
+Departamento de 70 m², 2 cuartos, alquiler justo **€1000**. Re-entrenando con anuncios de distintos meses, las predicciones para este depa son €860, €880, €900, €950, €960… con promedio $\bar f = €910$.
+
+- **Sesgo** $= 910 - 1000 = -€90$: en promedio, sistemáticamente €90 abajo.
+- **Varianza**: cuánto se dispersan esas predicciones alrededor de €910.
+- Modelo simple («alquiler ≈ promedio del barrio»): apretado pero corrido → **sesgo alto, varianza baja**.
+- Modelo flexible (un árbol profundo): oscila entre €700 y €1300 → **sesgo bajo, varianza alta**.
+- **Ruido irreducible**: dos depas idénticos en todo lo registrado igual se alquilan a €980 y €1080 (vista, fecha…). Ningún modelo lo borra.
+
+## ¿Cómo bajar cada uno?
+
+| Para bajar… | Haz… |
+| --- | --- |
+| **Sesgo** (underfit) | modelo más flexible: más features, más grado, menos λ, más C, más γ, árbol más profundo |
+| **Varianza** (overfit) | más datos, regularizar (λ ↑), modelo más simple, podar el árbol, **promediar modelos** (bagging) |
+
+<Quiz
+	client:visible
+	id="bv"
+	preguntas={[
+		{ q: 'La **varianza** de un modelo mide…', opts: ['cuánto se desvía $\\bar f$ de la verdad', 'cuánto tambalea un ajuste alrededor de $\\bar f$ al cambiar el training set', 'el ruido en $y$', 'el error de entrenamiento'], ok: 1 },
+		{ q: 'Un modelo de grado 1 sobre datos senoidales tiene…', opts: ['sesgo alto, varianza baja', 'sesgo bajo, varianza alta', 'ambos altos', 'ambos bajos'], ok: 0 },
+		{ q: '¿Qué término NO puede reducir ningún modelo?', opts: ['sesgo²', 'varianza', '$\\sigma^2$', 'todos se pueden reducir'], ok: 2 },
+		{ q: 'Agregar muchos más datos de entrenamiento principalmente reduce…', opts: ['el sesgo', 'la varianza', 'el ruido', 'nada'], ok: 1 },
+		{ q: 'En la derivación, el término cruzado $2\\mathbb{E}[(f-\\hat y)\\varepsilon]$ se anula porque…', opts: ['$f$ es constante', '$\\varepsilon$ es independiente de $\\hat y$ y de media cero', '$\\hat y$ es insesgado', 'la varianza es cero'], ok: 1 },
+	]}
+/>
+
+<Conexiones
+	items={[
+		{ href: '/regularizacion/ridge-lasso/', titulo: 'Regularización', texto: 'Cambia un poco de sesgo por una gran caída de varianza.' },
+		{ href: '/regularizacion/validacion-cruzada/', titulo: 'Validación cruzada', texto: 'Cómo encontrar el fondo de la U sin tocar el test.' },
+		{ href: '/arboles/poda/', titulo: 'Árboles y ensembles', texto: 'Los árboles viven en el extremo de alta varianza; promediarlos la baja.' },
+		{ href: '/generativos/lda-qda/', titulo: 'LDA vs QDA', texto: 'QDA tiene más parámetros ⇒ más varianza ⇒ necesita más datos.' },
+	]}
+/>
+
+## Para profundizar
+
+<Recursos items={[R.mluBiasVar, R.r2d3b, R.mluDoubleDescent, R.islr]} />
+
+<Fuente archivos={['ML_Course_regularization_and_model_selection.pdf (slides 4–18)', 'ML_Course/session-03a-bias-variance.ipynb']} />

@@ -1,0 +1,29 @@
+---
+/** Del primal al kernel, paso a paso. */
+const pasos: [string, string, string][] = [
+	['Primal', 'min ½‖w‖²  s.a.  yᵢ(wᵀxᵢ + b) ≥ 1', 'box'],
+	['Lagrangiano', 'L = ½‖w‖² − Σ αᵢ[yᵢ(wᵀxᵢ + b) − 1]', 'box'],
+	['Estacionariedad', 'w = Σ αᵢyᵢxᵢ ,   Σ αᵢyᵢ = 0', 'box-v'],
+	['Dual', 'max Σαᵢ − ½ ΣΣ αᵢαⱼyᵢyⱼ xᵢᵀxⱼ', 'box-a'],
+	['Kernel', 'xᵢᵀxⱼ   →   K(xᵢ, xⱼ)', 'box-o'],
+];
+---
+<figure class="diagram not-content">
+	<svg viewBox="0 0 780 320" role="img" aria-label="Del primal al dual y al kernel">
+		<defs><marker id="dfm" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0L10,5L0,10z" fill="var(--sl-color-accent)" /></marker></defs>
+		{pasos.map(([t, f, c], i) => (
+			<g>
+				<rect x={20 + (i % 2) * 50} y={10 + i * 62} width="560" height="46" rx="12" class={c} />
+				<text x={38 + (i % 2) * 50} y={38 + i * 62} class="t-b">{t}</text>
+				<text x={180 + (i % 2) * 50} y={38 + i * 62} class="t" style="font-size: 13px">{f}</text>
+				{i < pasos.length - 1 && <path d={`M${300 + (i % 2) * 50},${56 + i * 62} L${300 + ((i + 1) % 2) * 50},${70 + i * 62}`} class="ln-a" marker-end="url(#dfm)" />}
+			</g>
+		))}
+		<rect x="610" y="95" width="160" height="92" rx="12" class="box" />
+		<text x="690" y="118" text-anchor="middle" class="t-s">KKT: αᵢ ≥ 0 y</text>
+		<text x="690" y="135" text-anchor="middle" class="t-s">αᵢ[yᵢf(xᵢ) − 1] = 0</text>
+		<text x="690" y="155" text-anchor="middle" class="t-s">⇒ solo los vectores</text>
+		<text x="690" y="172" text-anchor="middle" class="t-s">de soporte importan</text>
+	</svg>
+	<figcaption>w y b desaparecen al sustituir las condiciones de estacionariedad: el dual solo toca los datos a través de productos internos xᵢᵀxⱼ. Ese es el enganche para los kernels.</figcaption>
+</figure>

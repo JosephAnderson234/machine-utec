@@ -1,0 +1,125 @@
+---
+title: "Zoo de kernels, γ y kernel ridge"
+description: "Kernel lineal, polinómico y RBF; por qué el RBF es de dimensión infinita; local vs global; γ como perilla de complejidad; precauciones; teorema del representante y kernel ridge regression en forma cerrada."
+---
+
+import KernelSVM from '../../../components/sim/KernelSVM.tsx';
+import KernelRidge from '../../../components/sim/KernelRidge.tsx';
+import Quiz from '../../../components/Quiz.tsx';
+import Solucion from '../../../components/Solucion.astro';
+import Conexiones from '../../../components/Conexiones.astro';
+import Recursos from '../../../components/Recursos.astro';
+import Fuente from '../../../components/Fuente.astro';
+import { R } from '../../../data/recursos';
+
+## Tres kernels que de verdad usarás
+
+| Kernel | Fórmula | Espacio de features | Alcance |
+| --- | --- | --- | --- |
+| **Lineal** | $\mathbf{x}^\top\mathbf{x}'$ | el original: recupera el modelo lineal | crece sin límite |
+| **Polinómico** | $(c+\mathbf{x}^\top\mathbf{x}')^d$ | todos los monomios hasta grado $d$ (finito pero enorme) | **global**: crece a medida que los puntos se alinean |
+| **RBF / gaussiano** | $\exp(-\gamma\Vert \mathbf{x}-\mathbf{x}'\Vert ^2)$ | **dimensión infinita** | **local**: una campana de ancho $\propto1/\sqrt\gamma$ |
+
+Léelo como similitud: el RBF vale **1** cuando los puntos coinciden y decae a **0** cuando se separan.
+
+### ¿Por qué el RBF es de dimensión infinita?
+
+Sacando los factores de las normas, queda $e^{2\gamma\mathbf{x}^\top\mathbf{x}'}$, y expandiendo la exponencial en serie de potencias:
+
+$$
+e^{2\gamma\,\mathbf{x}^\top\mathbf{x}'} = \sum_{k=0}^\infty\frac{(2\gamma)^k}{k!}\big(\mathbf{x}^\top\mathbf{x}'\big)^k
+$$
+
+Cada $(\mathbf{x}^\top\mathbf{x}')^k$ es el kernel polinómico de grado $k$: el RBF **mezcla todos los grados a la vez** con pesos no nulos ⇒ infinitas features. Y aun así se evalúa en una línea. γ más grande pasa peso a grados más altos: más local, más complejo.
+
+:::caution[Pregunta del banco]
+«El kernel RBF corresponde a un feature map $\phi$ de dimensión infinita que nunca hay que calcular» → **Verdadero**, justo por la serie de arriba. Ese es el punto del truco.
+:::
+
+## Mismos datos, tres kernels, tres fronteras
+
+El kernel **elige el espacio de hipótesis**. En la slide: lineal (acc 0.83) traza un corte recto; polinómico grado 3 (0.90) se curva; RBF (0.94) envuelve ajustado.
+
+<KernelSVM client:visible />
+
+## γ controla la complejidad
+
+- **γ pequeño** (0.1): campanas tan anchas que el modelo subajusta (acc 0.84).
+- **γ bueno** (1): frontera limpia (0.93).
+- **γ grande** (60): campanitas que sobreajustan en **islas** alrededor de cada punto (0.99 en entrenamiento… engañoso).
+
+:::caution[Precauciones]
+- Elige γ **y** C del SVM por **validación cruzada** (grilla log), **nunca** por accuracy de entrenamiento: un γ grande la lleva a un engañoso 100%.
+- **Estandariza** primero: la distancia $\|\mathbf{x}-\mathbf{x}'\|$ mezcla todas las coordenadas y una feature sin escalar domina.
+- La matriz de Gram cuesta $O(n^2)$ de memoria (y resolver ∼$O(n^3)$): los kernels son para $n$ pequeño o mediano.
+:::
+
+## El teorema del representante
+
+Para un riesgo regularizado minimizado sobre un espacio de kernel, **el $f$ óptimo es una suma ponderada de kernels en los puntos de entrenamiento**:
+
+$$
+f(\mathbf{x}) = \sum_{i=1}^n\alpha_i\,K(\mathbf{x}_i,\mathbf{x})
+$$
+
+Por enorme que sea el espacio de features, la solución vive en el **espacio finito generado por los datos**. ¿Por qué? Cualquier parte de $\mathbf{w}$ ortogonal a los $\{\phi(\mathbf{x}_i)\}$ no cambia ninguna predicción pero sí suma a la penalización $\|\mathbf{w}\|^2$, así que el óptimo no tiene esa parte. Literalmente: **una campana por punto de entrenamiento**, escalada por $\alpha_i$; $\alpha_i>0$ sube la curva, $\alpha_i<0$ la baja.
+
+## Kernel ridge regression: forma cerrada
+
+Ridge hecho en el espacio de features. Con el representante, $\mathbf{f} = \mathbf{K}\boldsymbol\alpha$ y $\|\mathbf{w}\|^2 = \boldsymbol\alpha^\top\mathbf{K}\boldsymbol\alpha$:
+
+$$
+\min_{\boldsymbol\alpha}\|\mathbf{y}-\mathbf{K}\boldsymbol\alpha\|^2+\lambda\,\boldsymbol\alpha^\top\mathbf{K}\boldsymbol\alpha\quad\Longrightarrow\quad(\mathbf{K}+\lambda\mathbf{I})\boldsymbol\alpha = \mathbf{y}\quad\Longrightarrow\quad\boxed{\boldsymbol\alpha = (\mathbf{K}+\lambda\mathbf{I})^{-1}\mathbf{y}}
+$$
+
+Un solo sistema lineal, sin iterar: **regresión no lineal en forma cerrada**. Con kernel lineal es exactamente ridge. La misma idea kerneliza SVR, kernel PCA y los procesos gaussianos.
+
+<KernelRidge client:visible />
+
+## Resumen de la unidad
+
+- Todo algoritmo que use productos internos se vuelve no lineal cambiando $\mathbf{x}_i^\top\mathbf{x}_j$ por $K(\mathbf{x}_i,\mathbf{x}_j)=\phi(\mathbf{x}_i)^\top\phi(\mathbf{x}_j)$.
+- El truco: calcular $K$ directo, nunca $\phi$ (aunque sea infinita, RBF).
+- Válidos = simétricos y PSD; la Gram es una matriz de similitud; cerrados bajo +, ×, escala.
+- Zoo: lineal, $(c+\mathbf{x}^\top\mathbf{x}')^d$, $\exp(-\gamma\|\mathbf{x}-\mathbf{x}'\|^2)$; γ y C por CV; estandarizar.
+- Representante: $f(\mathbf{x})=\sum_i\alpha_iK(\mathbf{x}_i,\mathbf{x})$; kernel ridge: $\boldsymbol\alpha=(\mathbf{K}+\lambda\mathbf{I})^{-1}\mathbf{y}$.
+- Costo: $O(n^2)$ memoria, ∼$O(n^3)$ resolver: excelente para problemas no lineales pequeños/medianos.
+
+## Ejercicio
+
+Con $\gamma = 0.5$, calcula $K_\text{RBF}$ entre $(0,0)$ y $(1,1)$, y entre $(0,0)$ y $(3,0)$. ¿Qué pasa con γ = 5?
+
+<Solucion>
+
+- $\|(1,1)\|^2 = 2$: $e^{-0.5\cdot2} = e^{-1} = 0.368$.
+- $\|(3,0)\|^2 = 9$: $e^{-4.5} = 0.011$.
+- Con γ = 5: $e^{-10}\approx4.5\times10^{-5}$ y $e^{-45}\approx0$: cada punto solo «se parece a sí mismo» ⇒ islas, overfitting.
+
+</Solucion>
+
+<Quiz
+	client:visible
+	id="kernels-practica"
+	preguntas={[
+		{ q: 'El kernel RBF corresponde a un $\\phi$ de dimensión infinita que nunca se calcula.', opts: ['Verdadero', 'Falso'], ok: 0 },
+		{ q: 'Con γ muy grande en un SVM RBF…', opts: ['la frontera es casi lineal', 'se forman islas alrededor de cada punto (overfit)', 'no hay vectores de soporte', 'C deja de importar'], ok: 1 },
+		{ q: 'El teorema del representante dice que el óptimo es…', opts: ['un polinomio de grado $n$', '$f(\\mathbf{x}) = \\sum_i\\alpha_iK(\\mathbf{x}_i,\\mathbf{x})$', 'la media de los targets', 'un hiperplano en el espacio original'], ok: 1 },
+		{ q: 'La solución de kernel ridge es…', opts: ['$(X^\\top X)^{-1}X^\\top y$', '$(K+\\lambda I)^{-1}y$', 'iterativa siempre', '$K^{-1}$'], ok: 1 },
+		{ q: '¿Cuál kernel tiene alcance local?', opts: ['lineal', 'polinómico', 'RBF', 'todos'], ok: 2 },
+	]}
+/>
+
+<Conexiones
+	items={[
+		{ href: '/regularizacion/ridge-lasso/', titulo: 'Ridge', texto: 'Kernel ridge con kernel lineal es ridge común.' },
+		{ href: '/regularizacion/validacion-cruzada/', titulo: 'CV para (C, γ)', texto: 'Grilla log de dos hiperparámetros, elegidos juntos.' },
+		{ href: '/regularizacion/sesgo-varianza/', titulo: 'γ y sesgo–varianza', texto: 'γ chico: sesgo alto. γ grande: varianza alta. La misma U.' },
+		{ href: '/arboles/impureza/', titulo: 'Sesgo inductivo', texto: 'Suavidad del RBF vs cajas alineadas a los ejes de un árbol.' },
+	]}
+/>
+
+## Para profundizar
+
+<Recursos items={[R.skKR, R.skSVM, R.sqSVMpl, R.cs229]} />
+
+<Fuente archivos={['ML_Course_Kernels.pdf (Lecture 07)', 'ML_Course/session-07-kernels-in-practice.ipynb']} />

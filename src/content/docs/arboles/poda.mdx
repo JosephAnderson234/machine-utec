@@ -1,0 +1,139 @@
+---
+title: "Poda, importancia e inestabilidad"
+description: "Tamaño del árbol como complejidad, curva de complejidad, varianza, pre y post-poda, costo-complejidad R(T) + α|T|, eslabón más débil, la ruta a mano, regla de 1 SE, interpretabilidad, probabilidades, importancia MDI e inestabilidad; el puente a ensembles."
+---
+
+import PruningPath from '../../../components/sim/PruningPath.tsx';
+import Quiz from '../../../components/Quiz.tsx';
+import Solucion from '../../../components/Solucion.astro';
+import Conexiones from '../../../components/Conexiones.astro';
+import Recursos from '../../../components/Recursos.astro';
+import Fuente from '../../../components/Fuente.astro';
+import { R } from '../../../data/recursos';
+
+## El tamaño del árbol es la perilla de complejidad
+
+Un árbol poco profundo tiene pocas cajas: **sesgo alto**. Uno crecido al máximo pone una caja alrededor de (casi) cada punto: error de entrenamiento 0, memorizó el ruido. $\lvert T\rvert$ (nº de hojas) juega el papel que λ jugaba en ridge y C, γ en el SVM.
+
+:::danger[El único modelo donde no hacer nada está mal]
+`DecisionTreeClassifier` con los defaults crece hasta la pureza: **un árbol está sobreajustado por defecto**.
+:::
+
+En las lunas de la slide: 4 hojas (train 0.906, CV 0.889, test 0.817), **8 hojas** (0.961, **CV 0.939**, test 0.908), 22 hojas (1.000, 0.906, 0.883). La accuracy de entrenamiento sube monótonamente; la de CV hace una **joroba** (una U invertida: la misma U de la sesión 03 graficada como accuracy en vez de error).
+
+**¿A dónde va el error? A la varianza.** 20 árboles sobre 20 re-muestreos bootstrap: los «tocones» (2 hojas) son casi todos la misma recta equivocada (sesgo alto, varianza baja); los árboles completos se dispersan salvajemente (sesgo bajo, **varianza alta**). Los árboles viven en el extremo de alta varianza: toda la motivación de la sesión 09.
+
+## Dos maneras de mantener chico un árbol
+
+| Pre-poda (parar antes) | Post-poda (crecer, luego cortar) |
+| --- | --- |
+| `max_depth`, `min_samples_leaf`, `min_impurity_decrease`, `max_leaf_nodes` | crecer completo y colapsar los subárboles que no se ganan su lugar |
+| barato: el árbol nunca se construye | ve todo el árbol antes de decidir |
+| miope: no ve un split que paga dos niveles abajo (XOR) | es la **poda por costo-complejidad** |
+
+No son excluyentes: receta común = un `max_depth` holgado por velocidad + poda por costo-complejidad elegida por CV.
+
+## Poda por costo-complejidad
+
+$$
+R_\alpha(T) = R(T) + \alpha\,\lvert T\rvert,\qquad R(T) = \sum_{m\in\text{hojas}}\frac{n_m}{n}I(m)
+$$
+
+$R(T)$ es el riesgo de entrenamiento (impureza ponderada de las hojas, en unidades de Gini como scikit-learn). $\alpha$ es un **precio por hoja**: $\alpha=0$ conserva todo; $\alpha$ enorme colapsa a la raíz. Es el mismo patrón de ridge (pérdida + penalización por complejidad). **Una hoja debe comprar su lugar**: se conserva solo si baja $R(T)$ más que α.
+
+### El eslabón más débil
+
+Colapsar el subárbol $T_m$ bajo el nodo $m$ en una sola hoja sube el riesgo en $R(m)-R(T_m)\ge0$ y quita $\lvert T_m\rvert-1$ hojas. Vale la pena en cuanto α supera el precio de equilibrio:
+
+$$
+g(m) = \frac{R(m)-R(T_m)}{\lvert T_m\rvert-1}
+$$
+
+**Poda del eslabón más débil:** colapsar repetidamente el nodo con menor $g(m)$. Traza una secuencia **finita y anidada** $T^{(0)}\supset T^{(1)}\supset\dots\supset\{\text{raíz}\}$. Aunque α es continuo, solo finitos árboles pueden ser óptimos: se busca en una **lista corta**.
+
+### La ruta completa, a mano, en los diez puntos
+
+$R(T) = 0,\ \tfrac{2}{15},\ \tfrac27,\ \tfrac12$ para 4, 3, 2, 1 hojas. Cada subárbol es una recta $R(T)+\alpha\lvert T\rvert$; gana la más baja; se cruzan en $\alpha = \tfrac2{15},\ \tfrac{16}{105},\ \tfrac3{14}$, justo lo que devuelve scikit-learn.
+
+<Solucion titulo="Primer quiebre: colapsar D">
+
+Antes: E y F son puras ⇒ $R(T_D) = 0$, $\lvert T_D\rvert=2$. Después: D tiene $[2,1]$, Gini $=1-(2/3)^2-(1/3)^2 = 4/9$, con peso $n_D/n = 3/10$ ⇒ $R(D) = \tfrac3{10}\cdot\tfrac49 = \tfrac2{15}$.
+
+$g(D) = \dfrac{2/15-0}{2-1} = \dfrac{2}{15}\approx0.1333$. Para $\alpha<2/15$ las dos hojas puras valen su precio; en $2/15$ da igual; por encima se colapsan (4 → 3 hojas). Los otros dos quiebres (16/105 y 3/14) se calculan igual.
+
+</Solucion>
+
+<PruningPath client:visible />
+
+### Elegir α: validación cruzada, no el test
+
+Se puntúa cada subárbol de la ruta con 5-fold CV sobre el entrenamiento. En la slide: α = 0.00708 → **8 hojas**, CV 0.9278, test 0.908, frente a 0.867 del árbol completo de 22 hojas. Y la **regla de 1 SE**: entre los α con CV a menos de un error estándar del mejor, toma el **más grande** (el árbol más chico estadísticamente indistinguible). Cuando dos modelos empatan, entrega el más chico.
+
+## Leer el árbol: interpretabilidad
+
+Árbol de profundidad 3 en cáncer de mama (398 biopsias): 8 hojas, test 90.1% (vs 90.6% del árbol de 16 hojas: la mitad de hojas, la misma precisión). La hoja más grande (234 de 398 pacientes) es la regla «worst perimeter ≤ 106.1 **y** worst concave points ≤ 0.158 **y** area error ≤ 48.98», 98.7% benigna. Un clínico puede **auditarla** y cada predicción se explica **exactamente**, sin modelo sustituto.
+
+:::caution[Interpretable ≠ verdadero]
+El árbol resume **esta** muestra; los umbrales se estiman de los datos y se mueven cuando los datos se mueven. Y las hojas con 1 paciente son donde se esconde el overfitting, incluso en árboles poco profundos.
+:::
+
+**Probabilidades:** $\hat P(y=1\mid\mathbf{x})$ es el $\hat p$ de la hoja donde cae $\mathbf{x}$: un valor por caja. El mismo punto (5, 4) recibe 0.714 con un tocón, 0.333 con 3 hojas y 0.000 con el árbol completo. Hojas profundas tienen pocos puntos ⇒ probabilidades extremas y **mal calibradas**.
+
+**Importancia de features (MDI):** para cada feature, suma $\frac{n_m}{n}\Delta I(m)$ sobre los nodos que la usan. En el ejemplo: $x_1$ gana 0.2143 en la raíz; $x_2$ gana 0.1524 + 0.1333 en B y D; suman 0.5 (la impureza de la raíz) y normalizan a **3/7 y 4/7**. ¡La feature de la raíz **no** es la más importante! «Parte primero» y «aporta más» son preguntas distintas.
+
+:::danger[Cómo miente la MDI]
+Con 3 features (una binaria que acierta 80%, una binaria de ruido y una continua de ruido), un árbol completo pone **el ruido continuo primero** (0.602 vs 0.379): una feature continua ofrece ∼499 umbrales para «tener suerte». Arreglos: árbol poco profundo (la real sube a 0.895) o **importancia por permutación** en datos de validación.
+:::
+
+## El problema decisivo: inestabilidad
+
+Mueve **un** punto una unidad y el árbol hace **otra primera pregunta** (en el ejemplo, pasa de $x_1\le3.5$ a $x_2\le5.5$): toda la estructura de abajo cambia. Causa: el argmax del split; dos candidatos pueden diferir en 0.0001 y un cambio mínimo cambia al ganador. En 50 re-muestreos bootstrap del cáncer, la raíz usa **5 features distintas**, pero la accuracy apenas se mueve (media 91.6%, rango 87.1–94.7%). **Muchos árboles distintos, todos casi igual de buenos: la firma de la varianza**, que es lo único que promediar puede quitar.
+
+| Fortalezas | Límites |
+| --- | --- |
+| interpretable: se lee como reglas | **alta varianza** (el problema decisivo) |
+| sin escalar ni centrar: solo importa el orden | cortes alineados a los ejes: diagonales = escalera |
+| tipos mixtos; faltantes con splits sustitutos | codicioso: no globalmente óptimo (NP-difícil) |
+| captura interacciones sola (un camino es un AND) | no extrapola en regresión |
+| predicción rápida: una comparación por nivel | importancias sesgadas; probabilidades mal calibradas si es profundo |
+| multiclase gratis | sufre con relaciones suaves y aditivas que un modelo lineal clava |
+
+> Un solo árbol rara vez es el mejor predictor. Muchas veces es la mejor **explicación**.
+
+## El puente a la sesión 09: ensembles
+
+Un árbol completo: test 0.867. Veinte árboles sobre 20 re-muestreos bootstrap, cada uno dentado y distinto: **su promedio da 0.900** con una frontera visiblemente más suave. Promediar $B$ estimadores aproximadamente independientes divide la varianza por $\sim B$ sin tocar el sesgo. Los árboles son de sesgo bajo y varianza alta: **lo ideal para promediar**. Eso es bagging, random forests y boosting.
+
+## En la práctica
+
+- `DecisionTreeClassifier(criterion="gini")`: la entropía rara vez cambia algo.
+- **Nunca aceptes los defaults**: fija `max_depth` o `ccp_alpha`. Ajusta `ccp_alpha` con `cost_complexity_pruning_path` + `GridSearchCV`.
+- Fija `random_state` (los empates se rompen al azar). `class_weight="balanced"` si hay desbalance.
+- Errores típicos: elegir la profundidad con el test, reportar accuracy de entrenamiento (1.0), confiar en MDI con features de alta cardinalidad, esperar extrapolación, sorprenderse de que el árbol cambie al re-entrenar.
+
+<Quiz
+	client:visible
+	id="poda"
+	preguntas={[
+		{ q: 'En $R_\\alpha(T) = R(T) + \\alpha|T|$, un α mayor produce…', opts: ['árboles más grandes', 'árboles más pequeños', 'el mismo árbol', 'hojas impuras siempre'], ok: 1 },
+		{ q: '¿Por qué solo finitos subárboles pueden ser óptimos para algún α?', opts: ['porque α es entero', 'porque cada subárbol es una recta en α y la envolvente inferior tiene finitos tramos', 'por la regla de 1 SE', 'porque el árbol es binario'], ok: 1 },
+		{ q: 'En el ejemplo, la importancia MDI normalizada de $x_2$ es…', opts: ['3/7', '4/7', '1/2', '1'], ok: 1 },
+		{ q: 'La mayor debilidad de un árbol es…', opts: ['sesgo alto', 'varianza alta (inestabilidad)', 'necesitar escalado', 'no manejar multiclase'], ok: 1 },
+		{ q: 'Promediar muchos árboles (bagging) principalmente reduce…', opts: ['el sesgo', 'la varianza', 'el ruido irreducible', 'la interpretabilidad (y nada más)'], ok: 1 },
+	]}
+/>
+
+<Conexiones
+	items={[
+		{ href: '/regularizacion/ridge-lasso/', titulo: 'Pérdida + penalización', texto: 'R(T) + α|T| es ridge con otra medida de complejidad.' },
+		{ href: '/regularizacion/validacion-cruzada/', titulo: 'Regla de 1 SE', texto: 'La misma regla que para λ: ante un empate, el modelo más simple.' },
+		{ href: '/regularizacion/sesgo-varianza/', titulo: 'Varianza', texto: 'Los árboles viven en el extremo de alta varianza de la U.' },
+		{ href: '/clasificacion/metricas/', titulo: 'Calibración', texto: 'Las p̂ de hojas pequeñas son extremas: buena accuracy, mala probabilidad.' },
+	]}
+/>
+
+## Para profundizar
+
+<Recursos items={[R.skPrune, R.mluRF, R.r2d3b, R.islr]} />
+
+<Fuente archivos={['ML_Course_Decision_Trees.pdf (slides 42–63)']} />

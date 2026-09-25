@@ -1,0 +1,113 @@
+---
+title: "Métricas, outliers y polinomios"
+description: "MSE, RMSE, MAE y R², el gráfico predicho vs real, sensibilidad a outliers, lectura de coeficientes, features polinómicas e interacciones, y el primer vistazo a ridge."
+---
+
+import PolyFit from '../../../components/sim/PolyFit.tsx';
+import Quiz from '../../../components/Quiz.tsx';
+import Solucion from '../../../components/Solucion.astro';
+import Conexiones from '../../../components/Conexiones.astro';
+import Recursos from '../../../components/Recursos.astro';
+import Fuente from '../../../components/Fuente.astro';
+import { R } from '../../../data/recursos';
+
+## Midiendo el error
+
+Con residuales $r_i = y_i-\hat y_i$ sobre $n$ puntos **de validación o test**:
+
+$$
+\text{MSE} = \frac1n\sum_i r_i^2,\qquad \text{RMSE} = \sqrt{\text{MSE}},\qquad \text{MAE} = \frac1n\sum_i |r_i|
+$$
+
+- **RMSE** vuelve a las unidades del target («un error de 50 soles», no «50 soles²»): es lo más fácil de reportar y es justo lo que minimizan los mínimos cuadrados.
+- **MAE** pesa cada error linealmente: mucho más **robusto a outliers**.
+- Siempre **RMSE ≥ MAE**; la brecha crece cuando unos pocos errores son grandes: una pista de outliers.
+
+## $R^2$: ¿cuánto mejor que la media?
+
+Estas métricas dicen *qué tan grande* es el error, no *si es bueno*. Para eso comparamos contra el modelo tonto que siempre predice $\bar y$:
+
+$$
+R^2 = 1-\frac{SS_\text{res}}{SS_\text{tot}} = 1-\frac{\sum_i (y_i-\hat y_i)^2}{\sum_i (y_i-\bar y)^2}
+$$
+
+$R^2 = 1$ perfecto; $0$ = igual que la media; **puede ser negativo** en datos de validación (peor que la media). No tiene unidades, así que compara entre problemas. Ejemplo de la slide: $SS_\text{res}=22.6$, $SS_\text{tot}=68.6 \Rightarrow R^2 = 1-0.33 = 0.67$.
+
+### Predicho vs real
+
+Graficar $\hat y$ contra $y$ en datos no vistos: puntos pegados a la diagonal = preciso; curvas o abanicos sistemáticos revelan sesgo o varianza cambiante. Ese dibujo muestra **dónde** falla el modelo, cosa que $R^2$ esconde en un número.
+
+## Outliers y lectura de coeficientes
+
+**Los mínimos cuadrados son sensibles a outliers**: al elevar al cuadrado, un punto lejano domina el costo e inclina la recta hacia él (pruébalo en el simulador de [la página anterior](/regresion/modelo/)). Inspecciona tus datos; considera pérdidas robustas si los outliers son reales.
+
+Cada $w_j$ es el cambio esperado en $\hat y$ por **una unidad** más de $x_j$, **manteniendo las demás fijas**. El signo da la dirección y la magnitud la fuerza, pero las magnitudes solo son comparables si las features comparten escala: **estandariza primero**. Cuidado: con features correlacionadas «mantener las demás fijas» es frágil, y un peso es **asociación, no causalidad**.
+
+:::note[Ejemplo real: diabetes (scikit-learn)]
+442 pacientes, 10 features clínicas estandarizadas, partición 75/25. OLS multivariada: **RMSE de test = 56.4, $R^2 = 0.36$**. Los mayores pesos: `bmi` y `s5` suben la progresión; `s1` la baja.
+:::
+
+## Cuando una recta no basta: features polinómicas
+
+Una recta solo tiene dos perillas: puede inclinarse pero no **doblarse**. Señal de underfitting: los residuales no son ruido aleatorio, **todavía trazan un patrón**.
+
+El truco: mantener la misma máquina pero alimentarla con **potencias de $x$** como features nuevas:
+
+$$
+\phi(x) = (1, x, x^2, \dots, x^M),\qquad \hat y = w_0 + w_1x + w_2x^2+\dots+w_Mx^M = \phi(x)^\top\mathbf{w}
+$$
+
+La matriz de diseño (de Vandermonde) solo gana columnas. **Nada más cambia**: sigue siendo mínimos cuadrados lineales, mismas ecuaciones normales, mismo descenso de gradiente. La curva es una **suma ponderada de funciones base** fijas; los mínimos cuadrados solo eligen los pesos.
+
+:::caution[La pregunta del banco]
+¿Por qué se sigue llamando regresión **lineal** si la curva se dobla? Porque «lineal» se refiere a los **pesos**, no a la forma de la curva. Elevar $x$ al cuadrado solo agrega columnas; el modelo sigue siendo una combinación lineal de columnas con pesos. La no linealidad está en las **features**, no en los pesos.
+:::
+
+### Interacciones
+
+Con dos entradas, grado 2 agrega también el término cruzado: $\phi(x_1,x_2) = (1, x_1, x_2, x_1^2, x_1x_2, x_2^2)$. Si la verdad es $y = x_1x_2$ (una silla), un plano da $R^2 = -0.02$; agregar la columna $x_1x_2$ da $R^2 = 0.93$: ahora el efecto de $x_1$ **depende** de $x_2$. Pero grado $p$ sobre $d$ entradas necesita $\binom{d+p}{p}$ columnas (286 para grado 3 y 10 entradas): se sobreajusta rápido.
+
+## Subiendo de grado: under → bien → overfit
+
+<PolyFit client:visible />
+
+- **Grado 1**: muy rígido (underfit). **Grado 3**: sigue la señal. **Grado 9+**: persigue el ruido (overfit).
+- **El síntoma del overfitting son los pesos enormes**: una curva ondulante se arma con coeficientes gigantes de signos opuestos que casi se cancelan.
+- ¿Y si simplemente prohibimos que los pesos crezcan? Eso es **ridge**: $J_\lambda(\mathbf{w}) = \|\mathbf{y}-\mathbf{X}\mathbf{w}\|^2 + \lambda\|\mathbf{w}\|^2$, con solución $(\mathbf{X}^\top\mathbf{X}+\lambda\mathbf{I})^{-1}\mathbf{X}^\top\mathbf{y}$. Mueve el slider de λ arriba. Es el tema de la [siguiente unidad](/regularizacion/ridge-lasso/).
+
+## Ejercicio
+
+Un modelo tiene en validación $SS_\text{res} = 30$ y $SS_\text{tot} = 25$. ¿$R^2$? ¿Qué significa?
+
+<Solucion>
+
+$R^2 = 1 - 30/25 = -0.2$. Es **negativo**: el modelo predice peor en validación que simplemente responder la media $\bar y$ siempre. Típico de un modelo sobreajustado evaluado fuera de su training set.
+
+</Solucion>
+
+<Quiz
+	client:visible
+	id="reg-eval"
+	preguntas={[
+		{ q: '¿Qué métrica es más robusta a outliers?', opts: ['MSE', 'RMSE', 'MAE', '$R^2$'], ok: 2 },
+		{ q: '$R^2$ en datos de validación…', opts: ['siempre está en [0, 1]', 'puede ser negativo', 'solo mide sesgo', 'tiene unidades del target'], ok: 1 },
+		{ q: 'Un ajuste polinómico de grado 9 sigue siendo «regresión lineal» porque…', opts: ['deja de serlo desde grado 2', 'es lineal en los pesos: solo agrega columnas $x^2, x^3, \\dots$', 'necesita otro algoritmo de ajuste', 'la no linealidad está en los pesos'], ok: 1 },
+		{ q: 'Residuales que dibujan una onda clara indican…', opts: ['overfitting', 'underfitting (falta estructura)', 'buen ajuste', 'fuga de datos'], ok: 1 },
+		{ q: 'La «huella» del overfitting en un polinomio de alto grado es…', opts: ['pesos cercanos a 0', 'pesos enormes de signos opuestos', 'RMSE de train alto', '$R^2$ de train negativo'], ok: 1 },
+	]}
+/>
+
+<Conexiones
+	items={[
+		{ href: '/regularizacion/sesgo-varianza/', titulo: 'Sesgo–varianza', texto: 'La U de validación explicada: sesgo² baja con el grado, la varianza sube.' },
+		{ href: '/regularizacion/ridge-lasso/', titulo: 'Ridge y lasso', texto: 'Castigar pesos grandes para no sobreajustar sin bajar el grado.' },
+		{ href: '/kernels/truco/', titulo: 'Kernels', texto: 'Features polinómicas sin construirlas: (xᵀz + 1)ᵖ.' },
+		{ href: '/clasificacion/metricas/', titulo: 'Métricas de clasificación', texto: 'El análogo para categorías: confusión, precision, recall, F1.' },
+	]}
+/>
+
+## Para profundizar
+
+<Recursos items={[R.mluLinReg, R.islr, R.skMetrics]} />
+
+<Fuente archivos={['ML_Course_Linear_Regression.pdf (slides 29–46)', 'ML_Course/session-02d-evaluation-and-complexity.ipynb', 'BANCO_DE_PREGUNTAS_ML_PART_1.pdf']} />

@@ -1,0 +1,123 @@
+---
+title: "Formulario (cheat sheet)"
+description: "Todas las fórmulas de la primera parte en una página imprimible, con las perillas de complejidad y las trampas más frecuentes."
+---
+
+:::tip[Imprimible]
+Esta página está pensada para imprimirse (Ctrl + P): se ocultan la barra lateral y la navegación.
+:::
+
+## Regresión lineal
+
+| Concepto | Fórmula |
+| --- | --- |
+| Modelo | $\hat{\mathbf{y}} = \mathbf{X}\mathbf{w}$ (columna de unos = sesgo) |
+| Costo | $J(\mathbf{w}) = \Vert \mathbf{y}-\mathbf{X}\mathbf{w}\Vert _2^2$, convexo porque $\mathbf{X}^\top\mathbf{X}\succeq0$ |
+| Gradiente | $\nabla J = 2\mathbf{X}^\top(\mathbf{X}\mathbf{w}-\mathbf{y}) = -2\mathbf{X}^\top\mathbf{r}$ |
+| Ecuaciones normales | $\mathbf{X}^\top\mathbf{X}\mathbf{w} = \mathbf{X}^\top\mathbf{y}$, $\ \mathbf{w}^\star = (\mathbf{X}^\top\mathbf{X})^{-1}\mathbf{X}^\top\mathbf{y}$ |
+| Proyección | $\mathbf{X}^\top\mathbf{r} = 0$; $\ \mathbf{H} = \mathbf{X}(\mathbf{X}^\top\mathbf{X})^{-1}\mathbf{X}^\top$, $\mathbf{H}^2 = \mathbf{H}$ |
+| MLE | ruido $\mathcal N(0,\sigma^2)$ ⇒ mínimos cuadrados; Laplace ⇒ error absoluto |
+| Descenso de gradiente | $\mathbf{w}\leftarrow\mathbf{w}-\eta\nabla J$; para $J=(w-1)^2$ converge si $0<\eta<1$ |
+| Métricas | MSE $=\frac1n\sum r_i^2$, RMSE $=\sqrt{\text{MSE}}$, MAE $=\frac1n\sum\lvert r_i\rvert$, $R^2 = 1-\frac{SS_\text{res}}{SS_\text{tot}}$ |
+| Polinomios | $\phi(x) = (1,x,\dots,x^M)$: lineal en $\mathbf{w}$; grado $p$ en $d$ entradas ⇒ $\binom{d+p}{p}$ columnas |
+
+## Regularización y selección
+
+| Concepto | Fórmula |
+| --- | --- |
+| Sesgo–varianza | $\mathbb{E}[(y-\hat y)^2] = (\bar f-f)^2 + \mathbb{E}[(\hat y-\bar f)^2] + \sigma^2$ |
+| Ridge | $\min \Vert \mathbf{y}-\mathbf{X}\mathbf{w}\Vert ^2 + \lambda\Vert \mathbf{w}\Vert _2^2$, $\ \mathbf{w} = (\mathbf{X}^\top\mathbf{X}+\lambda\mathbf{I})^{-1}\mathbf{X}^\top\mathbf{y}$ |
+| Lasso | $\min \Vert \mathbf{y}-\mathbf{X}\mathbf{w}\Vert ^2 + \lambda\Vert \mathbf{w}\Vert _1$ (coordenadas + soft-threshold) |
+| 1-D (features ortogonales) | ridge $w = \frac{a}{1+\lambda}$; lasso $w = \operatorname{sign}(a)\max(\lvert a\rvert-\tfrac\lambda2,0)$ |
+| K-fold | $\text{CV}(\lambda) = \frac1K\sum_k\text{Err}_k(\lambda)$; regla de 1 SE ⇒ el más simple |
+
+## Clasificación logística
+
+| Concepto | Fórmula |
+| --- | --- |
+| Modelo | $P(y=1\mid\mathbf{x}) = \sigma(\mathbf{w}^\top\mathbf{x}+b)$, $\ \sigma(z) = \frac{1}{1+e^{-z}}$ |
+| Propiedades | $\sigma(0) = \tfrac12$, $\sigma(-z) = 1-\sigma(z)$, $\sigma' = \sigma(1-\sigma)$ |
+| Log-odds | $\log\frac{p}{1-p} = \mathbf{w}^\top\mathbf{x}+b$; odds ratio $e^{w_j}$ |
+| Frontera | $\mathbf{w}^\top\mathbf{x}+b = 0$ (1-D: $x^* = -b/w$) |
+| Cross-entropy | $J = -\frac1n\sum[y_i\log p_i + (1-y_i)\log(1-p_i)]$ |
+| Gradiente | $\nabla_\mathbf{w}J = \frac1n\mathbf{X}^\top(\mathbf{p}-\mathbf{y})$ |
+| Hessiana | $\frac1n\sum p_i(1-p_i)\mathbf{x}_i\mathbf{x}_i^\top\succeq0$ (convexa) |
+| Softmax | $p_k = \frac{e^{z_k}}{\sum_j e^{z_j}}$, $\ \partial\ell/\partial z_k = p_k - y_k$ |
+| Métricas | acc $=\frac{TP+TN}{\text{total}}$, $P = \frac{TP}{TP+FP}$, $R = \frac{TP}{TP+FN}$, $F_1 = \frac{2PR}{P+R}$, FPR $=\frac{FP}{FP+TN}$ |
+
+## Modelos generativos
+
+| Concepto | Fórmula |
+| --- | --- |
+| Bayes | $P(y=k\mid\mathbf{x}) = \frac{\pi_k p(\mathbf{x}\mid k)}{\sum_j\pi_jp(\mathbf{x}\mid j)}$; MAP: $\arg\max_k\pi_kp(\mathbf{x}\mid k)$ |
+| Prior | $\pi_k = N_k/N$ |
+| Naive Bayes | $p(\mathbf{x}\mid k) = \prod_j p(x_j\mid k)$; decidir con $\log\pi_k + \sum_j\log p(x_j\mid k)$ |
+| Gaussian NB | $x_j\mid k\sim\mathcal N(\mu_{kj},\sigma^2_{kj})$; $K + 2Kd$ números |
+| Laplace | $p(w\mid k) = \frac{\text{count}(w,k)+\alpha}{\text{total}(k)+\alpha V}$ (MAP) |
+| Mahalanobis | $D^2 = (\mathbf{x}-\boldsymbol\mu)^\top\Sigma^{-1}(\mathbf{x}-\boldsymbol\mu)$ |
+| Discriminante | $\delta_k = \log\pi_k - \tfrac12(\mathbf{x}-\boldsymbol\mu_k)^\top\Sigma_k^{-1}(\mathbf{x}-\boldsymbol\mu_k) - \tfrac12\log\lvert\Sigma_k\rvert$ |
+| LDA | $\Sigma = \sum_k\frac{N_k}{N}\Sigma_k$; $\ \mathbf{w} = \Sigma^{-1}(\boldsymbol\mu_1-\boldsymbol\mu_0)$ |
+| LDA 1-D | $x^* = \frac{\mu_0+\mu_1}{2} - \frac{\sigma^2}{\mu_1-\mu_0}\log\frac{\pi_1}{\pi_0}$ |
+
+## SVM
+
+| Concepto | Fórmula |
+| --- | --- |
+| Distancia | $r = \frac{\mathbf{w}^\top\mathbf{x}+b}{\Vert \mathbf{w}\Vert }$; banda $= 2/\Vert \mathbf{w}\Vert $ |
+| Márgenes | funcional $\hat\gamma_i = y_if(\mathbf{x}_i)$; geométrico $\gamma_i = \hat\gamma_i/\Vert \mathbf{w}\Vert $ |
+| Margen duro | $\min\tfrac12\Vert \mathbf{w}\Vert ^2$ s.a. $y_i(\mathbf{w}^\top\mathbf{x}_i+b)\ge1$ |
+| Lagrangiano | $L = \tfrac12\Vert \mathbf{w}\Vert ^2 - \sum\alpha_i[y_i(\mathbf{w}^\top\mathbf{x}_i+b)-1]$ |
+| Estacionariedad | $\mathbf{w} = \sum\alpha_iy_i\mathbf{x}_i$, $\ \sum\alpha_iy_i = 0$ |
+| KKT | $\alpha_i\ge0$, $\ \alpha_i[y_if(\mathbf{x}_i)-1] = 0$ |
+| Dual | $\max\sum\alpha_i - \tfrac12\sum\sum\alpha_i\alpha_jy_iy_j\mathbf{x}_i^\top\mathbf{x}_j$ s.a. $\alpha_i\ge0$ (≤ C), $\sum\alpha_iy_i=0$ |
+| Bias y predicción | $b = y_k - \mathbf{w}^\top\mathbf{x}_k$; $\ \hat y = \operatorname{sign}(\sum\alpha_iy_iK(\mathbf{x}_i,\mathbf{x})+b)$ |
+| Margen suave | $\min\tfrac12\Vert \mathbf{w}\Vert ^2 + C\sum\xi_i$, $\ y_if(\mathbf{x}_i)\ge1-\xi_i$ |
+| Hinge | $\xi_i^\star = \max(0, 1-y_if(\mathbf{x}_i))$ |
+| Identidad (margen duro) | $\sum_i\alpha_i = \Vert \mathbf{w}\Vert ^2$ |
+
+## Kernels
+
+| Concepto | Fórmula |
+| --- | --- |
+| Definición | $K(\mathbf{x},\mathbf{x}') = \phi(\mathbf{x})^\top\phi(\mathbf{x}')$; válido ⇔ simétrico y PSD |
+| Polinómico | $(c+\mathbf{x}^\top\mathbf{x}')^d$; $(\mathbf{x}^\top\mathbf{z})^2 \leftrightarrow \phi = (x_1^2,\sqrt2x_1x_2,x_2^2)$ |
+| RBF | $\exp(-\gamma\Vert \mathbf{x}-\mathbf{x}'\Vert ^2) \propto \sum_k\frac{(2\gamma)^k}{k!}(\mathbf{x}^\top\mathbf{x}')^k$ |
+| Representante | $f(\mathbf{x}) = \sum_i\alpha_iK(\mathbf{x}_i,\mathbf{x})$ |
+| Kernel ridge | $\boldsymbol\alpha = (\mathbf{K}+\lambda\mathbf{I})^{-1}\mathbf{y}$ |
+
+## Árboles
+
+| Concepto | Fórmula |
+| --- | --- |
+| Modelo | $\hat f(\mathbf{x}) = \sum_m c_m\mathbf{1}\{\mathbf{x}\in B_m\}$ |
+| Impurezas | error $1-\max_k\hat p_k$; Gini $1-\sum_k\hat p_k^2$; $H = -\sum_k\hat p_k\log_2\hat p_k$ |
+| Máximos ($K$ clases) | Gini $1-1/K$; $H = \log_2K$ |
+| Ganancia | $\Delta I = I(m) - \frac{n_L}{n_m}I(L) - \frac{n_R}{n_m}I(R)$ |
+| Regresión | hoja = media; impureza SSE $=\sum(y_i-\bar y_m)^2$ |
+| Costo-complejidad | $R_\alpha(T) = R(T)+\alpha\lvert T\rvert$; $\ g(m) = \frac{R(m)-R(T_m)}{\lvert T_m\rvert - 1}$ |
+| MDI | importancia de $j$ $=\sum_{m\text{ usa }j}\frac{n_m}{n}\Delta I(m)$ |
+
+## Las perillas de complejidad
+
+| Perilla | ↑ significa | Modelo |
+| --- | --- | --- |
+| grado del polinomio | más complejo | regresión |
+| $\lambda$ (ridge / lasso / logística) | más simple | modelos lineales |
+| $C$ | **más complejo** | SVM |
+| $\gamma$ | más complejo (más local) | RBF |
+| $\alpha$ de poda | más simple | árbol |
+| profundidad / nº de hojas | más complejo | árbol |
+| `min_samples_leaf` | más simple | árbol |
+
+## Trampas frecuentes
+
+- LDA = Σ **compartida** (lineal); QDA = Σ **propia** (cuadrática).
+- Varianza ≠ sesgo: el sesgo es el error **sistemático** del promedio.
+- Los folds de K-fold son de **validación**, no de test.
+- El umbral 0.5 es movible y no exige clases balanceadas.
+- F1 es media **armónica** de precision y **recall**.
+- El SVM **no** da probabilidades y **sí** necesita estandarizar.
+- $b$ se recupera con un vector de soporte; no se fija en 0.
+- Entropía = sorpresa promedio; Gini = probabilidad de desacuerdo.
+- El kernel trick **no** construye $\phi$.
+- $\pi_k = N_k/N$, no $N_k/K$.
