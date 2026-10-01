@@ -1,0 +1,180 @@
+---
+title: "Casos de estudio de principio a fin"
+description: "Cinco problemas reales resueltos con el flujo completo del curso: plantear T/P/E, preparar datos, elegir modelo, validar, interpretar métricas y evitar trampas, con código de scikit-learn."
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+import Recursos from '../../components/Recursos.astro';
+import { R } from '../../data/recursos';
+
+Cada tema del curso tiene sentido dentro de un flujo: **plantear → preparar → elegir modelo → validar → interpretar → decidir**. Estos cinco casos recorren el flujo completo y muestran qué tema entra en cada paso. Los números son ilustrativos (salvo los de datasets de scikit-learn que ya aparecen en las slides).
+
+<Tabs>
+<TabItem label="1 · Alquileres">
+
+### Predecir el alquiler de un departamento
+
+**Plantear.** T = alquiler mensual (regresión); P = RMSE en soles sobre departamentos nuevos; E = 5 000 anuncios. → [fundamentos](/fundamentos/intro/)
+
+**Preparar.**
+- Partición 70/15/15 **antes** de cualquier transformación. Distrito (categórica) → one-hot. Área y antigüedad → estandarizar **con estadísticas de train**.
+- Outliers: anuncios de S/ 50 000 (errores de tipeo) inflan el RMSE y tuercen la recta: inspeccionar y limpiar. → [outliers](/regresion/evaluacion/)
+
+**Elegir modelo.**
+1. Baseline: predecir la mediana del distrito (RMSE val ≈ S/ 520).
+2. Regresión lineal: RMSE val ≈ S/ 310. Residuales vs área con forma de U ⇒ agregar $\text{área}^2$.
+3. Con 60 columnas (one-hot + interacciones) se usa **ridge** con λ por 5-fold CV: RMSE val ≈ S/ 280. → [ridge](/regularizacion/ridge-lasso/), [CV](/regularizacion/validacion-cruzada/)
+
+**Interpretar.** Peso de área (estandarizada) = +410 ⇒ una desviación estándar más de área (~25 m²) sube el alquiler ~S/ 410, con distrito y cuartos fijos. Asociación, no causalidad.
+
+**Reportar.** Test una vez: RMSE ≈ S/ 290, $R^2 \approx 0.78$.
+
+```python
+from sklearn.compose import ColumnTransformer
+from sklearn.preprocessing import OneHotEncoder, StandardScaler, PolynomialFeatures
+from sklearn.pipeline import make_pipeline
+from sklearn.linear_model import RidgeCV
+import numpy as np
+
+prep = ColumnTransformer([
+    ('num', make_pipeline(PolynomialFeatures(2, include_bias=False), StandardScaler()), ['area', 'antiguedad', 'cuartos']),
+    ('cat', OneHotEncoder(handle_unknown='ignore'), ['distrito']),
+])
+model = make_pipeline(prep, RidgeCV(alphas=np.logspace(-3, 3, 30), cv=5)).fit(X_tr, y_tr)
+```
+
+</TabItem>
+<TabItem label="2 · Spam">
+
+### Filtrar spam en el correo de una universidad
+
+**Plantear.** T = spam/ham (clasificación binaria); P = **precision** alta (un correo legítimo en spam es grave) con recall razonable; E = 50 000 correos marcados.
+
+**Preparar.** Bolsa de palabras: 20 000 columnas esparsas. Partición **estratificada** (mantener el 40% de spam en cada parte).
+
+**Elegir modelo.**
+- **Naive Bayes multinomial**: entrena en segundos, buen baseline con muchas features. → [NB](/generativos/naive-bayes/)
+- **Logística L2** o **SVM lineal**: suelen ganar con tantos datos porque no suponen independencia. → [generativo vs discriminativo](/generativos/lda-qda/)
+
+**Validar.** 5-fold CV para α (NB) y C (logística). Resultado típico: NB F1 ≈ 0.95, logística F1 ≈ 0.97.
+
+**Decidir el umbral.** Se elige en validación el menor umbral con precision ≥ 0.995 (≤ 1 legítimo de cada 200 enviados a spam). → [métricas](/clasificacion/metricas/)
+
+```python
+from sklearn.feature_extraction.text import TfidfVectorizer, CountVectorizer
+from sklearn.naive_bayes import MultinomialNB
+from sklearn.linear_model import LogisticRegression
+from sklearn.pipeline import make_pipeline
+from sklearn.model_selection import cross_val_score
+
+nb = make_pipeline(CountVectorizer(), MultinomialNB(alpha=1.0))
+lr = make_pipeline(TfidfVectorizer(), LogisticRegression(C=10, max_iter=1000))
+for m in (nb, lr):
+    print(cross_val_score(m, textos_tr, y_tr, cv=5, scoring='f1').mean())
+```
+
+</TabItem>
+<TabItem label="3 · Cáncer de mama">
+
+### Apoyar el diagnóstico de biopsias
+
+**Plantear.** T = maligno/benigno; P = **recall de malignos** muy alto (un FN es un cáncer no detectado), luego precision; E = 569 biopsias con 30 medidas (dataset de las slides).
+
+**Elegir modelo y comparar.**
+
+| Modelo | Por qué probarlo | Resultado en las slides |
+| --- | --- | --- |
+| Logística estandarizada | probabilidades + interpretabilidad | accuracy 0.958, recall 0.967, AUC 0.995 |
+| Árbol de profundidad 3 | reglas que el médico puede auditar | test 90.1% con 8 hojas |
+| SVM RBF | frontera curva | similar a la logística; menos explicable |
+
+**Decidir.** Se baja el umbral de la logística para recall ≥ 0.99 aceptando más falsos positivos (que pasan a revisión humana). El árbol se usa como **explicación** de las reglas principales, no como predictor final. → [poda](/arboles/poda/)
+
+```python
+from sklearn.datasets import load_breast_cancer
+from sklearn.model_selection import train_test_split
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import StandardScaler
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import recall_score, roc_auc_score
+
+X, y = load_breast_cancer(return_X_y=True)
+y = 1 - y                                         # 1 = maligno (positivo)
+X_tr, X_te, y_tr, y_te = train_test_split(X, y, stratify=y, test_size=0.25, random_state=0)
+clf = make_pipeline(StandardScaler(), LogisticRegression(max_iter=1000)).fit(X_tr, y_tr)
+p = clf.predict_proba(X_te)[:, 1]
+print(roc_auc_score(y_te, p), recall_score(y_te, p >= 0.2))   # umbral bajo ⇒ más recall
+```
+
+</TabItem>
+<TabItem label="4 · Fraude">
+
+### Detectar fraude con tarjeta (0.2% de positivos)
+
+**Plantear.** T = fraude sí/no; P = **precision en las 500 alertas diarias** que el equipo puede revisar y recall total; E = 10 millones de transacciones.
+
+**Trampas.**
+- **Accuracy inútil**: «nunca fraude» da 99.8%. → [métricas](/clasificacion/metricas/)
+- **Fuga temporal**: entrenar con transacciones de marzo y validar con febrero. Se usa partición por tiempo.
+- **Escala**: kernels y SVM RBF ($O(n^2)$) son inviables con 10 M filas → logística o SVM lineal con SGD, o árboles/ensembles. → [guía de modelos](/guia-modelos/)
+
+**Modelo.** Logística con `class_weight='balanced'` como baseline; árboles (y luego random forests) capturan reglas como «monto alto *y* país nuevo *y* madrugada».
+
+**Evaluar.** Curva **precision–recall** y AP en vez de ROC (con positivos tan raros, la ROC se ve optimista).
+
+```python
+from sklearn.linear_model import SGDClassifier
+from sklearn.metrics import average_precision_score
+from sklearn.model_selection import TimeSeriesSplit
+
+clf = SGDClassifier(loss='log_loss', class_weight='balanced', alpha=1e-5)  # logística por SGD
+for tr, va in TimeSeriesSplit(5).split(X):          # siempre pasado → futuro
+    clf.fit(X[tr], y[tr])
+    print(average_precision_score(y[va], clf.predict_proba(X[va])[:, 1]))
+```
+
+</TabItem>
+<TabItem label="5 · Control de calidad">
+
+### Clasificar piezas OK / defectuosas con sensores
+
+**Plantear.** T = defecto sí/no con 2–6 medidas continuas; P = recall de defectos con pocas falsas alarmas; E = 2 000 piezas inspeccionadas (≈3% con etiqueta dudosa).
+
+**Explorar.** Graficar las clases: las piezas OK forman una nube compacta; las defectuosas, una nube amplia e inclinada ⇒ **covarianzas distintas**.
+
+**Comparar.**
+- **LDA** (Σ compartida, frontera recta): deja escapar defectos «alrededor» de la nube OK.
+- **QDA** (Σ por clase, frontera cuadrática): envuelve a la clase compacta; con pocas features hay datos de sobra para estimar Σₖ. → [LDA/QDA](/generativos/lda-qda/)
+- **SVM RBF con C moderado**: también envuelve, y el margen suave tolera el 3% de etiquetas ruidosas; los puntos con $\alpha_i = C$ son candidatos a re-inspección. → [margen suave](/svm/margen-suave/)
+
+**Elegir por CV** (C, γ juntos) y comparar recall/precision en validación; QDA gana si las elipses son realmente gaussianas, el SVM si la forma es más irregular.
+
+```python
+from sklearn.discriminant_analysis import LinearDiscriminantAnalysis, QuadraticDiscriminantAnalysis
+from sklearn.svm import SVC
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import cross_val_score
+
+for m in (LinearDiscriminantAnalysis(), QuadraticDiscriminantAnalysis(),
+          make_pipeline(StandardScaler(), SVC(C=1, gamma='scale'))):
+    print(type(m).__name__, cross_val_score(m, X, y, cv=5, scoring='recall').mean())
+```
+
+</TabItem>
+</Tabs>
+
+## El patrón común
+
+| Paso | Pregunta | Tema del curso |
+| --- | --- | --- |
+| Plantear | ¿T, P, E? ¿regresión o clasificación? ¿qué error es más caro? | fundamentos, métricas |
+| Preparar | ¿partición sin fugas? ¿escalar? ¿codificar? | train/val/test, CV |
+| Baseline | ¿qué tan bien lo hace algo trivial? | $R^2$ vs la media, «siempre negativo» |
+| Modelo | ¿lineal basta? ¿pocos datos? ¿explicable? | guía de modelos |
+| Hiperparámetros | λ, C, γ, α, profundidad | validación cruzada |
+| Diagnóstico | ¿sesgo o varianza? | sesgo–varianza, curvas de aprendizaje |
+| Decisión | ¿qué umbral? ¿qué métrica reporto? | matriz de confusión, ROC/PR |
+| Reporte | test **una sola vez** | maldición del ganador |
+
+<Recursos items={[R.skCV, R.skMetrics, R.mlcc, R.islr]} />

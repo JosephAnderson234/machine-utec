@@ -9,6 +9,8 @@ import Solucion from '../../../components/Solucion.astro';
 import Conexiones from '../../../components/Conexiones.astro';
 import Recursos from '../../../components/Recursos.astro';
 import Fuente from '../../../components/Fuente.astro';
+import ConfusionCalc from '../../../components/sim/ConfusionCalc.tsx';
+import CasoUso from '../../../components/CasoUso.astro';
 import { R } from '../../../data/recursos';
 
 ## Accuracy: el primer número
@@ -53,11 +55,34 @@ En el ejemplo: precision $=80/380 = 0.21$, recall $=80/100 = 0.80$, $F_1 = \frac
 Esa precision de 21% es exactamente $P(\text{enfermo}\mid +)$ del [árbol de Bayes](/generativos/bayes/): un caso vivo de $P(A\mid B)\ne P(B\mid A)$. El recall es $P(+\mid\text{enfermo})$, la *sensibilidad*.
 :::
 
+<ConfusionCalc client:visible />
+
+### Más métricas que conviene conocer
+
+| Métrica | Fórmula | Cuándo mirarla |
+| --- | --- | --- |
+| Especificidad (TNR) | $TN/(TN+FP)$ | cuántos sanos se descartan bien (pareja de la sensibilidad en medicina) |
+| FPR | $FP/(FP+TN) = 1-$ especificidad | eje x de la ROC |
+| Accuracy balanceada | $(\text{TPR} + \text{TNR})/2$ | clases desbalanceadas, alternativa honesta a la accuracy |
+| $F_\beta$ | $(1+\beta^2)\frac{PR}{\beta^2P + R}$ | $\beta > 1$ prioriza recall; $\beta < 1$ prioriza precision |
+| Curva PR / AP | precision vs recall al mover el umbral | positivos muy raros (fraude): más informativa que la ROC |
+
 ## Barriendo el umbral: la curva ROC
 
 El 0.5 es solo una elección. Moviéndolo, TPR (= recall) y FPR $=\frac{FP}{FP+TN}$ se intercambian. La **ROC** grafica ese trade-off para **todos** los umbrales; el **AUC** (área bajo la curva) resume la calidad del *ranking*: 1.0 perfecto, 0.5 azar. ROC/AUC juzgan los scores independientemente de dónde pongas el umbral; luego eliges el punto de operación que tu aplicación necesita.
 
 <ThresholdROC client:visible />
+
+<CasoUso titulo="Detección de fraude: 0.2% de positivos" sector="banca" icono="🕵️">
+
+De 100 000 transacciones, 200 son fraude. Un modelo marca 1 050 como sospechosas y atrapa 150 fraudes:
+
+- **Accuracy 99.05%** … pero «nunca marcar nada» saca **99.8%**. La accuracy no sirve.
+- **Recall 75%** (150 de 200) y **precision 14%** (150 de 1 050): por cada fraude real, el equipo revisa ~6 alertas falsas.
+- La decisión es de **costos**: si revisar una alerta cuesta S/ 2 y un fraude no detectado cuesta S/ 800, conviene bajar el umbral aunque la precision caiga.
+- Se reporta la **curva PR** y la precision en el top-k de alertas (lo que el equipo alcanza a revisar por día), no la accuracy.
+
+</CasoUso>
 
 ## Caso real: cáncer de mama
 
@@ -88,6 +113,24 @@ En un tamizaje los FN (enfermos que se escapan) son lo más caro: **bajar el umb
 		{ q: 'Subir el umbral de decisión normalmente…', opts: ['sube recall y baja precision', 'sube precision y baja recall', 'no cambia nada', 'sube ambos'], ok: 1 },
 	]}
 />
+
+## En código
+
+```python
+from sklearn.metrics import (confusion_matrix, classification_report,
+                             roc_auc_score, roc_curve, precision_recall_curve,
+                             average_precision_score)
+
+p = clf.predict_proba(X_test)[:, 1]
+y_hat = (p >= 0.5).astype(int)
+tn, fp, fn, tp = confusion_matrix(y_test, y_hat).ravel()   # ¡orden de sklearn!
+print(classification_report(y_test, y_hat))                # precision, recall, F1 por clase
+print('ROC-AUC', roc_auc_score(y_test, p), '· AP', average_precision_score(y_test, p))
+
+# elegir el umbral en VALIDACIÓN para un recall mínimo de 0.95
+prec, rec, thr = precision_recall_curve(y_val, clf.predict_proba(X_val)[:, 1])
+t = thr[(rec[:-1] >= 0.95)].max()
+```
 
 <Conexiones
 	items={[

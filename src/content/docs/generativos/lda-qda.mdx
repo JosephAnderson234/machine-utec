@@ -9,6 +9,9 @@ import Solucion from '../../../components/Solucion.astro';
 import Conexiones from '../../../components/Conexiones.astro';
 import Recursos from '../../../components/Recursos.astro';
 import Fuente from '../../../components/Fuente.astro';
+import LDA1D from '../../../components/sim/LDA1D.tsx';
+import GenDiscCurves from '../../../components/sim/GenDiscCurves.tsx';
+import CasoUso from '../../../components/CasoUso.astro';
 import { R } from '../../../data/recursos';
 
 ## Features correlacionadas necesitan covarianza
@@ -90,6 +93,8 @@ $$
 
 En más dimensiones, $\mathbf{w}=\Sigma^{-1}(\boldsymbol\mu_1-\boldsymbol\mu_0)$ es la flecha entre las medias (reescalada por la dispersión compartida) y la frontera es su bisectriz perpendicular (en la métrica de $\Sigma$).
 
+<LDA1D client:visible />
+
 ## De LDA a QDA con una perilla
 
 Mezcla cada covarianza entre la agrupada y la propia: $\Sigma_k(t) = (1-t)\Sigma_\text{pooled}+t\,\Sigma_k$. Con $t=0$ es LDA (recta); con $t=1$, QDA (curva). La frontera se dobla **exactamente tanto** como difieran las formas/inclinaciones de las elipses.
@@ -100,6 +105,8 @@ Mezcla cada covarianza entre la agrupada y la propia: $\Sigma_k(t) = (1-t)\Sigma
 
 LDA y la logística llegan a la misma $\sigma(\mathbf{w}^\top\mathbf{x}+b)$ por caminos distintos, y eso cambia su comportamiento según cuántos datos haya (Ng y Jordan, 2001): **el generativo aprende más rápido** (baja complejidad muestral) y se estanca un poco más arriba; **el discriminativo necesita más datos** pero termina más abajo.
 
+<GenDiscCurves client:visible />
+
 | Generativo (NB, LDA, QDA) | Discriminativo (logística) |
 | --- | --- |
 | aprende con pocos ejemplos | menos supuestos: solo la frontera |
@@ -108,6 +115,17 @@ LDA y la logística llegan a la misma $\sigma(\mathbf{w}^\top\mathbf{x}+b)$ por 
 | **pero:** supuestos fuertes | **pero:** necesita más datos; no genera ni imputa |
 
 **Regla práctica:** ¿pocos datos o necesitas la densidad? → generativo. ¿Muchos datos y solo quieres la etiqueta? → discriminativo.
+
+<CasoUso titulo="Control de calidad con sensores: cuándo QDA le gana a LDA" sector="manufactura" icono="🏭">
+
+Una planta clasifica botellas como *buenas* o *defectuosas* con dos medidas continuas (grosor de pared y presión de prueba). Con 2 000 ejemplos:
+
+- Las botellas **buenas** forman una nube compacta y casi circular; las **defectuosas** varían mucho más y en direcciones correlacionadas (una elipse grande e inclinada).
+- **LDA** fuerza la misma elipse para ambas clases ⇒ frontera recta ⇒ deja escapar defectos que caen «alrededor» de la nube buena.
+- **QDA** usa una elipse por clase ⇒ frontera curva que **envuelve** a la clase compacta. Con 2 000 ejemplos y solo 2 features (3 parámetros de covarianza por clase) tiene datos de sobra.
+- Si en cambio fueran 200 features con 300 ejemplos, QDA necesitaría estimar 20 100 números por clase: ahí LDA (o NB, o logística regularizada) es la opción sensata.
+
+</CasoUso>
 
 ## Ejercicio
 
@@ -130,6 +148,20 @@ $x^* = \frac{0+4}{2} - \frac{2}{4}\log\frac{0.25}{0.75} = 2 - 0.5\cdot(-1.0986) 
 		{ q: 'El posterior de LDA tiene la forma…', opts: ['$\\sigma(\\mathbf{w}^\\top\\mathbf{x}+b)$', 'un escalón', 'softmax de distancias euclidianas', 'uniforme'], ok: 0 },
 	]}
 />
+
+## En código
+
+```python
+from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
+from sklearn.discriminant_analysis import QuadraticDiscriminantAnalysis as QDA
+
+lda = LDA(store_covariance=True).fit(X_tr, y_tr)
+qda = QDA(reg_param=0.1).fit(X_tr, y_tr)     # reg_param encoge Σₖ (útil con d grande)
+mu, Sigma = lda.means_, lda.covariance_   # medias por clase y Σ agrupada
+w = lda.coef_                                # = Σ⁻¹(μ₁ − μ₀) en el caso binario
+print(lda.score(X_te, y_te), qda.score(X_te, y_te))
+lda.predict_proba(X_te[:3])                  # posterior σ(wᵀx + b)
+```
 
 <Conexiones
 	items={[

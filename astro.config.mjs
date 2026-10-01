@@ -29,6 +29,9 @@ export default defineConfig({
 					items: [
 						{ label: 'Cómo usar esta web', slug: 'index' },
 						{ label: 'Mapa conceptual del curso', slug: 'mapa', badge: { text: 'interactivo', variant: 'tip' } },
+						{ label: '¿Qué modelo uso? (guía)', slug: 'guia-modelos', badge: { text: 'nuevo', variant: 'success' } },
+						{ label: 'Casos de estudio completos', slug: 'casos', badge: { text: 'nuevo', variant: 'success' } },
+						{ label: 'Glosario inglés ↔ español', slug: 'glosario', badge: { text: 'nuevo', variant: 'success' } },
 						{ label: 'Formulario (cheat sheet)', slug: 'formulario' },
 						{ label: 'Recursos web recomendados', slug: 'recursos' },
 					],
@@ -100,6 +103,8 @@ export default defineConfig({
 					label: '8 · Examen',
 					items: [
 						{ label: 'Banco de preguntas (oficial)', slug: 'examen/banco' },
+						{ label: 'Modo examen cronometrado', slug: 'examen/modo-examen', badge: { text: 'nuevo', variant: 'success' } },
+						{ label: 'Generador de ejercicios', slug: 'examen/generador', badge: { text: 'nuevo', variant: 'success' } },
 						{ label: 'Simulacro extra', slug: 'examen/simulacro' },
 						{ label: 'Flashcards', slug: 'examen/flashcards' },
 					],

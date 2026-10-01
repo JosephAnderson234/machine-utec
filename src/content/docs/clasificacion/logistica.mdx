@@ -10,6 +10,8 @@ import Solucion from '../../../components/Solucion.astro';
 import Conexiones from '../../../components/Conexiones.astro';
 import Recursos from '../../../components/Recursos.astro';
 import Fuente from '../../../components/Fuente.astro';
+import CasoUso from '../../../components/CasoUso.astro';
+import Pasos from '../../../components/Pasos.astro';
 import { R } from '../../../data/recursos';
 
 ## Una pregunta distinta
@@ -62,6 +64,26 @@ $$
 
 Subir $x_j$ en una unidad suma $w_j$ al log-odds, es decir **multiplica los odds por $e^{w_j}$**, sin importar las demás features. $w_j = 0.7 \Rightarrow e^{0.7}\approx 2$: una unidad más **duplica** los odds. $w_j=0$ los deja igual; $w_j<0$ los achica.
 
+<CasoUso titulo="Credit scoring: por qué los bancos aman los odds ratios" sector="finanzas" icono="💳">
+
+Un banco estima la probabilidad de que un cliente **no pague** (default) con features como deuda/ingreso, atrasos previos y antigüedad laboral. Usa regresión logística, aunque existan modelos más complejos, por tres razones:
+
+- **Interpretable y auditable:** el regulador exige explicar cada rechazo. Si el peso de «nº de atrasos en el último año» es $w = 0.69$, cada atraso adicional **multiplica los odds de default por $e^{0.69} \approx 2$**, con todo lo demás fijo.
+- **Probabilidad, no solo etiqueta:** con $P(\text{default}\mid\mathbf{x})$ el banco fija la tasa de interés por riesgo o decide el umbral según cuánto cuesta un mal préstamo vs un buen cliente perdido.
+- **El umbral es de negocio:** si perder un buen cliente cuesta S/ 300 y un default cuesta S/ 3 000, conviene rechazar cuando $P(\text{default}) > 300/(300+3000) \approx 0.09$, **no** 0.5.
+
+</CasoUso>
+
+<Pasos titulo="Ejemplo con números: de score a decisión">
+
+1. Modelo ajustado: $z = -3 + 0.69\,\text{atrasos} + 2.0\,\text{deuda/ingreso}$.
+2. Cliente A: 1 atraso, deuda/ingreso = 0.5 ⇒ $z = -3 + 0.69 + 1.0 = -1.31$ ⇒ $p = \sigma(-1.31) = 1/(1+e^{1.31}) \approx 0.21$.
+3. Odds: $0.21/0.79 \approx 0.27$ (≈ 1 a 4). Log-odds: $\log 0.27 = -1.31 = z$ ✓.
+4. Si el cliente tuviera **un atraso más**: $z = -0.62$, $p \approx 0.35$, odds $\approx 0.54$: los odds se **duplicaron** ($e^{0.69}$), aunque la probabilidad no se duplicó (0.21 → 0.35).
+5. Decisión con umbral 0.5: aprobar (0.21 < 0.5). Con el umbral de negocio 0.09: **rechazar**. Mismo modelo, distinta decisión: el umbral se elige por costos.
+
+</Pasos>
+
 ## El modelo y la frontera
 
 $$
@@ -111,6 +133,24 @@ $w = 0.7$, $b = -2.1$. ¿Frontera? ¿$P(y=1\mid x=5)$? ¿Cuánto cambian los odd
 		{ q: '$\\sigma\'(z)$ es igual a…', opts: ['$\\sigma(z)^2$', '$\\sigma(z)(1-\\sigma(z))$', '$1-\\sigma(z)$', '$e^{-z}$'], ok: 1 },
 	]}
 />
+
+## En código
+
+```python
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import StandardScaler
+from sklearn.linear_model import LogisticRegression
+import numpy as np
+
+clf = make_pipeline(StandardScaler(), LogisticRegression(C=1.0))  # C = 1/λ (L2)
+clf.fit(X_tr, y_tr)
+p = clf.predict_proba(X_val)[:, 1]          # P(y = 1 | x)
+y_hat = (p >= 0.5).astype(int)              # umbral por defecto (¡movible!)
+
+lr = clf[-1]
+odds_ratios = np.exp(lr.coef_[0])           # efecto multiplicativo por 1 desviación estándar
+x_star = -lr.intercept_[0] / lr.coef_[0][0] # frontera en 1-D (features estandarizadas)
+```
 
 <Conexiones
 	items={[

@@ -10,6 +10,8 @@ import Solucion from '../../../components/Solucion.astro';
 import Conexiones from '../../../components/Conexiones.astro';
 import Recursos from '../../../components/Recursos.astro';
 import Fuente from '../../../components/Fuente.astro';
+import DualExplorer from '../../../components/sim/DualExplorer.tsx';
+import Pasos from '../../../components/Pasos.astro';
 import { R } from '../../../data/recursos';
 
 ## ¿Cuánto te cuesta una regla?
@@ -146,6 +148,19 @@ $\mathbf{x}_4=(3,3)$ con $y_4f=5>1$ ⇒ por holgura complementaria $\alpha_4=0$:
 
 </Solucion>
 
+<DualExplorer client:visible />
+
+<Pasos titulo="El dual del ejemplo de tres puntos, sin atajos">
+
+1. Productos internos: $\mathbf{x}_1^\top\mathbf{x}_1 = 4$, $\mathbf{x}_2^\top\mathbf{x}_2 = 4$, $\mathbf{x}_1^\top\mathbf{x}_2 = 0$, y todo producto con $\mathbf{x}_3 = (0,0)$ vale 0.
+2. Restricción de balance: $\alpha_1 + \alpha_2 - \alpha_3 = 0 \Rightarrow \alpha_3 = \alpha_1 + \alpha_2$.
+3. Término cuadrático: solo sobreviven $\alpha_1^2\cdot4 + \alpha_2^2\cdot4$ (los cruzados valen 0). Entonces $W = (\alpha_1+\alpha_2+\alpha_3) - \tfrac12(4\alpha_1^2+4\alpha_2^2) = 2\alpha_1 + 2\alpha_2 - 2\alpha_1^2 - 2\alpha_2^2$.
+4. Derivadas: $\partial W/\partial\alpha_1 = 2 - 4\alpha_1 = 0 \Rightarrow \alpha_1 = \tfrac12$; igual $\alpha_2 = \tfrac12$; luego $\alpha_3 = 1$. Todos $\ge 0$ ✓.
+5. $\mathbf{w} = \tfrac12(2,0) + \tfrac12(0,2) - 1\cdot(0,0) = (1,1)$; con el vector de soporte $\mathbf{x}_1$: $b = y_1 - \mathbf{w}^\top\mathbf{x}_1 = 1 - 2 = -1$.
+6. Valores: $W(\boldsymbol\alpha) = 1 + 1 - \tfrac12 - \tfrac12 = 1$ y $\tfrac12\Vert\mathbf{w}\Vert^2 = 1$: brecha cero (dualidad fuerte). Los tres $\alpha_i > 0$: los tres puntos son vectores de soporte.
+
+</Pasos>
+
 ## ¿Para qué molestarse con el dual?
 
 - **Kernels**: los datos solo aparecen como $\mathbf{x}_i^\top\mathbf{x}_j$ → cámbialo por $K(\mathbf{x}_i,\mathbf{x}_j)$ y la frontera se curva gratis.
@@ -165,6 +180,21 @@ $\mathbf{x}_4=(3,3)$ con $y_4f=5>1$ ⇒ por holgura complementaria $\alpha_4=0$:
 		{ q: 'En el dual, los datos aparecen solo como…', opts: ['coordenadas crudas', 'productos internos $\\mathbf{x}_i^\\top\\mathbf{x}_j$', 'distancias al origen', 'etiquetas'], ok: 1 },
 	]}
 />
+
+## En código: mirar dentro del SVM entrenado
+
+```python
+from sklearn.svm import SVC
+import numpy as np
+
+X = np.array([[2, 0], [0, 2], [0, 0], [3, 3]]); y = np.array([1, 1, -1, 1])
+svm = SVC(kernel='linear', C=1e6).fit(X, y)   # C enorme ≈ margen duro
+
+svm.support_            # índices de los vectores de soporte → [2, 0, 1] (no el (3,3))
+svm.dual_coef_          # αᵢ·yᵢ de cada vector de soporte ≈ [[-1, 0.5, 0.5]]
+svm.coef_, svm.intercept_   # ≈ w = (1, 1), b = −1 (tolerancia del solver)
+w = svm.dual_coef_ @ svm.support_vectors_   # reconstruye w = Σ αᵢ yᵢ xᵢ
+```
 
 <Conexiones
 	items={[

@@ -1,0 +1,19 @@
+---
+/** Tarjeta de caso de uso real: contexto, qué se predice y por qué este modelo. */
+interface Props {
+	titulo: string;
+	sector: string;
+	icono?: string;
+}
+const { titulo, sector, icono = '◆' } = Astro.props;
+---
+<aside class="caso not-content">
+	<div class="caso-head">
+		<span class="caso-ico" aria-hidden="true">{icono}</span>
+		<div>
+			<span class="caso-sector">Caso de uso · {sector}</span>
+			<span class="caso-t">{titulo}</span>
+		</div>
+	</div>
+	<div class="caso-body sl-markdown-content"><slot /></div>
+</aside>

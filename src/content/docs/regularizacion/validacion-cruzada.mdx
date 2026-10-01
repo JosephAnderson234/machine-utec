@@ -9,6 +9,8 @@ import Solucion from '../../../components/Solucion.astro';
 import Conexiones from '../../../components/Conexiones.astro';
 import Recursos from '../../../components/Recursos.astro';
 import Fuente from '../../../components/Fuente.astro';
+import LeakageDemo from '../../../components/sim/LeakageDemo.tsx';
+import CasoUso from '../../../components/CasoUso.astro';
 import { R } from '../../../data/recursos';
 
 ## Todavía hay que elegir λ (o el grado)
@@ -53,6 +55,16 @@ Hay fuga cuando información de evaluación influye en el entrenamiento, y los s
 Si comparas muchos modelos en el mismo conjunto de validación, el ganador parece mejor de lo que es (incluso con datos de puro ruido). Por eso el test, visto una sola vez, da la nota honesta. Para evaluar el propio procedimiento de selección existe la **CV anidada**.
 :::
 
+<LeakageDemo client:visible />
+
+<CasoUso titulo="El «primer lugar» que se cae en el ranking final" sector="competencias de datos" icono="🏆">
+
+En competencias tipo Kaggle hay un *leaderboard público* (una parte del test) y uno *privado* (el resto, revelado al final). Equipos que envían cientos de variantes y se quedan con la que mejor puntúa en el público suelen **caer muchos puestos** en el privado: hicieron selección de modelos sobre el test público, exactamente la maldición del ganador del simulador de arriba. Los que eligen con una **validación cruzada local** sólida y miran poco el leaderboard suelen subir.
+
+Otra fuga clásica: **series de tiempo** partidas al azar. Si el modelo de demanda entrena con datos de marzo y valida con febrero, «ve el futuro». Se usa una partición temporal (`TimeSeriesSplit`): siempre entrenar con el pasado y validar con lo que viene después.
+
+</CasoUso>
+
 ## Todo junto: el barrido de complejidad
 
 Barriendo el grado de 0 a 18: el RMSE de entrenamiento no deja de bajar mientras el de validación traza la U; se elige el mínimo de validación (grado 8 en la slide). Es el trade-off sesgo–varianza **resuelto con datos**.
@@ -79,6 +91,28 @@ Tienes 1000 ejemplos. Reservas 200 para test. Con los 800 restantes haces 5-fold
 		{ q: '¿Por qué no basta una sola partición train/validación?', opts: ['porque es más lenta', 'porque el mejor λ depende de qué puntos cayeron en validación (alta varianza)', 'porque no permite test', 'porque sobreajusta el test'], ok: 1 },
 	]}
 />
+
+## En código: CV sin fugas
+
+```python
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import StandardScaler, PolynomialFeatures
+from sklearn.linear_model import Ridge
+from sklearn.model_selection import GridSearchCV, KFold, cross_val_score
+import numpy as np
+
+# el escalador vive DENTRO del pipeline: en cada fold se ajusta solo con train
+pipe = make_pipeline(PolynomialFeatures(9), StandardScaler(), Ridge())
+grid = GridSearchCV(pipe, {'ridge__alpha': np.logspace(-6, 2, 30)},
+                    cv=KFold(5, shuffle=True, random_state=0),
+                    scoring='neg_root_mean_squared_error')
+grid.fit(X_tr, y_tr)                         # el test no aparece aquí
+print(grid.best_params_, -grid.best_score_)
+print('test:', -grid.score(X_test, y_test))  # una sola vez, al final
+
+# CV anidada: estima qué tan bueno es TODO el procedimiento de selección
+outer = cross_val_score(grid, X_tr, y_tr, cv=5)
+```
 
 <Conexiones
 	items={[

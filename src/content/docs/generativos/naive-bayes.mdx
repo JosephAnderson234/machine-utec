@@ -10,6 +10,8 @@ import Solucion from '../../../components/Solucion.astro';
 import Conexiones from '../../../components/Conexiones.astro';
 import Recursos from '../../../components/Recursos.astro';
 import Fuente from '../../../components/Fuente.astro';
+import CurseJoint from '../../../components/sim/CurseJoint.tsx';
+import CasoUso from '../../../components/CasoUso.astro';
 import { R } from '../../../data/recursos';
 
 ## La maldición de la conjunta
@@ -23,6 +25,8 @@ p(\mathbf{x}\mid y=k) = \prod_{j=1}^d p(x_j\mid y=k)
 $$
 
 Con eso bastan **20** números por clase (uno por palabra). «Naive» (ingenuo) porque finge que, sabiendo la clase, las features no llevan información conjunta.
+
+<CurseJoint client:visible />
 
 ## Decidir en log-espacio
 
@@ -78,6 +82,17 @@ $$
 
 <NaiveBayesSpam client:visible />
 
+<CasoUso titulo="Un filtro de spam real, de principio a fin" sector="correo" icono="📧">
+
+1. **Datos:** 50 000 correos marcados por usuarios (40% spam). Vocabulario de las 20 000 palabras más frecuentes.
+2. **Features:** cada correo → vector de conteos de palabras (bolsa de palabras, `CountVectorizer`). Es enorme y casi todo ceros (esparso).
+3. **Entrenar = contar:** para cada clase, cuántas veces aparece cada palabra + α. Toma segundos aun con millones de correos; agregar correos nuevos es sumar conteos (**aprendizaje incremental**).
+4. **Predecir:** sumar $\log p(w\mid y)$ de las palabras del correo + $\log\pi_y$. Gana la clase con mayor suma.
+5. **Umbral asimétrico:** un correo legítimo en spam (FP) es peor que un spam en la bandeja (FN), así que se exige $P(\text{spam}) > 0.99$ para mover un correo a spam.
+6. **Limitación:** los spammers escriben «fr3e m0ney» para esquivar palabras conocidas, y las probabilidades salen sobreconfiadas. Por eso los filtros modernos combinan NB con otros modelos, pero NB sigue siendo un baseline excelente y rapidísimo.
+
+</CasoUso>
+
 ## Suavizado de Laplace, y una advertencia
 
 Si «lottery» nunca apareció en ningún ham, $p(\text{lottery}\mid\text{ham}) = 0$ y **ese solo cero anula todo el producto** de ham, por muy «ham» que sean las otras palabras. **Suavizado de Laplace (add-α):**
@@ -114,6 +129,23 @@ Con los datos de la tabla, el mensaje es solo «now». ¿Qué clase gana? ¿Y si
 		{ q: 'El suavizado de Laplace es un ejemplo de…', opts: ['MLE', 'MAP', 'validación cruzada', 'boosting'], ok: 1 },
 	]}
 />
+
+## En código
+
+```python
+from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.naive_bayes import MultinomialNB, BernoulliNB, GaussianNB
+from sklearn.pipeline import make_pipeline
+
+spam = make_pipeline(CountVectorizer(), MultinomialNB(alpha=1.0))   # α = Laplace
+spam.fit(textos_tr, y_tr)
+spam.predict_proba(['free money now'])          # [[P(ham), P(spam)]]
+
+nb_bin = make_pipeline(CountVectorizer(binary=True), BernoulliNB(alpha=1.0))  # presencia 0/1
+
+g = GaussianNB().fit(X_tr, y_tr)                # features continuas
+g.theta_, g.var_, g.class_prior_                 # μₖⱼ, σ²ₖⱼ y πₖ: contar y promediar
+```
 
 <Conexiones
 	items={[

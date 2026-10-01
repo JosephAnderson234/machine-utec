@@ -9,6 +9,7 @@ import Solucion from '../../../components/Solucion.astro';
 import Conexiones from '../../../components/Conexiones.astro';
 import Recursos from '../../../components/Recursos.astro';
 import Fuente from '../../../components/Fuente.astro';
+import CasoUso from '../../../components/CasoUso.astro';
 import { R } from '../../../data/recursos';
 
 ## Los datos reales no son separables
@@ -90,6 +91,16 @@ La zona plana de la hinge **es** la historia de los vectores de soporte vista co
 | los vectores de soporte sostienen la frontera | puntos con pérdida 0 tienen gradiente 0 |
 | lleva al dual y a los kernels | lleva a SGD sobre datos enormes |
 
+<CasoUso titulo="Detectar piezas defectuosas con etiquetas ruidosas" sector="manufactura" icono="🔩">
+
+Inspectores humanos etiquetan 5 000 fotos de piezas como OK/defectuosa; se estima que ~3% de las etiquetas están **mal**. Con un margen duro, cada etiqueta errónea dentro de la otra clase obligaría a una frontera retorcida (o haría el problema infactible).
+
+- Con **C pequeño** el SVM tolera esas violaciones: los puntos mal etiquetados quedan con $\alpha_i = C$ (empujan, pero con fuerza acotada) y la frontera sigue la tendencia general.
+- Con **C enorme** la frontera persigue el ruido: accuracy de entrenamiento casi 100%, validación peor.
+- C se elige por **validación cruzada** en una grilla logarítmica (0.01, 0.1, 1, 10, 100). Los puntos con $\alpha_i = C$ son, además, **candidatos a revisar**: a menudo son exactamente las etiquetas equivocadas.
+
+</CasoUso>
+
 ## En la práctica
 
 1. **Estandariza** las features: $\|\mathbf{w}\|$ mezcla todas, así que una columna en millones domina el margen en silencio. **No es opcional** (y el escalador se ajusta solo con los folds de entrenamiento).
@@ -138,6 +149,24 @@ Objetivo $=\tfrac12\cdot2 + 1\cdot(0+1.2+2) = 4.2$.
 		{ q: 'La hinge $\\max(0, 1-m)$ vale 0 cuando…', opts: ['$m \\ge 0$', '$m \\ge 1$', '$m \\le 1$', 'nunca'], ok: 1 },
 	]}
 />
+
+## En código
+
+```python
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import StandardScaler
+from sklearn.svm import SVC, LinearSVC
+from sklearn.model_selection import GridSearchCV
+import numpy as np
+
+pipe = make_pipeline(StandardScaler(), SVC(kernel='linear'))
+grid = GridSearchCV(pipe, {'svc__C': np.logspace(-2, 3, 11)}, cv=5).fit(X_tr, y_tr)
+svm = grid.best_estimator_[-1]
+print(grid.best_params_, 'nº de SV por clase:', svm.n_support_)
+
+big = make_pipeline(StandardScaler(), LinearSVC(C=1.0))     # hinge + L2, escala a n grande
+proba = make_pipeline(StandardScaler(), SVC(probability=True))  # Platt scaling (CV interna)
+```
 
 <Conexiones
 	items={[

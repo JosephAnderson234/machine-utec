@@ -10,6 +10,8 @@ import Solucion from '../../../components/Solucion.astro';
 import Conexiones from '../../../components/Conexiones.astro';
 import Recursos from '../../../components/Recursos.astro';
 import Fuente from '../../../components/Fuente.astro';
+import KernelShapes from '../../../components/sim/KernelShapes.tsx';
+import CasoUso from '../../../components/CasoUso.astro';
 import { R } from '../../../data/recursos';
 
 ## Tres kernels que de verdad usarás
@@ -36,6 +38,8 @@ Cada $(\mathbf{x}^\top\mathbf{x}')^k$ es el kernel polinómico de grado $k$: el 
 «El kernel RBF corresponde a un feature map $\phi$ de dimensión infinita que nunca hay que calcular» → **Verdadero**, justo por la serie de arriba. Ese es el punto del truco.
 :::
 
+<KernelShapes client:visible />
+
 ## Mismos datos, tres kernels, tres fronteras
 
 El kernel **elige el espacio de hipótesis**. En la slide: lineal (acc 0.83) traza un corte recto; polinómico grado 3 (0.90) se curva; RBF (0.94) envuelve ajustado.
@@ -53,6 +57,18 @@ El kernel **elige el espacio de hipótesis**. En la slide: lineal (acc 0.83) tra
 - **Estandariza** primero: la distancia $\|\mathbf{x}-\mathbf{x}'\|$ mezcla todas las coordenadas y una feature sin escalar domina.
 - La matriz de Gram cuesta $O(n^2)$ de memoria (y resolver ∼$O(n^3)$): los kernels son para $n$ pequeño o mediano.
 :::
+
+<CasoUso titulo="Reconocer dígitos con un SVM RBF: el clásico de los 90" sector="visión" icono="🔢">
+
+Antes del deep learning, un SVM con kernel RBF era de los mejores clasificadores de dígitos escritos a mano. Receta típica sobre el dataset `digits`:
+
+1. Estandarizar los 64 píxeles.
+2. Grilla logarítmica: $C\in\{0.1, 1, 10, 100\}$, $\gamma\in\{10^{-4},\dots,10^{-1}\}$, con 5-fold CV.
+3. Resultado típico: accuracy de test ≈ 98–99%, frente a ≈ 96% de la logística (lineal).
+4. Mirar los **vectores de soporte**: son los dígitos ambiguos (un 7 con raya, un 4 cerrado), justo los «postes» de la frontera.
+5. Precaución: con γ demasiado grande la CV baja aunque el entrenamiento llegue a 100%: cada imagen solo «se parece a sí misma».
+
+</CasoUso>
 
 ## El teorema del representante
 
@@ -108,6 +124,26 @@ Con $\gamma = 0.5$, calcula $K_\text{RBF}$ entre $(0,0)$ y $(1,1)$, y entre $(0,
 		{ q: '¿Cuál kernel tiene alcance local?', opts: ['lineal', 'polinómico', 'RBF', 'todos'], ok: 2 },
 	]}
 />
+
+## En código
+
+```python
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import StandardScaler
+from sklearn.svm import SVC
+from sklearn.kernel_ridge import KernelRidge
+from sklearn.model_selection import GridSearchCV
+import numpy as np
+
+svm = GridSearchCV(make_pipeline(StandardScaler(), SVC(kernel='rbf')),
+                   {'svc__C': np.logspace(-1, 3, 5), 'svc__gamma': np.logspace(-4, 0, 5)},
+                   cv=5).fit(X_tr, y_tr)                    # C y γ JUNTOS
+print(svm.best_params_, svm.score(X_te, y_te))
+
+kr = KernelRidge(kernel='rbf', alpha=0.1, gamma=1.0).fit(x_tr.reshape(-1, 1), y_tr)
+alpha = kr.dual_coef_          # α = (K + λI)⁻¹ y  (λ se llama alpha en sklearn)
+y_hat = kr.predict(x_te.reshape(-1, 1))   # f(x) = Σ αᵢ K(xᵢ, x)
+```
 
 <Conexiones
 	items={[

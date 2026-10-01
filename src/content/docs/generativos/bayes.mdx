@@ -10,6 +10,8 @@ import Solucion from '../../../components/Solucion.astro';
 import Conexiones from '../../../components/Conexiones.astro';
 import Recursos from '../../../components/Recursos.astro';
 import Fuente from '../../../components/Fuente.astro';
+import CasoUso from '../../../components/CasoUso.astro';
+import Pasos from '../../../components/Pasos.astro';
 import { R } from '../../../data/recursos';
 
 ## Repaso de probabilidad (lo justo)
@@ -65,6 +67,31 @@ $$
 Multiplicando por 10 000 aparece el árbol: 80 enfermos positivos, ≈300 falsas alarmas, total ≈380. El test da el **likelihood** $p(+\mid\text{enf})=0.80$; el paciente quiere el **posterior** $P(\text{enf}\mid+)=0.21$.
 
 <BayesTree client:visible />
+
+<CasoUso titulo="Pruebas rápidas de antígeno en una epidemia" sector="salud pública" icono="🧫">
+
+La **misma prueba** (sensibilidad 80%, especificidad 99%) da posteriores muy distintos según el contexto, porque cambia el **prior** (prevalencia):
+
+| Contexto | Prevalencia | $P(\text{infectado}\mid +)$ |
+| --- | --- | --- |
+| Tamizaje masivo en un aeropuerto | 0.5% | ≈ 29% |
+| Consulta con síntomas | 10% | ≈ 90% |
+| Contacto directo de un caso | 30% | ≈ 97% |
+
+Por eso los protocolos piden confirmar los positivos del tamizaje masivo y en cambio actúan directo ante un positivo sintomático. En el lenguaje del curso: el likelihood $p(+\mid\text{infectado})$ es fijo; el posterior depende del prior.
+
+</CasoUso>
+
+<Pasos titulo="Cómo calcular un posterior en el examen (receta)">
+
+1. Identifica las clases y el **prior**: $\pi_\text{inf} = 0.10$, $\pi_\text{sano} = 0.90$.
+2. Identifica los **likelihoods** de la evidencia observada: $p(+\mid\text{inf}) = 0.80$, $p(+\mid\text{sano}) = 1 - 0.99 = 0.01$.
+3. Multiplica prior × likelihood por clase (los «scores»): inf $= 0.10\cdot0.80 = 0.080$; sano $= 0.90\cdot0.01 = 0.009$.
+4. **Normaliza** (divide por la suma, la evidencia $p(+) = 0.089$): $P(\text{inf}\mid +) = 0.080/0.089 \approx 0.90$.
+5. Para **decidir** (MAP) basta comparar los scores del paso 3: 0.080 > 0.009 ⇒ infectado. La normalización solo hace falta si te piden la probabilidad.
+6. Chequeo de sentido común: con 1 000 personas, 100 infectadas → 80 positivos verdaderos; 900 sanas → 9 falsos positivos; $80/89 \approx 0.90$ ✓.
+
+</Pasos>
 
 ### Prior × likelihood → posterior: aparece la sigmoide
 

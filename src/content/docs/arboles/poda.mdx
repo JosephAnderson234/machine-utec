@@ -9,6 +9,8 @@ import Solucion from '../../../components/Solucion.astro';
 import Conexiones from '../../../components/Conexiones.astro';
 import Recursos from '../../../components/Recursos.astro';
 import Fuente from '../../../components/Fuente.astro';
+import TreeRegression from '../../../components/sim/TreeRegression.tsx';
+import CasoUso from '../../../components/CasoUso.astro';
 import { R } from '../../../data/recursos';
 
 ## El tamaño del árbol es la perilla de complejidad
@@ -100,9 +102,22 @@ Mueve **un** punto una unidad y el árbol hace **otra primera pregunta** (en el 
 
 > Un solo árbol rara vez es el mejor predictor. Muchas veces es la mejor **explicación**.
 
+<CasoUso titulo="Un árbol de crédito que cambia cada mes" sector="finanzas" icono="🏦">
+
+Un banco re-entrena cada mes un árbol para pre-aprobar créditos. Con los mismos clientes «casi iguales», un mes la primera pregunta es *ingreso ≤ 3 500*, al siguiente *deuda/ingreso ≤ 0.4*. La accuracy apenas cambia (≈ 88%), pero **las reglas que ve el cliente sí**, y el área de riesgo no puede explicar por qué alguien aprobado en enero es rechazado en febrero con el mismo perfil.
+
+- Es la **inestabilidad** de esta sección: la elección del split es un arg max entre candidatos casi empatados.
+- Remedios: **podar** (árboles más chicos son más estables), fijar `random_state`, o dejar el árbol para *explicar* y usar un **ensemble** (random forest) para *predecir*.
+
+</CasoUso>
+
 ## El puente a la sesión 09: ensembles
 
 Un árbol completo: test 0.867. Veinte árboles sobre 20 re-muestreos bootstrap, cada uno dentado y distinto: **su promedio da 0.900** con una frontera visiblemente más suave. Promediar $B$ estimadores aproximadamente independientes divide la varianza por $\sim B$ sin tocar el sesgo. Los árboles son de sesgo bajo y varianza alta: **lo ideal para promediar**. Eso es bagging, random forests y boosting.
+
+Pruébalo en regresión: sube la profundidad (árboles de alta varianza) y luego el número de árboles promediados.
+
+<TreeRegression client:visible />
 
 ## En la práctica
 
@@ -110,6 +125,26 @@ Un árbol completo: test 0.867. Veinte árboles sobre 20 re-muestreos bootstrap,
 - **Nunca aceptes los defaults**: fija `max_depth` o `ccp_alpha`. Ajusta `ccp_alpha` con `cost_complexity_pruning_path` + `GridSearchCV`.
 - Fija `random_state` (los empates se rompen al azar). `class_weight="balanced"` si hay desbalance.
 - Errores típicos: elegir la profundidad con el test, reportar accuracy de entrenamiento (1.0), confiar en MDI con features de alta cardinalidad, esperar extrapolación, sorprenderse de que el árbol cambie al re-entrenar.
+
+## En código: poda por costo-complejidad con CV
+
+```python
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.model_selection import GridSearchCV
+from sklearn.inspection import permutation_importance
+
+path = DecisionTreeClassifier(random_state=0).cost_complexity_pruning_path(X_tr, y_tr)
+alphas = path.ccp_alphas[:-1]           # la ruta finita de α; el último deja solo la raíz
+# para los 10 puntos, path.ccp_alphas = [0, 0.1333, 0.1524, 0.2143] = 0, 2/15, 16/105, 3/14
+
+grid = GridSearchCV(DecisionTreeClassifier(random_state=0),
+                    {'ccp_alpha': alphas}, cv=5).fit(X_tr, y_tr)
+best = grid.best_estimator_
+print(grid.best_params_, best.get_n_leaves(), best.score(X_te, y_te))
+
+imp_mdi = best.feature_importances_                      # MDI (sesgada)
+imp_perm = permutation_importance(best, X_val, y_val).importances_mean  # más confiable
+```
 
 <Quiz
 	client:visible

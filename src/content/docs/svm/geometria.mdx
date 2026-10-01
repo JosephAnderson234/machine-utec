@@ -9,6 +9,9 @@ import Solucion from '../../../components/Solucion.astro';
 import Conexiones from '../../../components/Conexiones.astro';
 import Recursos from '../../../components/Recursos.astro';
 import Fuente from '../../../components/Fuente.astro';
+import SupportVectorDrag from '../../../components/sim/SupportVectorDrag.tsx';
+import CasoUso from '../../../components/CasoUso.astro';
+import Pasos from '../../../components/Pasos.astro';
 import { R } from '../../../data/recursos';
 
 ## ¿Qué recta apostarías?
@@ -44,6 +47,17 @@ $$
 ¡El pie $\mathbf{x}_p$ se borró solo! El **signo** de $r$ dice de qué lado está el punto; $|r|$ es la distancia geométrica real. El score crudo $f$ **no** es una distancia: dividir por $\|\mathbf{w}\|$ lo convierte (un paso a lo largo de $\hat{\mathbf{w}}$ sube el score exactamente $\|\mathbf{w}\|$).
 
 Ejemplo: $\mathbf{w}=(1,1)$, $b=-1$, $\|\mathbf{w}\|=\sqrt2$. $r(2,0) = (2+0-1)/\sqrt2 = +0.707$; $r(0,0) = -1/\sqrt2 = -0.707$.
+
+<Pasos titulo="Distancias con números: w = (3, 4), b = −5">
+
+1. $\Vert\mathbf{w}\Vert = \sqrt{3^2+4^2} = 5$; el vector unitario normal es $\hat{\mathbf{w}} = (0.6,\ 0.8)$.
+2. Punto $\mathbf{x} = (3,\ 4)$: score $f = 9 + 16 - 5 = 20$ ⇒ distancia $r = 20/5 = 4$ (lado positivo).
+3. Punto $\mathbf{x} = (0,\ 0)$: $f = -5$ ⇒ $r = -1$ (lado negativo, a 1 unidad).
+4. El pie de la perpendicular desde $(3,4)$: $\mathbf{x}_p = \mathbf{x} - r\hat{\mathbf{w}} = (3,4) - 4(0.6, 0.8) = (0.6,\ 0.8)$. Chequeo: $3(0.6)+4(0.8)-5 = 0$ ✓ está en la frontera.
+5. Si escalas a $(6, 8, -10)$, el score de $(3,4)$ pasa a 40 pero la distancia sigue siendo $40/10 = 4$: el margen **geométrico** no depende de la escala.
+6. En forma canónica (el punto más cercano con $\lvert f\rvert = 1$), la banda mide $2/\Vert\mathbf{w}\Vert$: con $\mathbf{w} = (3,4)$, $2/5 = 0.4$.
+
+</Pasos>
 
 ## Margen funcional vs geométrico
 
@@ -89,6 +103,16 @@ En el óptimo cada restricción está **activa** ($y_if(\mathbf{x}_i)=1$, el pun
 > Una carpa se sostiene con unos pocos postes. Mueve una silla dentro de la carpa y la lona no se mueve; mueve un poste y cambia toda. Los vectores de soporte son los postes.
 
 Consecuencias: el modelo se guarda como unos pocos puntos con pesos; predecir cuesta proporcional al nº de vectores de soporte; y el SVM es **sensible a los puntos más cercanos a la frontera** (justo los más propensos a estar mal etiquetados).
+
+<SupportVectorDrag client:visible />
+
+<CasoUso titulo="Clasificar textos y genes: el terreno natural del SVM" sector="texto · bioinformática" icono="🧬">
+
+Los SVM lineales fueron durante años el estándar para **clasificación de texto** (categorizar noticias, detectar opiniones): cada documento es un vector de decenas de miles de palabras, mucho más features que ejemplos. En ese régimen casi siempre existe un hiperplano que separa, y la pregunta del SVM, *¿cuál es el más seguro?*, es exactamente la correcta: maximizar el margen controla el sobreajuste aunque $d \gg n$.
+
+Lo mismo en **expresión génica** (clasificar tumores con 20 000 genes y 100 pacientes): el SVM lineal regularizado por el margen da buenos resultados y los vectores de soporte señalan los casos «frontera», útiles para revisión clínica.
+
+</CasoUso>
 
 ## El ejemplo de tres puntos, en papel
 

@@ -11,10 +11,11 @@ import Terminal from '../../components/Terminal.astro';
 	<div>
 		<p data-anim style="color: var(--sl-color-accent); font-family: var(--__sl-font-mono); font-size: .85rem; margin:0"><code style="background:none;padding:0;color:inherit;font-size:inherit">{'$ python repasar.py --curso CS3061 --parte 1'}</code></p>
 		<h1 data-anim>Del ajuste de una recta <span class="grad">al truco del kernel</span>, tocando cada idea.</h1>
-		<p class="tag" data-anim>Las 9 lecciones del profesor Hurtado explicadas a fondo, con 23 simuladores que corren en tu navegador, diagramas, conexiones entre temas y el banco de preguntas oficial resuelto.</p>
+		<p class="tag" data-anim>Las 9 lecciones del profesor Hurtado explicadas a fondo, con 38 simuladores y calculadoras que corren en tu navegador, casos de uso reales, derivaciones paso a paso, código, diagramas, conexiones entre temas y el banco de preguntas oficial resuelto.</p>
 		<div class="actions" data-anim>
 			<a class="so-btn primary" href="/mapa/">Ver el mapa conceptual →</a>
 			<a class="so-btn" href="/examen/banco/">Banco de preguntas</a>
+			<a class="so-btn" href="/examen/modo-examen/">Modo examen</a>
 			<a class="so-btn" href="/formulario/">Formulario</a>
 		</div>
 	</div>
@@ -25,7 +26,7 @@ import Terminal from '../../components/Terminal.astro';
 </div>
 
 <div class="so-stats not-content">
-	<div><b data-count="23">0</b><span>simuladores interactivos</span></div>
+	<div><b data-count="38">0</b><span>simuladores y calculadoras</span></div>
 	<div><b data-count="9">0</b><span>lecciones cubiertas</span></div>
 	<div><b data-count="31">0</b><span>conexiones en el mapa</span></div>
 	<div><b data-count="227">0</b><span>preguntas de quiz y flashcards</span></div>
@@ -40,15 +41,21 @@ import Terminal from '../../components/Terminal.astro';
 	<a class="so-card" href="/svm/geometria/"><span class="n">05</span><h3>SVM</h3><p>Margen 2/‖w‖, Lagrange y KKT como precios, el dual y la hinge. Resuelto con SMO en vivo.</p></a>
 	<a class="so-card" href="/kernels/truco/"><span class="n">06</span><h3>Kernels</h3><p>Dos rutas al mismo número, anillos levantados a 3-D, γ del RBF y kernel ridge.</p></a>
 	<a class="so-card" href="/arboles/cart/"><span class="n">07</span><h3>Árboles de decisión</h3><p>Construye el árbol de 10 puntos split por split, la cuerda de la impureza y la poda por α.</p></a>
+	<a class="so-card" href="/examen/modo-examen/"><span class="n">⏱</span><span class="tagnew">nuevo</span><h3>Modo examen</h3><p>Preguntas al azar con temporizador, nota sobre 20 y diagnóstico de qué temas repasar.</p></a>
+	<a class="so-card" href="/examen/generador/"><span class="n">∑</span><span class="tagnew">nuevo</span><h3>Ejercicios infinitos</h3><p>11 tipos de cálculo con números aleatorios y solución paso a paso: Bayes, Gini, SVM, LDA…</p></a>
+	<a class="so-card" href="/guia-modelos/"><span class="n">?</span><span class="tagnew">nuevo</span><h3>¿Qué modelo uso?</h3><p>Responde 7 preguntas sobre tu problema y recibe un ranking razonado de los modelos del curso.</p></a>
+	<a class="so-card" href="/casos/"><span class="n">★</span><span class="tagnew">nuevo</span><h3>Casos de principio a fin</h3><p>Alquileres, spam, cáncer, fraude y control de calidad: el flujo completo con código.</p></a>
 	<a class="so-card" href="/mapa/"><span class="n">∞</span><span class="tagnew">clave</span><h3>Cómo se conecta todo</h3><p>Mapa clicable: MSE = MLE, LDA = sigmoide, hinge + L2, C ∝ 1/λ, dual → kernel…</p></a>
 </div>
 
 ## Cómo usar esta web
 
 1. **Empieza por el [mapa conceptual](/mapa/)**: ver cómo se conectan los temas hace que cada lección «encaje» en vez de ser una fórmula suelta.
-2. **Estudia por unidad** con la barra lateral. Cada página sigue el mismo orden: intuición → matemática con derivación → **simulador** → trampas de examen → quiz → conexiones → recursos web.
-3. **Juega con los simuladores antes de leer la fórmula final.** Cada uno está pensado para que *veas* el fenómeno (una lasso que se pega a una esquina, un η que diverge, un γ que crea islas).
-4. **Cierra con el [banco de preguntas oficial](/examen/banco/)**, el [simulacro](/examen/simulacro/) y las [flashcards](/examen/flashcards/). Tu progreso se guarda en este navegador.
+2. **Estudia por unidad** con la barra lateral. Cada página combina: intuición → **caso de uso real** → matemática con **derivaciones paso a paso** (botón «Siguiente paso») → **simuladores y calculadoras** → trampas de examen → **código de scikit-learn** → quiz → conexiones → recursos web.
+3. **Practica las decisiones**, no solo las fórmulas: la [guía de modelos](/guia-modelos/) y los [casos de estudio](/casos/) muestran cuándo y por qué usar cada técnica.
+4. **Juega con los simuladores antes de leer la fórmula final.** Cada uno está pensado para que *veas* el fenómeno (una lasso que se pega a una esquina, un η que diverge, un γ que crea islas).
+5. **Practica con el [generador de ejercicios](/examen/generador/)** hasta que los cálculos salgan solos, y usa el [glosario](/glosario/) cuando un término en inglés te frene.
+6. **Cierra con el [modo examen cronometrado](/examen/modo-examen/)**, el [banco de preguntas oficial](/examen/banco/), el [simulacro](/examen/simulacro/) y las [flashcards](/examen/flashcards/). Tu progreso se guarda en este navegador.
 
 :::note[Fuentes]
 Todo el contenido sigue las diapositivas del curso (Lectures 01–08 y la sesión de fundamentos matemáticos, UTEC 2026-II), los notebooks de `ML_Course` y el `BANCO_DE_PREGUNTAS_ML_PART_1`. Cada página enlaza además material web de calidad (MLU-Explain, StatQuest, ISLR, scikit-learn, CS229…) para profundizar.

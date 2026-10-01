@@ -9,6 +9,7 @@ import Solucion from '../../../components/Solucion.astro';
 import Conexiones from '../../../components/Conexiones.astro';
 import Recursos from '../../../components/Recursos.astro';
 import Fuente from '../../../components/Fuente.astro';
+import CasoUso from '../../../components/CasoUso.astro';
 import { R } from '../../../data/recursos';
 
 ## El enganche que dejamos en el dual
@@ -57,6 +58,18 @@ Todo lo demás (restricciones, casos KKT, esparcidad, convexidad) se traslada ta
 «El kernel trick consiste en construir explícitamente $\phi(\mathbf{x})$ y luego calcular el producto interno» → **Falso**. Es exactamente lo contrario: se evalúa $K$ directamente, sin formar $\phi$. Por eso funciona aunque $\phi$ sea enorme o de dimensión **infinita**.
 :::
 
+<CasoUso titulo="Cuando no hay vectores: kernels sobre textos y moléculas" sector="investigación" icono="🔬">
+
+El truco tiene una consecuencia profunda: el SVM **no necesita coordenadas**, solo una función de similitud válida $K$. Eso permite clasificar objetos que no son vectores:
+
+- **Secuencias de ADN o proteínas**: un *string kernel* cuenta subsecuencias compartidas entre dos cadenas. Equivale a un producto interno en un espacio con una dimensión por cada subcadena posible (astronómico), pero se calcula con programación dinámica.
+- **Moléculas** (grafos): kernels que comparan subestructuras, usados para predecir toxicidad o actividad de fármacos.
+- **Textos**: el kernel lineal sobre bolsas de palabras ya es un producto interno; kernels de subsecuencias capturan orden.
+
+En todos los casos se verifica lo mismo que aquí: la matriz de Gram debe ser **simétrica y PSD**.
+
+</CasoUso>
+
 ## ¿Qué cuenta como kernel?
 
 $K$ es válido **si y solo si** es **simétrico** ($K(\mathbf{x},\mathbf{x}')=K(\mathbf{x}',\mathbf{x})$) y **semidefinido positivo** (condición de Mercer): toda **matriz de Gram** $K_{ij} = K(\mathbf{x}_i,\mathbf{x}_j)$ cumple $\mathbf{c}^\top\mathbf{K}\mathbf{c}\ge0$ para todo $\mathbf{c}$ (equivalentemente, autovalores ≥ 0). Eso garantiza que existe un $\phi$, aunque nunca lo escribamos.
@@ -87,6 +100,25 @@ Ruta φ: $\phi(\mathbf{x}) = (1,\sqrt2,0,1,0,0)$; $\phi(\mathbf{z}) = (1, 2\sqrt
 		{ q: '¿Por qué funciona el truco en el SVM?', opts: ['porque el primal usa coordenadas', 'porque el dual solo usa productos internos', 'porque C es grande', 'porque los datos son separables'], ok: 1 },
 	]}
 />
+
+## En código: comprobar la identidad del kernel
+
+```python
+import numpy as np
+from sklearn.metrics.pairwise import polynomial_kernel
+
+def phi(v):                                   # mapa explícito de (1 + xᵀz)² en 2-D
+    x1, x2 = v
+    s = np.sqrt(2)
+    return np.array([1, s*x1, s*x2, x1**2, x2**2, s*x1*x2])
+
+x, z = np.array([1., 2.]), np.array([3., -1.])
+print(phi(x) @ phi(z), (1 + x @ z) ** 2)      # 4.0 4.0 → mismo número
+print(polynomial_kernel([x], [z], degree=2, gamma=1, coef0=1))
+
+K = polynomial_kernel(X, degree=2, coef0=1)   # matriz de Gram n × n
+print(np.linalg.eigvalsh(K).min() >= -1e-9)   # PSD → kernel válido
+```
 
 <Conexiones
 	items={[

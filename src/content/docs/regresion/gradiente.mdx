@@ -10,6 +10,8 @@ import Solucion from '../../../components/Solucion.astro';
 import Conexiones from '../../../components/Conexiones.astro';
 import Recursos from '../../../components/Recursos.astro';
 import Fuente from '../../../components/Fuente.astro';
+import CasoUso from '../../../components/CasoUso.astro';
+import Pasos from '../../../components/Pasos.astro';
 import { R } from '../../../data/recursos';
 
 ## Cuando una fórmula no alcanza
@@ -44,6 +46,17 @@ $\eta$ es la **tasa de aprendizaje** (learning rate), un hiperparámetro delicad
 
 <GradientDescent1D client:visible />
 
+<Pasos titulo="Tres pasos de descenso de gradiente a mano (datos reales)">
+
+1. Datos $(x,y)$: $(1,2), (2,3), (3,5)$. Modelo $\hat y = wx$ (sin sesgo, para simplificar). Costo promedio $J(w) = \frac13\sum_i (y_i - wx_i)^2$.
+2. Gradiente: $J'(w) = -\frac23\sum_i x_i(y_i - wx_i)$. Con $w_0 = 0$: residuales $(2,3,5)$, $\sum x_ir_i = 2+6+15 = 23$, así que $J'(0) = -15.33$. Paso con $\eta = 0.05$: $w_1 = 0 + 0.05\cdot15.33 = 0.767$.
+3. En $w_1 = 0.767$: residuales $(1.233,\ 1.467,\ 2.70)$, $\sum x_ir_i = 1.233+2.933+8.10 = 12.27$, $J' = -8.18$. Nuevo $w_2 = 0.767 + 0.409 = 1.176$.
+4. En $w_2 = 1.176$: residuales $(0.824,\ 0.648,\ 1.472)$, $\sum x_ir_i = 6.536$, $J' = -4.36$; $w_3 = 1.394$. Los pasos se achican solos porque la pendiente se aplana.
+5. La solución exacta es $w^\star = \frac{\sum x_iy_i}{\sum x_i^2} = \frac{23}{14} = 1.643$. Cada paso multiplica la distancia al óptimo por $1 - \eta\cdot\frac23\sum x_i^2 = 1 - 0.05\cdot9.33 = 0.533$: convergencia geométrica.
+6. ¿Y si $\eta = 0.25$? El factor sería $1 - 2.33 = -1.33$: $|{-1.33}| > 1$, **diverge**. El máximo estable aquí es $\eta < 2/9.33 \approx 0.214$.
+
+</Pasos>
+
 ## Batch, estocástico o mini-batch
 
 El gradiente $-2\mathbf{X}^\top\mathbf{r}$ es una **suma sobre los puntos**. Las variantes difieren en cuántos puntos usa cada paso:
@@ -55,6 +68,19 @@ El gradiente $-2\mathbf{X}^\top\mathbf{r}$ es una **suma sobre los puntos**. Las
 | **Mini-batch** | 32–256 | equilibrio; una multiplicación de matrices en GPU | hay que elegir el tamaño |
 
 ¿Por qué aceptar un gradiente ruidoso? **Escala y memoria** (millones de filas no caben), **progreso más rápido** (muchos pasos baratos por pasada), **el ruido ayuda** a escapar de mesetas en modelos no convexos, y **hardware** (un mini-batch es justo lo que acelera una GPU). Como la regresión lineal es convexa, las tres variantes llegan al mismo óptimo.
+
+<CasoUso titulo="Entrenar con millones de filas: por qué todo el mundo usa mini-batch" sector="tecnología" icono="⚙️">
+
+Un modelo de recomendación con 100 millones de interacciones no cabe en memoria para calcular el gradiente exacto (batch), y formar $\mathbf{X}^\top\mathbf{X}$ sería imposible si hay millones de features. En la práctica:
+
+- Se leen los datos por **mini-batches de 256** desde disco; cada paso es una multiplicación de matrices que la GPU hace en microsegundos.
+- Una **época** = una pasada completa por los datos ≈ 390 000 pasos de mini-batch: muchísimas actualizaciones baratas en vez de una cara.
+- Se baja $\eta$ con el tiempo (*learning-rate schedule*) para que el ruido del SGD se calme cerca del mínimo.
+- Las features se **estandarizan** antes: sin eso, ningún $\eta$ sirve para todas las direcciones.
+
+Este mismo esquema (SGD + mini-batch) es el que entrena las redes neuronales del final del curso.
+
+</CasoUso>
 
 ## El escalado de features moldea el bowl
 
@@ -91,6 +117,31 @@ Regla general para esta parábola: converge si $|1-2\eta|<1 \iff 0<\eta<1$; osci
 		{ q: '¿Cuál NO depende del escalado de las features?', opts: ['Descenso de gradiente', 'Solución cerrada de OLS (predicciones)', 'SGD', 'Mini-batch'], ok: 1, why: 'Las predicciones de OLS son invariantes a reescalar columnas (los pesos se ajustan); los métodos iterativos no.' },
 	]}
 />
+
+## En código (NumPy, desde cero)
+
+```python
+import numpy as np
+
+def gd_linear(X, y, eta=0.1, epochs=100, batch=None, seed=0):
+    rng = np.random.default_rng(seed)
+    X1 = np.c_[np.ones(len(X)), X]
+    w = np.zeros(X1.shape[1])
+    n = len(y)
+    for _ in range(epochs):
+        idx = rng.permutation(n)
+        step = batch or n                      # batch=None → batch completo
+        for s in range(0, n, step):
+            b = idx[s:s + step]
+            r = y[b] - X1[b] @ w               # residuales del mini-batch
+            grad = -2 * X1[b].T @ r / len(b)   # ∇J promedio
+            w -= eta * grad
+    return w
+
+Xs = (X - X.mean(0)) / X.std(0)                # ¡estandarizar primero!
+w_batch = gd_linear(Xs, y)                     # batch
+w_mini  = gd_linear(Xs, y, eta=0.05, batch=32) # mini-batch
+```
 
 <Conexiones
 	items={[

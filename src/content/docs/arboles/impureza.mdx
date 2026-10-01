@@ -10,6 +10,8 @@ import Solucion from '../../../components/Solucion.astro';
 import Conexiones from '../../../components/Conexiones.astro';
 import Recursos from '../../../components/Recursos.astro';
 import Fuente from '../../../components/Fuente.astro';
+import CasoUso from '../../../components/CasoUso.astro';
+import Pasos from '../../../components/Pasos.astro';
 import { R } from '../../../data/recursos';
 
 ## Un modelo que se puede leer en voz alta
@@ -73,6 +75,17 @@ $$
 
 Las tres valen 0 en los extremos puros y son máximas en $p=1/2$ (binario: Gini 0.5, entropía 1 bit). Con $K$ clases el peor caso es $\hat p_k=1/K$: Gini $=1-1/K$, $H=\log_2K$. **Un Gini de 0.667 con 3 clases no es un error: es el máximo.** En el ejemplo: raíz G = 0.500, H = 1.000; B: G = 0.408, H = 0.863; D: G = 0.444, H = 0.918 (¡D no es menor que B! Solo el total **ponderado** baja garantizado).
 
+<Pasos titulo="Calcular Gini y entropía del nodo B = [2, 5]">
+
+1. Fracciones: $\hat p_0 = 2/7 \approx 0.286$, $\hat p_1 = 5/7 \approx 0.714$.
+2. **Error rate:** $1 - \max(\hat p_k) = 1 - 5/7 = 2/7 \approx 0.286$ (predecir la mayoría, clase 1, falla 2 de 7).
+3. **Gini:** $1 - (2/7)^2 - (5/7)^2 = 1 - 4/49 - 25/49 = 20/49 \approx 0.408$.
+4. **Entropía:** $-\tfrac27\log_2\tfrac27 - \tfrac57\log_2\tfrac57 = 0.286\cdot1.807 + 0.714\cdot0.485 = 0.516 + 0.347 = 0.863$ bits.
+5. Lectura: en promedio hacen falta 0.863 preguntas sí/no para adivinar la clase de un punto de B (menos de 1 porque está sesgado hacia la clase 1), y dos extracciones independientes discrepan con probabilidad 0.408.
+6. Comparación: la raíz $[5,5]$ tiene Gini 0.5 y entropía 1 bit (el máximo con 2 clases).
+
+</Pasos>
+
 ## Puntuar un split: ganancia de información
 
 $$
@@ -86,6 +99,17 @@ $$
 La fracción del padre es un promedio ponderado de las de los hijos: $\hat p = \frac{n_L}{n_m}\hat p_L+\frac{n_R}{n_m}\hat p_R$. Así, la impureza ponderada de los hijos es la **altura de la cuerda** entre $(\hat p_L,I(\hat p_L))$ y $(\hat p_R,I(\hat p_R))$ evaluada en $\hat p$. Si $I$ es **cóncava**, la curva queda encima de toda cuerda (Jensen) ⇒ $\Delta I\ge0$. **Un split nunca aumenta la impureza.** Gini y entropía son estrictamente cóncavas: ganancia > 0 siempre que $\hat p_L\ne\hat p_R$.
 
 <ImpurityGain client:visible />
+
+<CasoUso titulo="Triage en urgencias: un árbol que una enfermera puede seguir" sector="salud" icono="🚑">
+
+Un hospital quiere priorizar pacientes con dolor torácico usando 4 datos que se miden en minutos: presión sistólica, edad, frecuencia cardiaca y si hay cambios en el ECG. Un árbol de profundidad 3 se imprime como una tarjeta:
+
+- «¿Presión sistólica ≤ 91? → alto riesgo.» «Si no: ¿edad ≤ 62.5? → bajo riesgo.» «Si no: ¿taquicardia? → alto riesgo; si no, bajo.»
+- Cada pregunta se eligió porque producía la **mayor ganancia de Gini** sobre los datos históricos: separa mejor los pacientes que tuvieron un evento grave de los que no.
+- Ventajas decisivas aquí: no hace falta una computadora, cada decisión se **explica** con un camino de 2–3 preguntas, y no hay que estandarizar nada.
+- El riesgo: si se deja crecer, el árbol memoriza casos raros; por eso se limita la profundidad y se valida con pacientes de otro año.
+
+</CasoUso>
 
 ### Ganancia cero y el problema del error rate
 

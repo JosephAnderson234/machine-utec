@@ -1,0 +1,52 @@
+---
+title: "¿Qué modelo uso? Guía de decisión"
+description: "Guía interactiva para elegir entre los modelos del curso según el problema, con una tabla comparativa de supuestos, fortalezas, costos e hiperparámetros."
+---
+
+import ModelChooser from '../../components/sim/ModelChooser.tsx';
+import Recursos from '../../components/Recursos.astro';
+import { R } from '../../data/recursos';
+
+Saber las fórmulas no basta: en el examen (y en la vida real) te van a preguntar **por qué** usarías un modelo y no otro. Esta página junta todo lo que el curso dice sobre las ventajas, supuestos y limitaciones de cada uno.
+
+<ModelChooser client:visible />
+
+## Tabla comparativa
+
+| Modelo | Tipo | Frontera / forma | Supuesto principal | Hiperparámetros | Escalar | Probabilidades | Interpretable |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| [OLS](/regresion/modelo/) | regresión | hiperplano | relación lineal, ruido gaussiano | — | no (sí para GD) | — | sí (pesos) |
+| [Ridge](/regularizacion/ridge-lasso/) | regresión | hiperplano | muchos efectos pequeños | λ | **sí** | — | sí |
+| [Lasso](/regularizacion/ridge-lasso/) | regresión | hiperplano esparso | pocas features importan | λ | **sí** | — | sí (selección) |
+| [Logística](/clasificacion/logistica/) | clasificación, discriminativo | lineal | log-odds lineal | λ (o C) | **sí** | **sí** | sí (odds ratios) |
+| [Naive Bayes](/generativos/naive-bayes/) | clasificación, generativo | puede curvarse | independencia condicional | α (suavizado) | no | sobreconfiadas | sí |
+| [LDA](/generativos/lda-qda/) | clasificación, generativo | lineal | gaussianas con Σ compartida | — | no | sí | moderado |
+| [QDA](/generativos/lda-qda/) | clasificación, generativo | cuadrática | gaussianas con Σₖ propias | regularización de Σ | no | sí | moderado |
+| [SVM lineal](/svm/margen-suave/) | clasificación, margen | lineal | — (margen máximo) | C | **sí** | no (Platt) | moderado |
+| [SVM RBF](/kernels/practica/) | clasificación, margen | curva arbitraria | similitud local suave | C, γ | **sí** | no (Platt) | no |
+| [Kernel ridge](/kernels/practica/) | regresión | curva suave | similitud local suave | λ, γ | **sí** | — | no |
+| [Árbol](/arboles/cart/) | ambos | cajas alineadas a los ejes | interacciones tipo reglas | profundidad, α | **no** | mal calibradas si es profundo | **muy** |
+
+## Costo computacional (n ejemplos, d features)
+
+| Modelo | Entrenar | Predecir | Escala a millones |
+| --- | --- | --- | --- |
+| OLS / ridge (forma cerrada) | $O(nd^2 + d^3)$ | $O(d)$ | sí con SGD |
+| Logística | iterativo, $O(nd)$ por época | $O(d)$ | sí (SGD) |
+| Naive Bayes | una pasada de conteos, $O(nd)$ | $O(d)$ | **sí, el más rápido** |
+| LDA / QDA | $O(nd^2 + d^3)$ | $O(d^2)$ | sí si d es moderado |
+| SVM con kernel | $\sim O(n^2)$–$O(n^3)$, Gram $n\times n$ | $O(\#\text{SV}\cdot d)$ | no (usar SVM lineal) |
+| Kernel ridge | $O(n^3)$, memoria $O(n^2)$ | $O(nd)$ | no |
+| Árbol | $\approx O(pn\log n)$ | $O(\text{profundidad})$ | sí |
+
+## Reglas que se repiten en el examen
+
+1. **Pocos datos o necesitas la densidad** ⇒ generativo (NB, LDA). **Muchos datos y solo la etiqueta** ⇒ discriminativo (logística, SVM).
+2. **Frontera lineal suficiente** ⇒ empieza lineal: es más rápido, interpretable y es tu *baseline*.
+3. **Necesitas explicar** ⇒ logística (odds ratios), lasso (pocas features) o un árbol podado.
+4. **Clases desbalanceadas** ⇒ no reportes accuracy: precision, recall, F1, ROC/PR; mueve el umbral.
+5. **Muchas más features que ejemplos** ⇒ ridge/lasso, logística L2, SVM lineal o NB. Evita OLS y QDA.
+6. **Todo hiperparámetro** (λ, C, γ, α de poda, profundidad) se elige con **validación cruzada**, nunca con el test.
+7. **Estandariza** antes de cualquier método con distancias, normas o gradientes; los árboles no lo necesitan.
+
+<Recursos items={[R.skLinear, R.skSVM, R.skTree, R.islr]} />

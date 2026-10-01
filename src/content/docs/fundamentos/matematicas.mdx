@@ -9,6 +9,8 @@ import Quiz from '../../../components/Quiz.tsx';
 import Conexiones from '../../../components/Conexiones.astro';
 import Recursos from '../../../components/Recursos.astro';
 import Fuente from '../../../components/Fuente.astro';
+import CasoUso from '../../../components/CasoUso.astro';
+import Pasos from '../../../components/Pasos.astro';
 import { R } from '../../../data/recursos';
 
 Tres herramientas aparecen una y otra vez:
@@ -22,6 +24,21 @@ Las tres caben en una sola línea, que es literalmente «entrenar»:
 $$
 \theta^\star = \arg\min_\theta\; \underbrace{\frac1n \sum_{i=1}^n}_{\text{estadística}} \ell\big(\underbrace{h_\theta(\mathbf{x}_i)}_{\text{álgebra lineal}},\,y_i\big)\quad\longleftarrow\ \text{optimización}
 $$
+
+## ¿Dónde aparece cada herramienta en el curso?
+
+| Herramienta | Qué hace | Dónde la usarás |
+| --- | --- | --- |
+| Producto punto $\mathbf{w}^\top\mathbf{x}$ | puntaje lineal, similitud, proyección | regresión, logística, SVM (distancia a la frontera), kernels |
+| Normas $\ell_1$, $\ell_2$ | tamaño de un vector, distancia | ridge, lasso, margen $2/\Vert\mathbf{w}\Vert$, kernel RBF |
+| Inversa / sistemas lineales | resolver $\mathbf{A}\mathbf{w}=\mathbf{b}$ | ecuaciones normales, kernel ridge $(\mathbf{K}+\lambda\mathbf{I})^{-1}\mathbf{y}$ |
+| Autovalores | ejes y curvatura | forma del bowl de $\mathbf{X}^\top\mathbf{X}$, PSD de kernels, PCA |
+| Gaussiana | ruido, densidad de clase | MSE = MLE, Naive Bayes, LDA/QDA, RBF |
+| Regla de Bayes | invertir condicionales | clasificadores generativos, precision de un test |
+| Esperanza / varianza | promedios teóricos | riesgo $R(h)$, sesgo–varianza |
+| Gradiente | dirección de máximo aumento | descenso de gradiente, logística, lasso (subgradiente) |
+| Lagrange / KKT | optimizar con restricciones | SVM (dual, vectores de soporte) |
+| Convexidad | un solo valle | garantías de OLS, logística, SVM |
 
 ## Álgebra lineal: datos y modelos
 
@@ -77,6 +94,12 @@ $$
 
 Con una enfermedad rara, **las tasas base dominan**: la mayoría de positivos son falsas alarmas. Compruébalo contando personas:
 
+<CasoUso titulo="Mamografías: por qué un positivo no significa «tienes cáncer»" sector="salud" icono="🩺">
+
+En tamizajes poblacionales, la prevalencia es baja (≈1%). Aunque el test detecte al 80% de los casos (sensibilidad) y solo dé 3% de falsas alarmas, **de cada 380 positivos solo ≈80 están enfermos (21%)**. Por eso un positivo lleva a una segunda prueba más específica, no a un diagnóstico directo. Este razonamiento (posterior ∝ likelihood × prior) es exactamente el de los clasificadores bayesianos de la sesión 05, y el 21% es la *precision* de la sesión 04.
+
+</CasoUso>
+
 <BayesTree client:visible />
 
 ### Esperanza y ley de los grandes números
@@ -89,6 +112,16 @@ El riesgo $R(h)=\mathbb{E}[\ell(h(\mathbf{x}),y)]$ es una esperanza. Los promedi
 - **Gradiente** $\nabla J$: el vector de pendientes; apunta **cuesta arriba** (máximo aumento). Para minimizar se da un paso en $-\nabla J$.
 - **Descenso de gradiente:** $\theta \leftarrow \theta - \eta\,\nabla J(\theta)$. La **tasa de aprendizaje** $\eta$ es la perilla clave: muy pequeña se arrastra, muy grande diverge.
 - **Convexo vs no convexo:** con un solo valle (regresión lineal y logística) cualquier camino cuesta abajo gana; con muchos valles (redes profundas) buscamos un buen mínimo local.
+
+<Pasos titulo="Ejemplo con números: gradiente de una función de dos variables">
+
+1. Sea $J(w_1,w_2) = w_1^2 + 3w_2^2$ (un bowl alargado). Las derivadas parciales son $\partial J/\partial w_1 = 2w_1$ y $\partial J/\partial w_2 = 6w_2$, así que $\nabla J = (2w_1,\ 6w_2)$.
+2. En $\mathbf{w} = (2,\ 1)$: $J = 4 + 3 = 7$ y $\nabla J = (4,\ 6)$. El gradiente apunta **cuesta arriba**, más empinado en $w_2$ (curvatura 3 veces mayor).
+3. Un paso con $\eta = 0.1$: $\mathbf{w} \leftarrow (2,1) - 0.1\,(4,6) = (1.6,\ 0.4)$, y ahora $J = 2.56 + 0.48 = 3.04$. Bajó de 7 a 3.04.
+4. Con $\eta = 0.4$: $(2,1) - 0.4(4,6) = (0.4,\ -1.4)$, $J = 0.16 + 5.88 = 6.04$: en $w_2$ **se pasó del valle** (el factor $1 - 6\eta = -1.4$ tiene valor absoluto > 1). Converge solo si $\eta < 2/6$.
+5. Moraleja: la dirección más curva limita la tasa de aprendizaje. Si las features tuvieran la misma escala (curvaturas parecidas) podríamos usar un $\eta$ más grande: es el argumento de **estandarizar**.
+
+</Pasos>
 
 <GradientDescent1D client:visible />
 

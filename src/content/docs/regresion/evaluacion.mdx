@@ -9,6 +9,7 @@ import Solucion from '../../../components/Solucion.astro';
 import Conexiones from '../../../components/Conexiones.astro';
 import Recursos from '../../../components/Recursos.astro';
 import Fuente from '../../../components/Fuente.astro';
+import CasoUso from '../../../components/CasoUso.astro';
 import { R } from '../../../data/recursos';
 
 ## Midiendo el error
@@ -33,6 +34,16 @@ $$
 
 $R^2 = 1$ perfecto; $0$ = igual que la media; **puede ser negativo** en datos de validación (peor que la media). No tiene unidades, así que compara entre problemas. Ejemplo de la slide: $SS_\text{res}=22.6$, $SS_\text{tot}=68.6 \Rightarrow R^2 = 1-0.33 = 0.67$.
 
+### ¿Qué métrica reportar?
+
+| Situación | Métrica recomendada | Por qué |
+| --- | --- | --- |
+| Comunicar el error a un no experto | **RMSE** o **MAE** | están en las unidades del target («S/ 230 de error típico») |
+| Los errores grandes son graves (sobrecarga, stock) | **RMSE** / MSE | eleva al cuadrado: castiga fuerte los errores grandes |
+| Hay outliers que no quieres que dominen | **MAE** | lineal: un outlier pesa como uno más |
+| Comparar entre problemas distintos | **$R^2$** | sin unidades: «qué fracción de la variación explico» |
+| Elegir hiperparámetros | la misma métrica, en **validación** | nunca en train ni en test |
+
 ### Predicho vs real
 
 Graficar $\hat y$ contra $y$ en datos no vistos: puntos pegados a la diagonal = preciso; curvas o abanicos sistemáticos revelan sesgo o varianza cambiante. Ese dibujo muestra **dónde** falla el modelo, cosa que $R^2$ esconde en un número.
@@ -46,6 +57,17 @@ Cada $w_j$ es el cambio esperado en $\hat y$ por **una unidad** más de $x_j$, *
 :::note[Ejemplo real: diabetes (scikit-learn)]
 442 pacientes, 10 features clínicas estandarizadas, partición 75/25. OLS multivariada: **RMSE de test = 56.4, $R^2 = 0.36$**. Los mayores pesos: `bmi` y `s5` suben la progresión; `s1` la baja.
 :::
+
+<CasoUso titulo="Pronosticar demanda eléctrica: RMSE, MAE y residuales que hablan" sector="energía" icono="⚡">
+
+Una distribuidora predice la demanda horaria (MW) con temperatura y hora del día. Un modelo lineal da $R^2 = 0.71$ en test, pero el gráfico de **residuales vs temperatura** dibuja una **U**: subestima la demanda en días muy fríos *y* muy calurosos (calefacción y aire acondicionado).
+
+- La U en los residuales es la señal de **underfitting**: falta estructura.
+- Solución sin cambiar de algoritmo: agregar la feature $\text{temp}^2$ (y quizás interacción temp × hora). El $R^2$ sube a 0.89 y los residuales quedan sin patrón.
+- Se reporta **RMSE** (los picos mal pronosticados son caros: hay que comprar energía de emergencia) junto con **MAE** para ver si unos pocos errores grandes dominan.
+- La partición train/test respeta el **orden temporal**: entrenar con el pasado, evaluar con el futuro.
+
+</CasoUso>
 
 ## Cuando una recta no basta: features polinómicas
 
@@ -96,6 +118,27 @@ $R^2 = 1 - 30/25 = -0.2$. Es **negativo**: el modelo predice peor en validación
 		{ q: 'La «huella» del overfitting en un polinomio de alto grado es…', opts: ['pesos cercanos a 0', 'pesos enormes de signos opuestos', 'RMSE de train alto', '$R^2$ de train negativo'], ok: 1 },
 	]}
 />
+
+## En código
+
+```python
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import PolynomialFeatures, StandardScaler
+from sklearn.linear_model import LinearRegression, Ridge
+from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
+
+for deg in [1, 3, 9]:
+    m = make_pipeline(PolynomialFeatures(deg), StandardScaler(), LinearRegression())
+    m.fit(X_tr, y_tr)
+    p = m.predict(X_val)
+    print(deg,
+          mean_squared_error(y_val, p) ** 0.5,   # RMSE
+          mean_absolute_error(y_val, p),         # MAE
+          r2_score(y_val, p))                    # R² (puede ser < 0)
+
+# grado alto + ridge: misma flexibilidad, pesos controlados
+m = make_pipeline(PolynomialFeatures(9), StandardScaler(), Ridge(alpha=1e-3)).fit(X_tr, y_tr)
+```
 
 <Conexiones
 	items={[

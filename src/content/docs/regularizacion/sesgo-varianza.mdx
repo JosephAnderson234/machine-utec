@@ -10,6 +10,7 @@ import Solucion from '../../../components/Solucion.astro';
 import Conexiones from '../../../components/Conexiones.astro';
 import Recursos from '../../../components/Recursos.astro';
 import Fuente from '../../../components/Fuente.astro';
+import CasoUso from '../../../components/CasoUso.astro';
 import { R } from '../../../data/recursos';
 
 **Más flexibilidad siempre baja el error de entrenamiento.** El arte es mantener bajo el error de **generalización**. Esta unidad hace precisa esa tensión y la gobierna con regularización y selección de modelos.
@@ -88,12 +89,54 @@ Departamento de 70 m², 2 cuartos, alquiler justo **€1000**. Re-entrenando con
 - Modelo flexible (un árbol profundo): oscila entre €700 y €1300 → **sesgo bajo, varianza alta**.
 - **Ruido irreducible**: dos depas idénticos en todo lo registrado igual se alquilan a €980 y €1080 (vista, fecha…). Ningún modelo lo borra.
 
+<CasoUso titulo="Una app de delivery estima tiempos de entrega" sector="logística" icono="🛵">
+
+Un equipo prueba dos modelos para predecir minutos de entrega:
+
+| | Train RMSE | Validación RMSE | Diagnóstico |
+| --- | --- | --- | --- |
+| Promedio por distrito | 11.8 min | 12.1 min | errores altos y parecidos ⇒ **sesgo alto** (ignora hora punta, lluvia, distancia) |
+| Árbol sin podar | 0.4 min | 15.6 min | brecha enorme ⇒ **varianza alta** (memorizó pedidos individuales) |
+
+Las acciones son opuestas: al primero hay que darle **más información y flexibilidad** (más features, modelo más rico); al segundo, **restringirlo** (podar, regularizar, más datos o promediar árboles). Recolectar más datos **no** arregla el primero: con millones de pedidos el promedio por distrito sigue igual de sesgado.
+
+</CasoUso>
+
 ## ¿Cómo bajar cada uno?
 
 | Para bajar… | Haz… |
 | --- | --- |
 | **Sesgo** (underfit) | modelo más flexible: más features, más grado, menos λ, más C, más γ, árbol más profundo |
 | **Varianza** (overfit) | más datos, regularizar (λ ↑), modelo más simple, podar el árbol, **promediar modelos** (bagging) |
+
+## Diagnóstico rápido en el examen
+
+| Síntoma | Causa probable | Qué hacer |
+| --- | --- | --- |
+| Train alto, validación alto (parecidos) | sesgo alto / underfit | modelo más flexible, más features, menos regularización |
+| Train bajo, validación mucho más alto | varianza alta / overfit | más datos, más regularización, modelo más simple, podar, ensembles |
+| Ambos bajos y cercanos | buen balance | parar; reportar el test una vez |
+| Validación cambia mucho entre particiones | varianza de la *estimación* | K-fold en vez de una sola partición |
+| Más datos no mejoran nada | sesgo domina o ruido irreducible | cambiar de familia de modelos o mejorar las features |
+
+## En código: curvas de complejidad y de aprendizaje
+
+```python
+from sklearn.model_selection import validation_curve, learning_curve
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import PolynomialFeatures
+from sklearn.linear_model import LinearRegression
+import numpy as np
+
+model = make_pipeline(PolynomialFeatures(), LinearRegression())
+degrees = np.arange(1, 13)
+tr, va = validation_curve(model, X, y, param_name='polynomialfeatures__degree',
+                          param_range=degrees, cv=5, scoring='neg_root_mean_squared_error')
+# −tr.mean(1) baja siempre; −va.mean(1) dibuja la U → elegir el mínimo
+
+sizes, tr, va = learning_curve(model.set_params(polynomialfeatures__degree=9), X, y, cv=5)
+# brecha grande que se cierra con más n ⇒ varianza; ambas altas y planas ⇒ sesgo
+```
 
 <Quiz
 	client:visible

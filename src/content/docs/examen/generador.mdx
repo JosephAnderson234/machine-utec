@@ -1,0 +1,30 @@
+---
+title: "Generador de ejercicios"
+description: "Ejercicios numéricos infinitos con números aleatorios y solución paso a paso: ecuaciones normales, gradiente, ridge y lasso, Bayes, logística, métricas, LDA, SVM, kernels, Gini y poda."
+---
+
+import ExerciseGenerator from '../../../components/sim/ExerciseGenerator.tsx';
+
+Los cálculos del parcial se aprenden haciéndolos muchas veces. Cada clic en **Nuevo ejercicio** genera un problema distinto con números aleatorios, del mismo tipo que los ejemplos de las slides. Escribe tu respuesta, compruébala y, si fallas, la solución se abre paso a paso. Tu récord por tema queda guardado en este navegador.
+
+<ExerciseGenerator client:visible />
+
+:::tip[Cómo usarlo bien]
+1. Resuelve **en papel** antes de escribir la respuesta; no mires la pista al primer intento.
+2. Elige un tipo y haz 5 seguidos hasta acertar al menos 4; luego pasa a «Aleatorio».
+3. Si un tema queda en amarillo en tus estadísticas, vuelve a su página de teoría (enlace «repasar la teoría»).
+:::
+
+| Tipo | Qué practicas | Teoría |
+| --- | --- | --- |
+| Ecuaciones normales | $\mathbf{X}^\top\mathbf{X}$, determinante, pendiente e intercepto | [regresión](/regresion/modelo/) |
+| Un paso de gradiente | residuales, $J'(w)$, actualización | [gradiente](/regresion/gradiente/) |
+| Ridge y lasso en 1-D | encogimiento y soft-threshold | [ridge y lasso](/regularizacion/ridge-lasso/) |
+| Posterior con Bayes | prior × likelihood, normalización | [Bayes](/generativos/bayes/) |
+| Logística | $\sigma(z)$, pérdida, gradiente $(p-y)x$ | [entrenamiento](/clasificacion/entrenamiento/) |
+| Métricas | precision, recall, F1 | [métricas](/clasificacion/metricas/) |
+| Frontera LDA | punto medio y efecto del prior | [LDA/QDA](/generativos/lda-qda/) |
+| Distancia y margen | $r = f(\mathbf{x})/\Vert\mathbf{w}\Vert$, banda $2/\Vert\mathbf{w}\Vert$ | [SVM](/svm/geometria/) |
+| Kernels | polinómico y RBF | [kernels](/kernels/practica/) |
+| Ganancia de Gini | impurezas y ponderación por tamaño | [árboles](/arboles/impureza/) |
+| Poda | $R(m)$ y eslabón más débil $g(m)$ | [poda](/arboles/poda/) |

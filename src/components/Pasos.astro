@@ -1,0 +1,59 @@
+---
+/**
+ * Derivación paso a paso. El contenido es una lista ordenada en Markdown (con $…$):
+ * cada <li> es un paso que se revela con «Siguiente».
+ */
+interface Props {
+	titulo?: string;
+}
+const { titulo = 'Derivación paso a paso' } = Astro.props;
+---
+<div class="pasos not-content" data-pasos>
+	<div class="pasos-head">
+		<span class="pasos-t">{titulo}</span>
+		<span class="pasos-c" data-pcount></span>
+	</div>
+	<div class="pasos-body sl-markdown-content"><slot /></div>
+	<div class="pasos-ctrl">
+		<button type="button" data-prev>← Anterior</button>
+		<button type="button" class="primary" data-next>Siguiente paso →</button>
+		<button type="button" data-all>Ver todo</button>
+		<button type="button" data-reset>Reiniciar</button>
+	</div>
+</div>
+
+<script>
+	function setup(root: HTMLElement) {
+		const items = [...root.querySelectorAll<HTMLLIElement>('.pasos-body > ol > li')];
+		const count = root.querySelector<HTMLElement>('[data-pcount]')!;
+		let k = 1;
+		const render = () => {
+			items.forEach((li, i) => {
+				li.hidden = i >= k;
+				li.classList.toggle('cur', i === k - 1);
+			});
+			count.textContent = `paso ${Math.min(k, items.length)} de ${items.length}`;
+			(root.querySelector('[data-next]') as HTMLButtonElement).disabled = k >= items.length;
+			(root.querySelector('[data-prev]') as HTMLButtonElement).disabled = k <= 1;
+		};
+		root.querySelector('[data-next]')!.addEventListener('click', () => {
+			k = Math.min(items.length, k + 1);
+			render();
+			items[k - 1]?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+		});
+		root.querySelector('[data-prev]')!.addEventListener('click', () => {
+			k = Math.max(1, k - 1);
+			render();
+		});
+		root.querySelector('[data-all]')!.addEventListener('click', () => {
+			k = items.length;
+			render();
+		});
+		root.querySelector('[data-reset]')!.addEventListener('click', () => {
+			k = 1;
+			render();
+		});
+		render();
+	}
+	document.querySelectorAll<HTMLElement>('[data-pasos]').forEach(setup);
+</script>

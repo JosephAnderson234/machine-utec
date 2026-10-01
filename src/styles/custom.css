@@ -1591,3 +1591,204 @@ figure.diagram figcaption {
 	color: var(--pg-c2);
 	vertical-align: 2px;
 }
+
+/* =========================================================
+   Pasos (derivaciones reveladas) y casos de uso
+   ========================================================= */
+.pasos {
+	margin: 2rem 0 !important;
+	border: 1px solid var(--pg-border);
+	border-radius: var(--pg-radius);
+	background: var(--pg-surface);
+	box-shadow: var(--pg-shadow);
+	padding: 1.2rem 1.4rem;
+}
+.pasos-head {
+	display: flex;
+	justify-content: space-between;
+	align-items: baseline;
+	gap: 1rem;
+	margin-bottom: 0.6rem;
+}
+.pasos-t {
+	font-weight: 650;
+	color: var(--sl-color-white);
+	font-size: 1.02rem;
+}
+.pasos-c {
+	font-size: 0.78rem;
+	color: var(--pg-muted);
+	font-variant-numeric: tabular-nums;
+}
+.pasos-body > ol {
+	margin: 0 !important;
+	padding-left: 1.4rem;
+	counter-reset: none;
+}
+.pasos-body > ol > li {
+	padding: 0.55rem 0.8rem;
+	margin: 0.35rem 0 !important;
+	border-radius: 10px;
+	border-left: 3px solid transparent;
+	transition: background-color 0.3s, border-color 0.3s;
+	animation: fade-up 0.4s var(--ease-out) both;
+}
+.pasos-body > ol > li.cur {
+	background: color-mix(in srgb, var(--sl-color-accent) 9%, transparent);
+	border-left-color: var(--sl-color-accent);
+}
+.pasos-body > ol > li > p {
+	margin: 0.25rem 0 !important;
+}
+.pasos-body .katex-display {
+	margin: 0.6rem 0 !important;
+}
+.pasos-ctrl {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.5rem;
+	margin-top: 0.9rem;
+}
+.pasos-ctrl button {
+	background: transparent;
+	color: var(--sl-color-gray-1);
+	border: 1px solid var(--pg-border);
+	border-radius: 999px;
+	padding: 0.4rem 0.95rem;
+	font: inherit;
+	font-size: 0.84rem;
+	cursor: pointer;
+	transition: background-color 0.2s, border-color 0.2s;
+}
+.pasos-ctrl button:hover:not(:disabled) {
+	border-color: var(--sl-color-accent);
+}
+.pasos-ctrl button:disabled {
+	opacity: 0.35;
+	cursor: not-allowed;
+}
+.pasos-ctrl button.primary {
+	background: var(--sl-color-accent);
+	color: hsl(220, 20%, 8%);
+	border-color: transparent;
+	font-weight: 600;
+}
+:root[data-theme='light'] .pasos-ctrl button.primary {
+	color: #fff;
+}
+
+.caso {
+	margin: 2rem 0 !important;
+	border-radius: var(--pg-radius);
+	border: 1px solid color-mix(in srgb, var(--pg-c2) 35%, var(--pg-border));
+	background: linear-gradient(135deg, color-mix(in srgb, var(--pg-c2) 8%, var(--pg-surface)), var(--pg-surface) 60%);
+	padding: 1.15rem 1.35rem;
+}
+.caso-head {
+	display: flex;
+	gap: 0.85rem;
+	align-items: center;
+	margin-bottom: 0.5rem;
+}
+.caso-ico {
+	display: grid;
+	place-items: center;
+	width: 2.4rem;
+	height: 2.4rem;
+	border-radius: 12px;
+	font-size: 1.25rem;
+	background: color-mix(in srgb, var(--pg-c2) 18%, transparent);
+	flex-shrink: 0;
+}
+.caso-sector {
+	display: block;
+	font-size: 0.7rem;
+	font-weight: 700;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+	color: var(--pg-c2);
+}
+.caso-t {
+	display: block;
+	font-weight: 650;
+	color: var(--sl-color-white);
+	font-size: 1.05rem;
+	line-height: 1.35;
+}
+.caso-body {
+	font-size: 0.93rem;
+}
+.caso-body > :first-child {
+	margin-top: 0 !important;
+}
+.caso-body ul {
+	margin: 0.4rem 0 !important;
+}
+.caso-body table {
+	font-size: 0.85rem;
+}
+
+/* Elementos de juego (clasificador de escenarios, guía de modelos) */
+.pg .chip {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.35rem;
+	font-size: 0.75rem;
+	padding: 0.15rem 0.6rem;
+	border-radius: 999px;
+	background: var(--pg-tile);
+	color: var(--sl-color-gray-2);
+}
+.pg .card-list {
+	display: grid;
+	gap: 0.7rem;
+}
+.pg .card-item {
+	border: 1px solid var(--pg-border);
+	border-radius: 14px;
+	padding: 0.85rem 1rem;
+	background: var(--pg-tile);
+}
+.pg .card-item.ok {
+	border-color: color-mix(in srgb, var(--pg-ok) 55%, transparent);
+}
+.pg .card-item.bad {
+	border-color: color-mix(in srgb, var(--pg-bad) 55%, transparent);
+}
+.pg .rank {
+	display: grid;
+	grid-template-columns: 2rem 1fr auto;
+	gap: 0.8rem;
+	align-items: start;
+	padding: 0.85rem 1rem;
+	border-radius: 14px;
+	background: var(--pg-tile);
+	border: 1px solid var(--pg-border);
+}
+.pg .rank .n {
+	font-family: var(--__sl-font-mono);
+	font-size: 1.3rem;
+	font-weight: 700;
+	color: var(--sl-color-accent);
+}
+.pg .matrix-wrap {
+	overflow-x: auto;
+	padding: 0.3rem 0;
+}
+.pg input.num {
+	width: 4.6rem;
+	min-height: 2rem !important;
+	padding: 0.25rem 0.45rem !important;
+	text-align: center;
+	font-variant-numeric: tabular-nums;
+}
+
+/* KaTeX dibuja raíces y delimitadores grandes con SVG: no deben heredar el estilo de los gráficos */
+.pg .katex svg,
+figure.diagram .katex svg {
+	display: block;
+	position: absolute;
+	width: 100%;
+	height: inherit;
+	max-width: none;
+}

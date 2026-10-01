@@ -9,11 +9,15 @@ import Solucion from '../../../components/Solucion.astro';
 import Conexiones from '../../../components/Conexiones.astro';
 import Recursos from '../../../components/Recursos.astro';
 import Fuente from '../../../components/Fuente.astro';
+import LossLandscape from '../../../components/sim/LossLandscape.tsx';
+import Pasos from '../../../components/Pasos.astro';
 import { R } from '../../../data/recursos';
 
 ## ¿Por qué no error cuadrático?
 
 El error cuadrático **sobre la salida de la sigmoide** da una superficie **no convexa**: una cuenca y luego una meseta/bulto que atrapa al descenso de gradiente. Además el gradiente lleva el factor $\sigma'(z)=p(1-p)$, que casi vale 0 justo cuando el modelo está **seguro y equivocado**: aprende lentísimo cuando más debería corregir. La cross-entropy da **un solo valle convexo**.
+
+<LossLandscape client:visible />
 
 ## La verosimilitud de una etiqueta
 
@@ -69,6 +73,17 @@ $$
 
 **Exactamente la forma de la regresión lineal**: «error × feature», con $\mathbf{p}-\mathbf{y}$ en lugar del residual. Pero ahora **no hay forma cerrada** (la sigmoide es no lineal), así que se itera $\mathbf{w}\leftarrow\mathbf{w}-\eta\nabla J$.
 
+<Pasos titulo="Una iteración de entrenamiento con números (3 puntos)">
+
+1. Datos: $x = (-1,\ 0.5,\ 2)$, $y = (0,\ 1,\ 1)$. Modelo $p = \sigma(wx + b)$, inicio $w = 0$, $b = 0$ ⇒ $p = (0.5,\ 0.5,\ 0.5)$.
+2. Pérdida: cada punto paga $-\log 0.5 = 0.693$; $J = 0.693$ (el valor de «no saber nada» con dos clases).
+3. Errores $p - y = (0.5,\ -0.5,\ -0.5)$. Gradientes: $\partial J/\partial w = \frac13[(0.5)(-1) + (-0.5)(0.5) + (-0.5)(2)] = \frac13(-1.75) = -0.583$ y $\partial J/\partial b = \frac13(0.5-0.5-0.5) = -0.167$.
+4. Paso con $\eta = 1$: $w = 0.583$, $b = 0.167$.
+5. Nuevas probabilidades: $z = (-0.417,\ 0.458,\ 1.333)$ ⇒ $p = (0.397,\ 0.613,\ 0.791)$. Ahora todas del lado correcto del 0.5.
+6. Nueva pérdida: $-\frac13[\log(1-0.397) + \log 0.613 + \log 0.791] = \frac13(0.506 + 0.489 + 0.234) = 0.410$. Bajó de 0.693 a 0.410 en un paso.
+
+</Pasos>
+
 ## Convexa… y finita gracias a la regularización
 
 La Hessiana es $\nabla^2 J = \frac1n\sum_i p_i(1-p_i)\,\mathbf{x}_i\mathbf{x}_i^\top\succeq 0$: una suma con pesos no negativos de productos externos, semidefinida positiva en todas partes ⇒ **un bowl**, el descenso no se atasca.
@@ -103,6 +118,28 @@ Con error cuadrático $(p-y)^2$, el gradiente sería $2(p-y)p(1-p)$: para $p=0.2
 		{ q: '¿La regresión logística tiene forma cerrada como OLS?', opts: ['Sí', 'No, se entrena iterativamente'], ok: 1 },
 	]}
 />
+
+## En código (NumPy, desde cero)
+
+```python
+import numpy as np
+
+def sigmoid(z):
+    return np.where(z >= 0, 1 / (1 + np.exp(-z)), np.exp(z) / (1 + np.exp(z)))  # estable
+
+def fit_logistic(X, y, eta=0.5, iters=2000, lam=0.0):
+    w, b = np.zeros(X.shape[1]), 0.0
+    n = len(y)
+    for _ in range(iters):
+        p = sigmoid(X @ w + b)
+        w -= eta * (X.T @ (p - y) / n + 2 * lam * w)   # «error × feature» + ridge
+        b -= eta * np.mean(p - y)                        # el sesgo no se penaliza
+    return w, b
+
+def cross_entropy(X, y, w, b, eps=1e-12):
+    p = np.clip(sigmoid(X @ w + b), eps, 1 - eps)
+    return -np.mean(y * np.log(p) + (1 - y) * np.log(1 - p))
+```
 
 <Conexiones
 	items={[

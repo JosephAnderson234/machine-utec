@@ -9,6 +9,8 @@ import Solucion from '../../../components/Solucion.astro';
 import Conexiones from '../../../components/Conexiones.astro';
 import Recursos from '../../../components/Recursos.astro';
 import Fuente from '../../../components/Fuente.astro';
+import SoftmaxRegions from '../../../components/sim/SoftmaxRegions.tsx';
+import CasoUso from '../../../components/CasoUso.astro';
 import { R } from '../../../data/recursos';
 
 ## Un score por clase
@@ -25,6 +27,18 @@ Cada frontera entre un par de clases sigue siendo **una recta** (donde $z_i = z_
 - **Gradiente:** $\partial\ell/\partial z_k = p_k - y_k$: otra vez la forma «residual» $\mathbf{p}-\mathbf{y}$.
 
 <Softmax client:visible />
+
+<SoftmaxRegions client:visible />
+
+<CasoUso titulo="Reconocer dígitos escritos a mano (0–9)" sector="visión" icono="✍️">
+
+El dataset `digits` del notebook 04d tiene imágenes de 8×8 píxeles (64 features) y 10 clases. Una regresión logística multinomial (softmax) aprende **10 vectores de pesos de 64 números**: cada uno, visto como imagen 8×8, parece una «plantilla» difusa del dígito. Para una imagen nueva, cada clase calcula su score $z_k = \mathbf{w}_k^\top\mathbf{x}+b_k$ (cuánto se parece a su plantilla) y softmax los convierte en probabilidades.
+
+- Accuracy de test típica ≈ 96%: un modelo **lineal** basta porque los píxeles ya separan bastante bien las clases.
+- La matriz de confusión 10×10 muestra qué se confunde (8 con 1, 9 con 3…): la diagonal son los aciertos, como en el caso binario.
+- Con un SVM RBF o una red neuronal se llega a ≈99%: el precio es menos interpretabilidad.
+
+</CasoUso>
 
 ## La sigmoide es softmax con K = 2
 
@@ -55,6 +69,25 @@ $\ell = -\log 0.665 = 0.408$. Gradiente $p-y = (-0.335,\ 0.245,\ 0.090)$: sube e
 		{ q: 'El gradiente de la cross-entropy respecto al logit $z_k$ es…', opts: ['$p_k(1-p_k)$', '$p_k - y_k$', '$-\\log p_k$', '$y_k / p_k$'], ok: 1 },
 	]}
 />
+
+## En código
+
+```python
+from sklearn.datasets import load_digits
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LogisticRegression
+from sklearn.preprocessing import StandardScaler
+from sklearn.pipeline import make_pipeline
+from sklearn.metrics import confusion_matrix
+
+X, y = load_digits(return_X_y=True)                     # 1797 imágenes, 64 píxeles
+X_tr, X_te, y_tr, y_te = train_test_split(X, y, stratify=y, random_state=0)
+clf = make_pipeline(StandardScaler(), LogisticRegression(max_iter=2000))  # multinomial
+clf.fit(X_tr, y_tr)
+print(clf.score(X_te, y_te))                            # ≈ 0.96
+P = clf.predict_proba(X_te[:1])                         # 10 probabilidades que suman 1
+W = clf[-1].coef_.reshape(10, 8, 8)                     # cada fila = «plantilla» 8×8
+```
 
 <Conexiones
 	items={[

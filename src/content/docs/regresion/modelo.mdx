@@ -10,9 +10,23 @@ import Solucion from '../../../components/Solucion.astro';
 import Conexiones from '../../../components/Conexiones.astro';
 import Recursos from '../../../components/Recursos.astro';
 import Fuente from '../../../components/Fuente.astro';
+import MLELine from '../../../components/sim/MLELine.tsx';
+import NormalEqCalc from '../../../components/sim/NormalEqCalc.tsx';
+import CasoUso from '../../../components/CasoUso.astro';
+import Pasos from '../../../components/Pasos.astro';
 import { R } from '../../../data/recursos';
 
 La regresión lineal es el **esqueleto** de todo el curso: un modelo con perillas, una pérdida que medir, y dos maneras de encontrar las mejores perillas (fórmula cerrada o descenso de gradiente). Todo lo que viene después cambia una de esas piezas.
+
+<CasoUso titulo="¿Qué tanto avanza la diabetes? Un modelo lineal que un médico puede leer" sector="salud" icono="🧪">
+
+El dataset `diabetes` de scikit-learn (usado en las slides) tiene 442 pacientes y 10 medidas clínicas estandarizadas (edad, sexo, IMC, presión, seis análisis de sangre). El target es un score de progresión de la enfermedad a un año.
+
+- **Por qué lineal:** el médico quiere saber *cuánto* sube el riesgo por cada punto de IMC, con todo lo demás fijo: eso es literalmente un peso $w_j$.
+- **Resultado (75/25):** RMSE de test = 56.4, $R^2 = 0.36$. Los pesos más grandes: `bmi` y `s5` suben la progresión; `s1` la baja.
+- **Lectura honesta:** $R^2 = 0.36$ dice que el modelo explica un tercio de la variación: útil para entender factores, insuficiente para predecir a un paciente individual. Y un peso es **asociación, no causalidad**.
+
+</CasoUso>
 
 ## Glosario rápido
 
@@ -89,6 +103,17 @@ $$
 Se **resuelve el sistema** (`np.linalg.solve`, `lstsq`) en vez de invertir. Si $\mathbf{X}^\top\mathbf{X}$ es singular (features colineales, $d>n$) se usa la pseudo-inversa… o **ridge**, que suma $\lambda\mathbf{I}$ y la vuelve siempre invertible.
 :::
 
+<Pasos titulo="Derivar las ecuaciones normales, línea por línea">
+
+1. Escribe el costo como producto interno: $J(\mathbf{w}) = (\mathbf{y}-\mathbf{X}\mathbf{w})^\top(\mathbf{y}-\mathbf{X}\mathbf{w})$.
+2. Distribuye: $J = \mathbf{y}^\top\mathbf{y} - \mathbf{y}^\top\mathbf{X}\mathbf{w} - \mathbf{w}^\top\mathbf{X}^\top\mathbf{y} + \mathbf{w}^\top\mathbf{X}^\top\mathbf{X}\mathbf{w}$.
+3. Los dos términos del medio son el **mismo escalar** (un escalar es igual a su transpuesta): $J = \mathbf{y}^\top\mathbf{y} - 2(\mathbf{X}^\top\mathbf{y})^\top\mathbf{w} + \mathbf{w}^\top(\mathbf{X}^\top\mathbf{X})\mathbf{w}$.
+4. Deriva con las dos reglas: $\nabla_\mathbf{w}(\mathbf{a}^\top\mathbf{w}) = \mathbf{a}$ y $\nabla_\mathbf{w}(\mathbf{w}^\top\mathbf{M}\mathbf{w}) = 2\mathbf{M}\mathbf{w}$ ($\mathbf{M}$ simétrica). Queda $\nabla J = -2\mathbf{X}^\top\mathbf{y} + 2\mathbf{X}^\top\mathbf{X}\mathbf{w}$.
+5. Iguala a cero y divide entre 2: $\mathbf{X}^\top\mathbf{X}\mathbf{w} = \mathbf{X}^\top\mathbf{y}$ (**ecuaciones normales**).
+6. Si $\mathbf{X}^\top\mathbf{X}$ es invertible (columnas linealmente independientes): $\mathbf{w}^\star = (\mathbf{X}^\top\mathbf{X})^{-1}\mathbf{X}^\top\mathbf{y}$. Como $J$ es convexa, este punto crítico es **el mínimo global**.
+
+</Pasos>
+
 ## La misma respuesta, vista como proyección (ruta geométrica)
 
 Lee $\mathbf{X}$ por columnas: $\mathbf{X}\mathbf{w} = w_1\mathbf{a}_1 + \dots + w_d\mathbf{a}_d$. Cualquier predicción es una combinación de las columnas: vive en el **espacio columna**. El target $\mathbf{y}$ normalmente sobresale de ese plano; lo mejor que podemos hacer es el punto del plano más cercano a $\mathbf{y}$: su **proyección ortogonal**.
@@ -113,6 +138,8 @@ $$
 
 El log es monótono (no mueve el maximizador) y convierte el producto en suma; la constante no depende de $\mathbf{w}$. Lo único que depende de $\mathbf{w}$ es $-\sum r_i^2$: **maximizar la verosimilitud = minimizar la suma de cuadrados**. Los mínimos cuadrados son lo que *implica* el ruido gaussiano, no una elección arbitraria. (Con ruido de Laplace saldría el error **absoluto**, más robusto a outliers.)
 
+<MLELine client:visible />
+
 ## Ejercicio
 
 Tres puntos: $(0,1), (1,2), (2,2)$. Ajusta $\hat y = w_0 + w_1 x$ con las ecuaciones normales.
@@ -129,6 +156,10 @@ Residuales: $r = (1-1.167,\ 2-1.667,\ 2-2.167) = (-0.167,\ 0.333,\ -0.167)$. Ver
 
 </Solucion>
 
+### Verifica cualquier ejercicio
+
+<NormalEqCalc client:visible />
+
 <Quiz
 	client:visible
 	id="reg-modelo"
@@ -140,6 +171,22 @@ Residuales: $r = (1-1.167,\ 2-1.667,\ 2-2.167) = (-0.167,\ 0.333,\ -0.167)$. Ver
 		{ q: 'Minimizar la suma de cuadrados equivale a máxima verosimilitud si el ruido es…', opts: ['uniforme', 'gaussiano', 'de Laplace', 'Bernoulli'], ok: 1, why: 'Laplace daría error absoluto; Bernoulli da la cross-entropy de la logística.' },
 	]}
 />
+
+## En código
+
+```python
+import numpy as np
+from sklearn.linear_model import LinearRegression
+
+X1 = np.c_[np.ones(len(X)), X]                    # columna de unos = sesgo
+w = np.linalg.solve(X1.T @ X1, X1.T @ y)          # ecuaciones normales (mejor que inv)
+w_lstsq, *_ = np.linalg.lstsq(X1, y, rcond=None)  # robusto si XᵀX es casi singular
+
+model = LinearRegression().fit(X, y)              # lo mismo con scikit-learn
+print(model.intercept_, model.coef_)              # = w[0], w[1:]
+H = X1 @ np.linalg.inv(X1.T @ X1) @ X1.T          # matriz sombrero (solo para n pequeño)
+assert np.allclose(H @ H, H)                       # proyector: H² = H
+```
 
 <Conexiones
 	items={[

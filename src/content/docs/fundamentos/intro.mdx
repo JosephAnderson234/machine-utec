@@ -12,6 +12,9 @@ import Quiz from '../../../components/Quiz.tsx';
 import Conexiones from '../../../components/Conexiones.astro';
 import Recursos from '../../../components/Recursos.astro';
 import Fuente from '../../../components/Fuente.astro';
+import ParadigmSorter from '../../../components/sim/ParadigmSorter.tsx';
+import CasoUso from '../../../components/CasoUso.astro';
+import Pasos from '../../../components/Pasos.astro';
 import { R } from '../../../data/recursos';
 
 ## El problema de escribir reglas
@@ -49,6 +52,22 @@ $$
 
 Toda la tensión del curso está aquí: minimizamos $\hat R$ (lo que vemos) pero nos importa $R$ (lo que no vemos). La diferencia es la **generalización**.
 
+<CasoUso titulo="Del problema de negocio al problema de ML: alquileres en Lima" sector="inmobiliario" icono="🏢">
+
+Una inmobiliaria quiere sugerir el precio de alquiler de cada departamento nuevo. Antes de elegir un algoritmo, se **traduce** el problema:
+
+| Pregunta | Respuesta |
+| --- | --- |
+| **T** (tarea) | predecir el alquiler mensual (S/) de un departamento |
+| **P** (medida) | error típico en soles en departamentos *nuevos*: RMSE o MAE sobre un test set |
+| **E** (experiencia) | 5 000 anuncios pasados con área, cuartos, distrito, antigüedad y su alquiler real |
+| Tipo | supervisado, **regresión** (el target es un número) |
+| Riesgo principal | que el modelo memorice anuncios repetidos o que un distrito «se filtre» entre train y test |
+
+Cada fila del CSV es un ejemplo $(\mathbf{x}_i, y_i)$; las columnas área, cuartos… son las features $\mathbf{x}$; el alquiler es $y$. Es exactamente el dataset sintético `make_apartments` que usan los notebooks 01a–01e.
+
+</CasoUso>
+
 ## Anatomía de un problema de aprendizaje
 
 | Término | Símbolo | Ejemplo (dígitos 8×8) |
@@ -74,6 +93,10 @@ Los datos pueden ser **estructurados** (una tabla: cada fila un ejemplo, cada co
 | Reducción de dimensión | comprime / visualiza | mapas 2-D, compresión |
 | Refuerzo | actúa por recompensa | juegos, robótica |
 
+### Practica: ¿qué tipo de problema es?
+
+<ParadigmSorter client:visible />
+
 :::note[Intuición]
 Supervisado = estudiar con solucionario. No supervisado = ordenar fotos en pilas parecidas sin solucionario. Refuerzo = aprender a jugar recibiendo puntos.
 :::
@@ -98,6 +121,19 @@ Juega con el grado del polinomio: el error de entrenamiento siempre baja, pero e
 ## Cómo aprenden los modelos
 
 Entrenar = **rodar cuesta abajo en la pérdida**. El descenso de gradiente mide la pendiente local y da un paso pequeño en la dirección opuesta; el tamaño del paso es la **tasa de aprendizaje** (ver [matemáticas](/fundamentos/matematicas/) y [descenso de gradiente](/regresion/gradiente/)).
+
+### Por qué separar train, validación y test: un ejemplo con números
+
+<Pasos titulo="Un ciclo de modelado honesto, paso a paso">
+
+1. **Barajar y partir una sola vez.** 5 000 anuncios → 3 500 train (70%), 750 validación (15%), 750 test (15%). La partición se congela.
+2. **Ajustar en train.** Se entrenan una regresión lineal y un árbol: RMSE de train = S/ 210 y S/ 15. El árbol parece genial…
+3. **Comparar en validación.** RMSE de validación = S/ 230 (lineal) y S/ 410 (árbol). El árbol **memorizó**: la brecha 15 → 410 es overfitting. Se elige el lineal (o se poda el árbol).
+4. **Afinar en validación**, nunca en test: por ejemplo, el λ de ridge. Cada decisión «mira» la validación, así que su score se vuelve un poco optimista.
+5. **Medir una sola vez en test.** RMSE de test = S/ 236: esa es la cifra que se reporta, porque el test no influyó en ninguna decisión.
+6. **Si después «arreglas algo» mirando el test**, el test se contamina (data leakage) y ya no tienes una estimación honesta.
+
+</Pasos>
 
 ## El flujo de trabajo
 
@@ -133,6 +169,23 @@ Entrenar = **rodar cuesta abajo en la pérdida**. El descenso de gradiente mide 
 		{ href: '/clasificacion/metricas/', titulo: 'Métricas', texto: 'Qué es P cuando la accuracy no alcanza (clases desbalanceadas).' },
 	]}
 />
+
+## En código (scikit-learn)
+
+```python
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LinearRegression
+from sklearn.metrics import mean_squared_error
+
+# 70 / 15 / 15: primero se separa el test y no se vuelve a tocar
+X_tmp, X_test, y_tmp, y_test = train_test_split(X, y, test_size=0.15, random_state=0)
+X_tr, X_val, y_tr, y_val = train_test_split(X_tmp, y_tmp, test_size=0.15 / 0.85, random_state=0)
+
+model = LinearRegression().fit(X_tr, y_tr)                  # E: aprender de train
+rmse_val = mean_squared_error(y_val, model.predict(X_val)) ** 0.5   # elegir / afinar
+# ... comparar modelos con rmse_val ...
+rmse_test = mean_squared_error(y_test, model.predict(X_test)) ** 0.5  # UNA vez, al final
+```
 
 ## Para profundizar
 
