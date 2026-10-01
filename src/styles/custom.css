@@ -1819,3 +1819,104 @@ figure.diagram .katex svg {
 		padding-block: 0.4rem !important;
 	}
 }
+
+/* ------------------------------------------------------------
+   «En simple» (lenguaje llano) y tooltips de jerga
+   ------------------------------------------------------------ */
+.ensimple {
+	margin: 0 0 2rem !important;
+	border-radius: var(--pg-radius);
+	border: 1px solid color-mix(in srgb, var(--pg-ok) 40%, var(--pg-border));
+	background: linear-gradient(135deg, color-mix(in srgb, var(--pg-ok) 9%, var(--pg-surface)), var(--pg-surface) 65%);
+	padding: 0.9rem 1.3rem;
+}
+.ensimple summary {
+	cursor: pointer;
+	display: flex;
+	align-items: center;
+	gap: 0.6rem;
+	list-style: none;
+}
+.ensimple summary::-webkit-details-marker { display: none; }
+.ensimple summary::after {
+	content: '▾';
+	margin-left: auto;
+	color: var(--pg-muted);
+	transition: transform 0.2s;
+}
+.ensimple:not([open]) summary::after { transform: rotate(-90deg); }
+.ensimple-ico { font-size: 1.3rem; }
+.ensimple-t { font-weight: 700; font-size: 1.05rem; color: var(--sl-color-white); }
+.ensimple-sub { font-weight: 400; font-size: 0.85rem; color: var(--pg-muted); }
+.ensimple-body { margin-top: 0.75rem; font-size: 0.95rem; line-height: 1.6; }
+.ensimple-frase {
+	font-size: 1.08rem;
+	font-weight: 600;
+	color: var(--sl-color-white);
+	margin: 0 0 0.9rem;
+}
+.ensimple-analogia {
+	border-left: 3px solid var(--pg-ok);
+	padding: 0.35rem 0 0.35rem 0.9rem;
+	margin-bottom: 0.9rem;
+}
+.ensimple-analogia p { margin: 0.2rem 0 0; }
+.ensimple-lbl {
+	display: block;
+	font-size: 0.72rem;
+	font-weight: 700;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: var(--pg-ok);
+	margin-top: 0.5rem;
+}
+.ensimple ul { margin: 0.3rem 0 0.8rem; padding-left: 1.2rem; }
+.ensimple li { margin: 0.25rem 0; }
+.ensimple dl {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+	gap: 0.5rem;
+	margin: 0.4rem 0 0.8rem;
+}
+.ensimple dl > div {
+	background: var(--pg-surface);
+	border: 1px solid var(--pg-border);
+	border-radius: 8px;
+	padding: 0.45rem 0.7rem;
+}
+.ensimple dt { font-weight: 700; color: var(--sl-color-white); }
+.ensimple dd { margin: 0.1rem 0 0; font-size: 0.88rem; color: var(--sl-color-gray-2); }
+.ensimple-pie { margin: 0; font-size: 0.82rem; color: var(--pg-muted); }
+
+.jerga,
+.jerga-demo {
+	text-decoration: underline dotted color-mix(in srgb, var(--pg-ok) 80%, transparent);
+	text-decoration-thickness: 2px;
+	text-underline-offset: 3px;
+	cursor: help;
+}
+.jerga:focus-visible { outline: 2px solid var(--pg-ok); outline-offset: 2px; border-radius: 3px; }
+.jerga-tip {
+	position: absolute;
+	z-index: 1000;
+	max-width: min(22rem, calc(100vw - 16px));
+	padding: 0.55rem 0.75rem;
+	border-radius: 8px;
+	background: var(--sl-color-gray-6);
+	color: var(--sl-color-white);
+	border: 1px solid color-mix(in srgb, var(--pg-ok) 50%, var(--pg-border));
+	box-shadow: 0 8px 24px rgb(0 0 0 / 0.25);
+	font-size: 0.85rem;
+	line-height: 1.45;
+	pointer-events: none;
+	opacity: 0;
+	transition: opacity 0.12s;
+	left: 0;
+	top: 0;
+}
+.jerga-tip.on { opacity: 1; }
+@media print {
+	.ensimple summary::after { display: none; }
+	.jerga { text-decoration: none; }
+	.jerga-tip { display: none; }
+}

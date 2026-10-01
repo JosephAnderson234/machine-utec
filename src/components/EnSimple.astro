@@ -1,0 +1,36 @@
+---
+/** Recuadro «En simple»: la idea de la página sin fórmulas ni jerga (contenido en src/data/ensimple.ts). */
+import { ENSIMPLE } from '../data/ensimple';
+interface Props {
+	id: string;
+}
+const s = ENSIMPLE[Astro.props.id];
+if (!s) throw new Error(`EnSimple: falta el contenido para «${Astro.props.id}»`);
+---
+<details class="ensimple not-content" open>
+	<summary>
+		<span class="ensimple-ico" aria-hidden="true">💡</span>
+		<span class="ensimple-t">En simple: <span class="ensimple-sub">lee esto primero</span></span>
+	</summary>
+	<div class="ensimple-body">
+		<p class="ensimple-frase" set:html={s.frase} />
+		<div class="ensimple-analogia">
+			<span class="ensimple-lbl">Imagínalo así</span>
+			<p set:html={s.analogia} />
+		</div>
+		<span class="ensimple-lbl">Lo que tienes que llevarte</span>
+		<ul>{s.llevate.map((l) => <li set:html={l} />)}</ul>
+		<span class="ensimple-lbl">Palabras raras de esta página</span>
+		<dl>
+			{s.palabras.map(([t, d]) => (
+				<div>
+					<dt>{t}</dt>
+					<dd>{d}</dd>
+				</div>
+			))}
+		</dl>
+		<p class="ensimple-pie">
+			Más abajo viene la versión completa, con fórmulas. Si una palabra aparece <span class="jerga-demo">subrayada con puntos</span>, pasa el mouse (o tócala) para ver qué significa.
+		</p>
+	</div>
+</details>

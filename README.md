@@ -40,6 +40,7 @@ pnpm preview
 
 ## Notas al editar
 
+- Lenguaje simple: cada página de teoría abre con `<EnSimple id="..."/>` (textos en `src/data/ensimple.ts`; `python scripts/add-ensimple.py` lo inserta en páginas nuevas). Las palabras técnicas del texto reciben un tooltip automático con su explicación simple (`src/data/jerga.ts`, lógica en `src/scripts/jerga.ts`).
 - Contenido generado por scripts (editar la fuente y regenerar):
   - `python scripts/build-lab.py` → `laboratorio.mdx` (desde `scripts/lab_snippets.py`; prueba el código con Python antes).
   - `python scripts/build-resumenes.py` → `resumenes/*.mdx`. Los PDF de `public/pdf/` se regeneran imprimiendo esas páginas (A4, márgenes 12 mm).
