@@ -1,0 +1,44 @@
+---
+title: "Resumen 3 · Clasificación logística y métricas"
+description: "Resumen imprimible de una página: ideas clave, fórmulas y trampas de examen de Clasificación logística y métricas."
+tableOfContents: false
+prev: false
+next: false
+---
+
+<p class="no-print"><a href="/pdf/resumen-clasificacion.pdf" download>⬇ Descargar PDF</a> · <a href="/clasificacion/logistica/">ir a la teoría completa</a> · imprime con Ctrl + P</p>
+
+## Ideas clave
+
+- Una recta sobre 0/1 no es probabilidad (sale de [0,1], un punto lejano la inclina).
+- Log-odds lineal ⇒ la probabilidad es **forzosamente** la sigmoide. Cada peso es un **odds ratio** $e^{w_j}$.
+- Frontera $\mathbf{w}^\top\mathbf{x}+b=0$: **clasificador lineal**. Umbral 0.5 ⇔ $z\ge0$; el umbral es movible según costos.
+- Se entrena con **cross-entropy** (MLE Bernoulli, convexa); el error² sobre σ es no convexo y se estanca. Sin forma cerrada ⇒ gradiente.
+- Clases separables sin regularizar ⇒ $\Vert\mathbf{w}\Vert\to\infty$: agregar $\lambda\Vert\mathbf{w}\Vert^2$.
+- Accuracy **miente** con desbalance: usar matriz de confusión, precision, recall, F1, ROC/AUC. Bajar el umbral ⇒ recall ↑, precision ↓.
+
+## Fórmulas
+
+$$
+\sigma(z) = \frac{1}{1+e^{-z}},\quad \sigma(0) = \tfrac12,\quad \sigma(-z) = 1-\sigma(z),\quad \sigma' = \sigma(1-\sigma)
+$$
+
+$$
+J = -\frac1n\sum_i\big[y_i\log p_i + (1-y_i)\log(1-p_i)\big],\qquad \nabla_\mathbf{w}J = \frac1n\mathbf{X}^\top(\mathbf{p}-\mathbf{y})
+$$
+
+$$
+\text{prec} = \frac{TP}{TP+FP},\quad \text{rec} = \frac{TP}{TP+FN},\quad F_1 = \frac{2PR}{P+R},\quad \text{acc} = \frac{TP+TN}{\text{total}}
+$$
+
+$$
+p_k = \frac{e^{z_k}}{\sum_j e^{z_j}}\quad(\text{softmax}; K=2 \Rightarrow \sigma(z_1-z_0)),\qquad \partial\ell/\partial z_k = p_k - y_k
+$$
+
+## Trampas de examen
+
+- Accuracy = correctas / total (no incorrectas).
+- FN = positivo real declarado negativo.
+- F1 = media **armónica** de precision y recall (queda cerca del menor).
+- El umbral 0.5 no exige clases balanceadas.
+- AUC 0.5 = azar.

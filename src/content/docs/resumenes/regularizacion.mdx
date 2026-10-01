@@ -1,0 +1,44 @@
+---
+title: "Resumen 2 · Regularización y selección de modelos"
+description: "Resumen imprimible de una página: ideas clave, fórmulas y trampas de examen de Regularización y selección de modelos."
+tableOfContents: false
+prev: false
+next: false
+---
+
+<p class="no-print"><a href="/pdf/resumen-regularizacion.pdf" download>⬇ Descargar PDF</a> · <a href="/regularizacion/sesgo-varianza/">ir a la teoría completa</a> · imprime con Ctrl + P</p>
+
+## Ideas clave
+
+- Train baja siempre con la complejidad; validación hace una **U**.
+- **Sesgo** = error sistemático del ajuste promedio; **varianza** = cuánto cambia el ajuste entre training sets; $\sigma^2$ = ruido irreducible.
+- Underfit: sesgo alto, varianza baja. Overfit: sesgo bajo, varianza alta.
+- Regularizar = pérdida + $\lambda\Omega(\mathbf{w})$: cambia un poco de sesgo por mucha varianza. Estandarizar y **no penalizar el sesgo $b$**.
+- **Ridge** encoge (nunca 0, siempre invertible); **lasso** pone pesos en 0 (rombo con esquinas, soft-threshold, descenso por coordenadas).
+- **K-fold CV** para elegir λ / grado; regla de 1 SE; el test nunca participa; escalar dentro del pipeline.
+
+## Fórmulas
+
+$$
+\mathbb{E}[(y-\hat y)^2] = (\bar f - f)^2 + \mathbb{E}[(\hat y - \bar f)^2] + \sigma^2
+$$
+
+$$
+\mathbf{w}_\lambda = (\mathbf{X}^\top\mathbf{X} + \lambda\mathbf{I})^{-1}\mathbf{X}^\top\mathbf{y}
+$$
+
+$$
+\text{1-D: ridge } w = \frac{a}{1+\lambda};\qquad \text{lasso } w = \operatorname{sign}(a)\max(\lvert a\rvert - \tfrac\lambda2, 0)
+$$
+
+$$
+\text{CV}(\lambda) = \frac1K\sum_{k=1}^K \text{Err}_k(\lambda)
+$$
+
+## Trampas de examen
+
+- Varianza ≠ sesgo (el sesgo es el sistemático).
+- Underfit = rígido, no flexible.
+- Los folds de K-fold son de **validación**, no de test.
+- Más datos bajan la varianza, no el sesgo.
+- λ grande ⇒ más simple.

@@ -1,0 +1,48 @@
+---
+title: "Resumen 1 · Regresión lineal"
+description: "Resumen imprimible de una página: ideas clave, fórmulas y trampas de examen de Regresión lineal."
+tableOfContents: false
+prev: false
+next: false
+---
+
+<p class="no-print"><a href="/pdf/resumen-regresion.pdf" download>⬇ Descargar PDF</a> · <a href="/regresion/modelo/">ir a la teoría completa</a> · imprime con Ctrl + P</p>
+
+## Ideas clave
+
+- Modelo $\hat{\mathbf{y}} = \mathbf{X}\mathbf{w}$; la columna de unos absorbe el sesgo. Residual $r_i = y_i - \hat y_i$.
+- Costo $J = \Vert\mathbf{y}-\mathbf{X}\mathbf{w}\Vert^2$: **convexo** porque $\mathbf{v}^\top\mathbf{X}^\top\mathbf{X}\mathbf{v} = \Vert\mathbf{X}\mathbf{v}\Vert^2\ge0$.
+- Dos rutas, misma respuesta: gradiente = 0 o **proyección ortogonal** de $\mathbf{y}$ sobre el espacio columna ($\mathbf{X}^\top\mathbf{r}=0$).
+- Cuadrados = **máxima verosimilitud con ruido gaussiano** (Laplace daría error absoluto).
+- Descenso de gradiente cuando $d$ o $n$ son grandes o no hay forma cerrada. **Estandarizar** redondea el bowl. Batch / SGD / mini-batch.
+- Polinomios: lineal en los **pesos**, curvo en $x$. Overfitting ⇒ **pesos que explotan**.
+
+## Fórmulas
+
+$$
+\mathbf{X}^\top\mathbf{X}\mathbf{w} = \mathbf{X}^\top\mathbf{y}\;\Rightarrow\; \mathbf{w}^\star = (\mathbf{X}^\top\mathbf{X})^{-1}\mathbf{X}^\top\mathbf{y}
+$$
+
+$$
+\nabla J = 2\mathbf{X}^\top(\mathbf{X}\mathbf{w}-\mathbf{y}) = -2\mathbf{X}^\top\mathbf{r}
+$$
+
+$$
+\mathbf{H} = \mathbf{X}(\mathbf{X}^\top\mathbf{X})^{-1}\mathbf{X}^\top,\quad \hat{\mathbf{y}} = \mathbf{H}\mathbf{y},\quad \mathbf{H}^2 = \mathbf{H}
+$$
+
+$$
+w_1 = \frac{\sum(x_i-\bar x)(y_i-\bar y)}{\sum(x_i-\bar x)^2},\qquad w_0 = \bar y - w_1\bar x
+$$
+
+$$
+\text{RMSE}=\sqrt{\tfrac1n\textstyle\sum r_i^2},\quad \text{MAE}=\tfrac1n\textstyle\sum\lvert r_i\rvert,\quad R^2 = 1 - \frac{SS_\text{res}}{SS_\text{tot}}
+$$
+
+## Trampas de examen
+
+- $J$ **es** convexa.
+- Con $\eta=0$ no se aprende nada; el signo menos importa.
+- $R^2$ puede ser negativo en validación.
+- RMSE ≥ MAE; la brecha delata outliers.
+- Un peso es asociación, no causalidad; compara magnitudes solo con features estandarizadas.

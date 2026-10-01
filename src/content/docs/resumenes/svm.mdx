@@ -1,0 +1,44 @@
+---
+title: "Resumen 5 · Support Vector Machines"
+description: "Resumen imprimible de una página: ideas clave, fórmulas y trampas de examen de Support Vector Machines."
+tableOfContents: false
+prev: false
+next: false
+---
+
+<p class="no-print"><a href="/pdf/resumen-svm.pdf" download>⬇ Descargar PDF</a> · <a href="/svm/geometria/">ir a la teoría completa</a> · imprime con Ctrl + P</p>
+
+## Ideas clave
+
+- Entre infinitas rectas separadoras, el SVM elige la de **margen máximo**. Etiquetas $y\in\{-1,+1\}$: $y_if(\mathbf{x}_i)>0$ ⇔ correcto.
+- $\mathbf{w}\perp$ frontera. Margen funcional cambia con la escala; el **geométrico** no. Normalización canónica: $\min_i y_if(\mathbf{x}_i)=1$ ⇒ banda $2/\Vert\mathbf{w}\Vert$.
+- Primal: QP convexo. Restricciones **activas** = vectores de soporte; solo ellos definen la frontera.
+- Lagrange: $\alpha_i$ = precio/fuerza de cada restricción. **KKT** + holgura complementaria. Dual: solo productos $\mathbf{x}_i^\top\mathbf{x}_j$ ⇒ kernels.
+- Margen suave: holguras $\xi_i$ y precio **C** (C grande = menos regularización, $\lambda\propto 1/C$). Dual: $0\le\alpha_i\le C$. Equivale a **hinge + L2**.
+- Práctica: **estandarizar**, empezar lineal, RBF con C y γ por CV. No da probabilidades (Platt), es binario (OvR/OvO), $O(n^2)$–$O(n^3)$.
+
+## Fórmulas
+
+$$
+r = \frac{\mathbf{w}^\top\mathbf{x}+b}{\Vert\mathbf{w}\Vert},\qquad \min_{\mathbf{w},b}\ \tfrac12\Vert\mathbf{w}\Vert^2\ \text{s.a.}\ y_i(\mathbf{w}^\top\mathbf{x}_i+b)\ge1
+$$
+
+$$
+\mathbf{w} = \sum_i\alpha_iy_i\mathbf{x}_i,\quad \sum_i\alpha_iy_i = 0,\quad \alpha_i\big[y_if(\mathbf{x}_i)-1\big] = 0
+$$
+
+$$
+\max_{\boldsymbol\alpha}\ \sum_i\alpha_i - \tfrac12\sum_{i,j}\alpha_i\alpha_jy_iy_j\,\mathbf{x}_i^\top\mathbf{x}_j,\quad b = y_k - \mathbf{w}^\top\mathbf{x}_k
+$$
+
+$$
+\min\ \tfrac12\Vert\mathbf{w}\Vert^2 + C\sum_i\max\big(0,\,1-y_if(\mathbf{x}_i)\big)
+$$
+
+## Trampas de examen
+
+- Estandarizar **no** es opcional.
+- El SVM es discriminativo, no da $P(y\mid\mathbf{x})$.
+- $b$ se recupera con un vector de soporte, no se fija en 0.
+- El ½ en ½‖w‖² solo cancela el 2 al derivar.
+- Más vectores de soporte ≠ mejor ajuste.

@@ -1,0 +1,43 @@
+---
+title: "Resumen 6 · Kernels"
+description: "Resumen imprimible de una página: ideas clave, fórmulas y trampas de examen de Kernels."
+tableOfContents: false
+prev: false
+next: false
+---
+
+<p class="no-print"><a href="/pdf/resumen-kernels.pdf" download>⬇ Descargar PDF</a> · <a href="/kernels/truco/">ir a la teoría completa</a> · imprime con Ctrl + P</p>
+
+## Ideas clave
+
+- Una frontera curva es una frontera **plana** en un espacio de features $\phi$ adecuado (anillos → $x_1^2+x_2^2$).
+- **Truco:** el dual solo usa $\mathbf{x}_i^\top\mathbf{x}_j$; cámbialo por $K(\mathbf{x}_i,\mathbf{x}_j)=\phi(\mathbf{x}_i)^\top\phi(\mathbf{x}_j)$ **sin construir** $\phi$.
+- Kernel válido ⇔ **simétrico y PSD** (Mercer): Gram con autovalores ≥ 0. Cerrados bajo +, ×, escala positiva.
+- Lineal (global), polinómico (todos los monomios hasta grado $d$, global), **RBF** (local, $\phi$ de dimensión infinita).
+- **γ** del RBF: pequeño ⇒ casi lineal (underfit); grande ⇒ islas (overfit). C y γ juntos por CV; estandarizar.
+- **Representante:** $f=\sum_i\alpha_iK(\mathbf{x}_i,\cdot)$. **Kernel ridge** en forma cerrada. Costo $O(n^2)$ memoria, $O(n^3)$ tiempo.
+
+## Fórmulas
+
+$$
+(\mathbf{x}^\top\mathbf{z})^2 = \phi(\mathbf{x})^\top\phi(\mathbf{z}),\quad \phi(\mathbf{x}) = (x_1^2,\ \sqrt2x_1x_2,\ x_2^2)
+$$
+
+$$
+K_\text{poly} = (c+\mathbf{x}^\top\mathbf{x}')^d,\qquad K_\text{RBF} = \exp(-\gamma\Vert\mathbf{x}-\mathbf{x}'\Vert^2)
+$$
+
+$$
+e^{2\gamma\mathbf{x}^\top\mathbf{x}'} = \sum_{k=0}^\infty \frac{(2\gamma)^k}{k!}(\mathbf{x}^\top\mathbf{x}')^k\quad(\text{todos los grados ⇒ }\phi\text{ infinita})
+$$
+
+$$
+\boldsymbol\alpha = (\mathbf{K}+\lambda\mathbf{I})^{-1}\mathbf{y},\qquad f(\mathbf{x}) = \sum_i\alpha_iK(\mathbf{x}_i,\mathbf{x})
+$$
+
+## Trampas de examen
+
+- El truco **no** construye $\phi$.
+- El RBF tiene $\phi$ infinita que nunca se calcula.
+- Restar kernels puede romper la PSD.
+- Nunca elegir γ por accuracy de entrenamiento.

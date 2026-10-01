@@ -29,7 +29,7 @@ import Terminal from '../../components/Terminal.astro';
 	<div><b data-count="38">0</b><span>simuladores y calculadoras</span></div>
 	<div><b data-count="9">0</b><span>lecciones cubiertas</span></div>
 	<div><b data-count="31">0</b><span>conexiones en el mapa</span></div>
-	<div><b data-count="227">0</b><span>preguntas de quiz y flashcards</span></div>
+	<div><b data-count="255">0</b><span>preguntas, flashcards y preguntas abiertas</span></div>
 </div>
 
 <div class="so-cards not-content">
@@ -41,6 +41,8 @@ import Terminal from '../../components/Terminal.astro';
 	<a class="so-card" href="/svm/geometria/"><span class="n">05</span><h3>SVM</h3><p>Margen 2/‖w‖, Lagrange y KKT como precios, el dual y la hinge. Resuelto con SMO en vivo.</p></a>
 	<a class="so-card" href="/kernels/truco/"><span class="n">06</span><h3>Kernels</h3><p>Dos rutas al mismo número, anillos levantados a 3-D, γ del RBF y kernel ridge.</p></a>
 	<a class="so-card" href="/arboles/cart/"><span class="n">07</span><h3>Árboles de decisión</h3><p>Construye el árbol de 10 puntos split por split, la cuerda de la impureza y la poda por α.</p></a>
+	<a class="so-card" href="/laboratorio/"><span class="n">🐍</span><span class="tagnew">nuevo</span><h3>Python en el navegador</h3><p>10 ejercicios ejecutables con NumPy y scikit-learn que reproducen los números de las slides.</p></a>
+	<a class="so-card" href="/resumenes/"><span class="n">⎙</span><span class="tagnew">nuevo</span><h3>Resúmenes en PDF</h3><p>Una hoja por unidad con ideas clave, fórmulas y trampas de examen, lista para imprimir.</p></a>
 	<a class="so-card" href="/examen/modo-examen/"><span class="n">⏱</span><span class="tagnew">nuevo</span><h3>Modo examen</h3><p>Preguntas al azar con temporizador, nota sobre 20 y diagnóstico de qué temas repasar.</p></a>
 	<a class="so-card" href="/examen/generador/"><span class="n">∑</span><span class="tagnew">nuevo</span><h3>Ejercicios infinitos</h3><p>11 tipos de cálculo con números aleatorios y solución paso a paso: Bayes, Gini, SVM, LDA…</p></a>
 	<a class="so-card" href="/guia-modelos/"><span class="n">?</span><span class="tagnew">nuevo</span><h3>¿Qué modelo uso?</h3><p>Responde 7 preguntas sobre tu problema y recibe un ranking razonado de los modelos del curso.</p></a>
@@ -54,7 +56,7 @@ import Terminal from '../../components/Terminal.astro';
 2. **Estudia por unidad** con la barra lateral. Cada página combina: intuición → **caso de uso real** → matemática con **derivaciones paso a paso** (botón «Siguiente paso») → **simuladores y calculadoras** → trampas de examen → **código de scikit-learn** → quiz → conexiones → recursos web.
 3. **Practica las decisiones**, no solo las fórmulas: la [guía de modelos](/guia-modelos/) y los [casos de estudio](/casos/) muestran cuándo y por qué usar cada técnica.
 4. **Juega con los simuladores antes de leer la fórmula final.** Cada uno está pensado para que *veas* el fenómeno (una lasso que se pega a una esquina, un η que diverge, un γ que crea islas).
-5. **Practica con el [generador de ejercicios](/examen/generador/)** hasta que los cálculos salgan solos, y usa el [glosario](/glosario/) cuando un término en inglés te frene.
+5. **Practica con el [generador de ejercicios](/examen/generador/)**, el [laboratorio de Python](/laboratorio/), las preguntas de [«explícalo con tus palabras»](/examen/explicalo/) hasta que los cálculos salgan solos, y usa el [glosario](/glosario/) cuando un término en inglés te frene.
 6. **Cierra con el [modo examen cronometrado](/examen/modo-examen/)**, el [banco de preguntas oficial](/examen/banco/), el [simulacro](/examen/simulacro/) y las [flashcards](/examen/flashcards/). Tu progreso se guarda en este navegador.
 
 :::note[Fuentes]

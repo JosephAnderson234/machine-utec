@@ -1,0 +1,297 @@
+---
+title: "Laboratorio de Python en el navegador"
+description: "Diez ejercicios ejecutables (NumPy y scikit-learn) que reproducen los resultados de las slides: ecuaciones normales, gradiente, ridge/lasso, logística, Naive Bayes, LDA/QDA, SVM, kernels y árboles."
+---
+
+import PyRunner from '../../components/sim/PyRunner.tsx';
+
+Cada celda es **Python real** que corre en tu navegador gracias a [Pyodide](https://pyodide.org) (no hace falta instalar nada). La primera ejecución descarga el intérprete y las librerías (≈ 10–30 MB); después todo es instantáneo y las celdas comparten la misma sesión.
+
+:::tip[Cómo aprovecharlo]
+1. Ejecuta la celda tal cual (botón o **Ctrl + Enter**) y compara la salida con lo que dice «Qué observar».
+2. Haz el **«TU TURNO»** del final del código: cambia un número, vuelve a ejecutar e interpreta.
+3. Si rompes algo, «Restaurar código» vuelve al original.
+:::
+
+:::note[Verificado]
+Todas las celdas se probaron con NumPy y scikit-learn reales antes de publicarlas; los números coinciden con los de las slides donde corresponde (diabetes, árbol de 10 puntos, SVM de tres puntos).
+:::
+
+## 1. Ecuaciones normales con NumPy
+
+Construye la matriz de diseño, resuelve $\mathbf{X}^\top\mathbf{X}\mathbf{w}=\mathbf{X}^\top\mathbf{y}$ y comprueba que el residual es ortogonal a las columnas. [Ver teoría →](/regresion/modelo/)
+
+<PyRunner client:visible titulo="Ecuaciones normales con NumPy" paquetes={['numpy']} alto={19} code={`import numpy as np
+
+x = np.array([0., 1., 2., 3., 4.])
+y = np.array([1.2, 2.1, 2.9, 4.2, 4.8])
+
+X = np.c_[np.ones_like(x), x]          # columna de unos = sesgo
+XtX = X.T @ X
+Xty = X.T @ y
+w = np.linalg.solve(XtX, Xty)          # ecuaciones normales
+r = y - X @ w
+
+print("XᵀX =", XtX.tolist())
+print("Xᵀy =", Xty.round(3).tolist())
+print("w* (intercepto, pendiente) =", w.round(4))
+print("Xᵀr =", (X.T @ r).round(10), " ← ortogonal: ecuaciones normales")
+print("R² =", round(1 - (r @ r) / ((y - y.mean()) @ (y - y.mean())), 4))
+
+# TU TURNO: agrega un outlier (x=5, y=0) y mira cuánto cambia la pendiente.`} />
+
+**Qué observar:** Fíjate en que $\mathbf{X}^\top\mathbf{r}$ sale $(0,0)$ (salvo redondeo): esa **es** la condición de las ecuaciones normales.
+
+## 2. Descenso de gradiente y la tasa de aprendizaje
+
+El mismo problema resuelto iterando, con cuatro valores de $\eta$. [Ver teoría →](/regresion/gradiente/)
+
+<PyRunner client:visible titulo="Descenso de gradiente y la tasa de aprendizaje" paquetes={['numpy']} alto={22} code={`import numpy as np
+
+rng = np.random.default_rng(0)
+x = rng.uniform(0, 10, 50)
+y = 3 + 2 * x + rng.normal(0, 1, 50)
+X = np.c_[np.ones_like(x), (x - x.mean()) / x.std()]   # estandarizar ayuda a GD
+
+w_exact = np.linalg.solve(X.T @ X, X.T @ y)
+
+def gd(eta, pasos=200):
+    w = np.zeros(2)
+    for _ in range(pasos):
+        grad = -2 * X.T @ (y - X @ w) / len(y)
+        w = w - eta * grad
+    return w
+
+for eta in [0.01, 0.1, 0.5, 1.1]:
+    w = gd(eta)
+    print(f"η = {eta:<4}  w = {np.round(w, 3)}  error vs exacta = {np.abs(w - w_exact).max():.2e}")
+
+# TU TURNO: quita la estandarización (usa x sin escalar) y busca el η máximo que no diverge.`} />
+
+**Qué observar:** Con $\eta = 0.01$ todavía no llegó; con 0.1 y 0.5 coincide con la solución exacta; con 1.1 **diverge** (números gigantes).
+
+## 3. Grado del polinomio, train vs validación
+
+Ajusta polinomios de grado creciente a $\sin(2\pi x)$ + ruido y compara el error de entrenamiento con el de validación. [Ver teoría →](/regularizacion/sesgo-varianza/)
+
+<PyRunner client:visible titulo="Grado del polinomio, train vs validación" paquetes={['numpy', 'scikit-learn']} alto={23} code={`import numpy as np
+from sklearn.model_selection import train_test_split
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import PolynomialFeatures, StandardScaler
+from sklearn.linear_model import LinearRegression, Ridge
+from sklearn.metrics import mean_squared_error
+
+rng = np.random.default_rng(1)
+x = rng.uniform(0, 1, 30).reshape(-1, 1)
+y = np.sin(2 * np.pi * x).ravel() + rng.normal(0, 0.25, 30)
+x_tr, x_va, y_tr, y_va = train_test_split(x, y, test_size=0.5, random_state=0)
+
+rmse = lambda m, a, b: mean_squared_error(b, m.predict(a)) ** 0.5
+print("grado | RMSE train | RMSE validación")
+for d in [1, 3, 5, 9, 12]:
+    m = make_pipeline(PolynomialFeatures(d), StandardScaler(), LinearRegression()).fit(x_tr, y_tr)
+    print(f"{d:5d} | {rmse(m, x_tr, y_tr):10.3f} | {rmse(m, x_va, y_va):10.3f}")
+
+m = make_pipeline(PolynomialFeatures(12), StandardScaler(), Ridge(alpha=1e-2)).fit(x_tr, y_tr)
+print("grado 12 + ridge(λ=0.01): validación =", round(rmse(m, x_va, y_va), 3))
+
+# TU TURNO: prueba otros λ (1e-4, 1, 10). ¿Cuál deja la validación más baja?`} />
+
+**Qué observar:** El RMSE de train baja casi siempre; el de validación hace la **U** (mínimo cerca del grado 5). Ridge rescata al grado 12.
+
+## 4. Ridge y lasso en el dataset diabetes
+
+El ejemplo de la slide: OLS, ridge y lasso con λ elegido por validación cruzada. [Ver teoría →](/regularizacion/ridge-lasso/)
+
+<PyRunner client:visible titulo="Ridge y lasso en el dataset diabetes" paquetes={['numpy', 'scikit-learn']} alto={26} code={`import numpy as np
+from sklearn.datasets import load_diabetes
+from sklearn.model_selection import train_test_split
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import StandardScaler
+from sklearn.linear_model import LinearRegression, RidgeCV, LassoCV
+from sklearn.metrics import mean_squared_error
+
+datos = load_diabetes()
+X, y, nombres = datos.data, datos.target, datos.feature_names
+X_tr, X_te, y_tr, y_te = train_test_split(X, y, test_size=0.25, random_state=0)
+alphas = np.logspace(-3, 2, 40)
+
+modelos = {
+    "OLS": make_pipeline(StandardScaler(), LinearRegression()),
+    "ridge": make_pipeline(StandardScaler(), RidgeCV(alphas=alphas, cv=5)),
+    "lasso": make_pipeline(StandardScaler(), LassoCV(alphas=alphas, cv=5, max_iter=50000)),
+}
+for nombre, m in modelos.items():
+    m.fit(X_tr, y_tr)
+    rmse = mean_squared_error(y_te, m.predict(X_te)) ** 0.5
+    coef = m[-1].coef_
+    print(f"{nombre:6s} RMSE test = {rmse:5.1f}   pesos en cero: {int(np.sum(np.abs(coef) < 1e-8))}")
+
+lasso = modelos["lasso"][-1]
+print("λ elegido por CV (lasso):", round(lasso.alpha_, 4))
+print("features descartadas por el lasso:", [c for c, w in zip(nombres, lasso.coef_) if abs(w) < 1e-8])`} />
+
+**Qué observar:** Los tres tienen RMSE de test ≈ 56 (como en la slide), pero el lasso pone **exactamente en cero** `age`, `s4` y `s6`.
+
+## 5. Regresión logística desde cero y el umbral
+
+Entrena la logística con el gradiente $\mathbf{X}^\top(\mathbf{p}-\mathbf{y})/n$, compárala con scikit-learn y mueve el umbral. [Ver teoría →](/clasificacion/metricas/)
+
+<PyRunner client:visible titulo="Regresión logística desde cero y el umbral" paquetes={['numpy', 'scikit-learn']} alto={26} code={`import numpy as np
+from sklearn.datasets import load_breast_cancer
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import confusion_matrix, precision_score, recall_score, f1_score, roc_auc_score
+
+X, y = load_breast_cancer(return_X_y=True)
+y = 1 - y                                   # 1 = maligno (positivo)
+X_tr, X_te, y_tr, y_te = train_test_split(X, y, stratify=y, test_size=0.25, random_state=0)
+sc = StandardScaler().fit(X_tr)             # escalar con estadísticas de TRAIN
+X_tr, X_te = sc.transform(X_tr), sc.transform(X_te)
+
+# regresión logística desde cero: gradiente Xᵀ(p − y)/n
+w, b = np.zeros(X.shape[1]), 0.0
+for _ in range(3000):
+    p = 1 / (1 + np.exp(-(X_tr @ w + b)))
+    w -= 0.1 * (X_tr.T @ (p - y_tr) / len(y_tr) + 0.01 * w)
+    b -= 0.1 * np.mean(p - y_tr)
+
+p_te = 1 / (1 + np.exp(-(X_te @ w + b)))
+sk = LogisticRegression(max_iter=5000).fit(X_tr, y_tr)
+print("AUC desde cero:", round(roc_auc_score(y_te, p_te), 4), "· sklearn:", round(roc_auc_score(y_te, sk.predict_proba(X_te)[:, 1]), 4))
+
+for t in [0.5, 0.2]:
+    yh = (p_te >= t).astype(int)
+    tn, fp, fn, tp = confusion_matrix(y_te, yh).ravel()
+    print(f"umbral {t}: TP={tp} FP={fp} FN={fn} TN={tn}  precision={precision_score(y_te, yh):.3f}  recall={recall_score(y_te, yh):.3f}  F1={f1_score(y_te, yh):.3f}")`} />
+
+**Qué observar:** Tu implementación y la de scikit-learn llegan al mismo AUC (≈ 0.995). Bajar el umbral a 0.2 sube el recall de malignos a costa de más falsos positivos.
+
+## 6. Naive Bayes para spam
+
+Un mini corpus de 10 correos, bolsa de palabras y Naive Bayes multinomial con dos valores de suavizado. [Ver teoría →](/generativos/naive-bayes/)
+
+<PyRunner client:visible titulo="Naive Bayes para spam" paquetes={['numpy', 'scikit-learn']} alto={20} code={`from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.naive_bayes import MultinomialNB
+
+correos = [
+    "free money now", "win free lottery money", "cheap meds free offer", "claim your free prize now",
+    "meeting tomorrow about the project", "please send the report", "project meeting moved to friday",
+    "lunch tomorrow with the team", "report draft attached for review", "money transfer for the project budget",
+]
+etiqueta = [1, 1, 1, 1, 0, 0, 0, 0, 0, 0]   # 1 = spam
+
+vec = CountVectorizer()
+Xc = vec.fit_transform(correos)
+for alpha in [1.0, 0.01]:
+    nb = MultinomialNB(alpha=alpha).fit(Xc, etiqueta)
+    nuevos = ["free money", "project report tomorrow", "free project lottery"]
+    P = nb.predict_proba(vec.transform(nuevos))[:, 1]
+    print(f"α = {alpha}:", {t: round(float(p), 3) for t, p in zip(nuevos, P)})
+
+print("prior estimado π_spam =", round(float(nb.class_count_[1] / nb.class_count_.sum()), 2))`} />
+
+**Qué observar:** Con $\alpha$ pequeño las probabilidades se vuelven extremas (0.999, 0.0): sin suavizado, una palabra nunca vista en una clase la anula.
+
+## 7. LDA vs QDA vs Naive Bayes vs logística
+
+Una clase compacta rodeada por otra ancha e inclinada: covarianzas muy distintas. [Ver teoría →](/generativos/lda-qda/)
+
+<PyRunner client:visible titulo="LDA vs QDA vs Naive Bayes vs logística" paquetes={['numpy', 'scikit-learn']} alto={21} code={`import numpy as np
+from sklearn.discriminant_analysis import LinearDiscriminantAnalysis, QuadraticDiscriminantAnalysis
+from sklearn.naive_bayes import GaussianNB
+from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import cross_val_score
+
+rng = np.random.default_rng(3)
+# clase 0 compacta; clase 1 ancha e inclinada → covarianzas distintas
+X0 = rng.multivariate_normal([0, 0], [[0.15, 0], [0, 0.15]], 200)
+X1 = rng.multivariate_normal([0.6, 0.4], [[3.0, 1.5], [1.5, 2.5]], 200)
+X = np.r_[X0, X1]
+y = np.r_[np.zeros(200), np.ones(200)]
+
+for nombre, m in [("Naive Bayes", GaussianNB()), ("LDA", LinearDiscriminantAnalysis()),
+                  ("QDA", QuadraticDiscriminantAnalysis()), ("Logística", LogisticRegression())]:
+    acc = cross_val_score(m, X, y, cv=5).mean()
+    print(f"{nombre:12s} accuracy CV = {acc:.3f}")
+
+lda = LinearDiscriminantAnalysis().fit(X, y)
+print("w de LDA =", lda.coef_.round(3), " (frontera lineal: wᵀx + b = 0)")`} />
+
+**Qué observar:** Los modelos con frontera **lineal** (LDA, logística) se quedan en ≈ 0.69; QDA y Naive Bayes, que permiten covarianzas propias, llegan a ≈ 0.87.
+
+## 8. Dentro del SVM: vectores de soporte y C
+
+El ejemplo de tres puntos de la clase y un barrido de C en cáncer de mama. [Ver teoría →](/svm/dual/)
+
+<PyRunner client:visible titulo="Dentro del SVM: vectores de soporte y C" paquetes={['numpy', 'scikit-learn']} alto={20} code={`import numpy as np
+from sklearn.svm import SVC
+from sklearn.datasets import load_breast_cancer
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import cross_val_score
+
+# el ejemplo de tres puntos de la clase (+ un punto lejano)
+X = np.array([[2, 0], [0, 2], [0, 0], [3, 3]]); y = np.array([1, 1, -1, 1])
+svm = SVC(kernel="linear", C=1e6).fit(X, y)
+print("vectores de soporte:", svm.support_, "→ el (3,3) no está")
+print("αᵢyᵢ =", svm.dual_coef_.round(3), " w =", svm.coef_.round(3), " b =", svm.intercept_.round(3))
+
+Xb, yb = load_breast_cancer(return_X_y=True)
+for C in [0.01, 1, 100]:
+    m = make_pipeline(StandardScaler(), SVC(kernel="linear", C=C))
+    acc = cross_val_score(m, Xb, yb, cv=5).mean()
+    nsv = m.fit(Xb, yb)[-1].n_support_.sum()
+    print(f"C = {C:<6} accuracy CV = {acc:.3f}   vectores de soporte = {nsv}")`} />
+
+**Qué observar:** El punto (3,3) no es vector de soporte; $\alpha y = (-1, 0.5, 0.5)$ y $\mathbf{w}=(1,1)$, $b=-1$. Al subir C bajan los vectores de soporte (margen más angosto).
+
+## 9. Kernels: identidad, validez y γ
+
+Verifica $\phi(\mathbf{x})^\top\phi(\mathbf{z}) = (1+\mathbf{x}^\top\mathbf{z})^2$, la semidefinitud de una Gram RBF y el efecto del kernel sobre anillos. [Ver teoría →](/kernels/practica/)
+
+<PyRunner client:visible titulo="Kernels: identidad, validez y γ" paquetes={['numpy', 'scikit-learn']} alto={21} code={`import numpy as np
+from sklearn.datasets import make_circles
+from sklearn.svm import SVC
+from sklearn.model_selection import cross_val_score
+from sklearn.metrics.pairwise import rbf_kernel
+
+x, z = np.array([1., 2.]), np.array([3., -1.])
+phi = lambda v: np.array([1, np.sqrt(2) * v[0], np.sqrt(2) * v[1], v[0]**2, v[1]**2, np.sqrt(2) * v[0] * v[1]])
+print("φ(x)ᵀφ(z) =", round(float(phi(x) @ phi(z)), 6), " (1 + xᵀz)² =", (1 + x @ z) ** 2)
+
+X, y = make_circles(n_samples=300, noise=0.1, factor=0.4, random_state=0)
+K = rbf_kernel(X[:40], gamma=1.0)
+print("autovalor mínimo de la Gram RBF:", f"{np.linalg.eigvalsh(K).min():.2e}", "(≥ 0 ⇒ kernel válido)")
+
+print("kernel      | train | CV")
+for nombre, m in [("lineal", SVC(kernel="linear")), ("poly 2", SVC(kernel="poly", degree=2, coef0=1)),
+                  ("RBF γ=0.01", SVC(kernel="rbf", gamma=0.01)), ("RBF γ=1", SVC(kernel="rbf", gamma=1)),
+                  ("RBF γ=2000", SVC(kernel="rbf", gamma=2000))]:
+    tr = m.fit(X, y).score(X, y)
+    print(f"{nombre:12s}| {tr:.3f} | {cross_val_score(m, X, y, cv=5).mean():.3f}")`} />
+
+**Qué observar:** El lineal no sirve en anillos (≈ 0.56); el polinómico de grado 2 y el RBF con γ = 1 aciertan todo. Con γ = 2000: train 1.0 pero CV ≈ 0.72, **sobreajuste**.
+
+## 10. El árbol de 10 puntos y su ruta de poda
+
+Reproduce el árbol de la clase, sus importancias y la ruta de costo-complejidad. [Ver teoría →](/arboles/poda/)
+
+<PyRunner client:visible titulo="El árbol de 10 puntos y su ruta de poda" paquetes={['numpy', 'scikit-learn']} alto={16} code={`import numpy as np
+from sklearn.tree import DecisionTreeClassifier, export_text
+
+X = np.array([[1, 4], [2, 1], [3, 9], [6, 5], [8, 3], [4, 8], [5, 10], [7, 2], [9, 6], [10, 7]])
+y = np.array([0, 0, 0, 0, 0, 1, 1, 1, 1, 1])
+
+tree = DecisionTreeClassifier(random_state=0).fit(X, y)
+print(export_text(tree, feature_names=["x1", "x2"]))
+print("hojas:", tree.get_n_leaves(), " importancias (MDI):", tree.feature_importances_.round(4))
+
+ruta = tree.cost_complexity_pruning_path(X, y)
+print("ruta de poda α:", ruta.ccp_alphas.round(4), "→ 0, 2/15, 16/105, 3/14")
+for a in ruta.ccp_alphas:
+    t = DecisionTreeClassifier(random_state=0, ccp_alpha=a).fit(X, y)
+    print(f"α = {a:.4f}: {t.get_n_leaves()} hojas, accuracy train = {t.score(X, y):.1f}")`} />
+
+**Qué observar:** Mismo árbol que en las slides, importancias 3/7 y 4/7, y la ruta $\alpha = 0,\ 2/15,\ 16/105,\ 3/14$ con 4 → 3 → 2 → 1 hojas.

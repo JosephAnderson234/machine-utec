@@ -1,0 +1,43 @@
+---
+title: "Resumen 7 · Árboles de decisión"
+description: "Resumen imprimible de una página: ideas clave, fórmulas y trampas de examen de Árboles de decisión."
+tableOfContents: false
+prev: false
+next: false
+---
+
+<p class="no-print"><a href="/pdf/resumen-arboles.pdf" download>⬇ Descargar PDF</a> · <a href="/arboles/impureza/">ir a la teoría completa</a> · imprime con Ctrl + P</p>
+
+## Ideas clave
+
+- Preguntas $x_j\le t$ ⇒ **cajas alineadas a los ejes**, una constante por hoja: mayoría (0/1), media (cuadrática), $\hat p$ (log-loss).
+- **Impureza = costo de la mejor constante**: entropía (sorpresa promedio, bits), Gini (probabilidad de desacuerdo), error rate.
+- Ganancia ponderada ≥ 0 por **concavidad**. El error rate es lineal a trozos ⇒ puede dar ganancia 0 a un split útil: crecer con Gini/entropía.
+- **CART** codicioso: $n-1$ umbrales por feature (puntos medios), mejor split, recursión. Falla en **XOR** ⇒ crecer y podar. Solo importa el orden (sin escalar).
+- **Poda por costo-complejidad** $R(T)+\alpha\lvert T\rvert$, eslabón más débil, α por CV (regla de 1 SE).
+- Interpretables pero de **alta varianza** (inestables); MDI sesgada; no extrapolan. Promediar árboles (bagging/random forest) baja la varianza.
+
+## Fórmulas
+
+$$
+\text{Gini} = 1-\sum_k\hat p_k^2,\qquad H = -\sum_k\hat p_k\log_2\hat p_k,\qquad \text{máx. (K clases): } 1-\tfrac1K,\ \log_2K
+$$
+
+$$
+\Delta I = I(m) - \frac{n_L}{n_m}I(L) - \frac{n_R}{n_m}I(R)
+$$
+
+$$
+R_\alpha(T) = R(T) + \alpha\lvert T\rvert,\qquad g(m) = \frac{R(m)-R(T_m)}{\lvert T_m\rvert-1}
+$$
+
+$$
+\text{Ejemplo de 10 puntos: raíz } x_1\le3.5\ (\Delta I = 3/14),\ \text{ruta } \alpha = 2/15,\ 16/105,\ 3/14
+$$
+
+## Trampas de examen
+
+- Entropía = sorpresa; Gini = desacuerdo (no al revés).
+- Basta evaluar $n-1$ umbrales.
+- La feature de la raíz no es necesariamente la más importante.
+- Un árbol con defaults está sobreajustado.

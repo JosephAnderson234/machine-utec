@@ -1,0 +1,43 @@
+---
+title: "Resumen 0 · Fundamentos y matemáticas"
+description: "Resumen imprimible de una página: ideas clave, fórmulas y trampas de examen de Fundamentos y matemáticas."
+tableOfContents: false
+prev: false
+next: false
+---
+
+<p class="no-print"><a href="/pdf/resumen-fundamentos.pdf" download>⬇ Descargar PDF</a> · <a href="/fundamentos/intro/">ir a la teoría completa</a> · imprime con Ctrl + P</p>
+
+## Ideas clave
+
+- ML aprende reglas a partir de datos: **datos + respuestas → modelo**, en vez de reglas escritas a mano.
+- **Mitchell:** aprende de la experiencia $E$ en la tarea $T$ medida por $P$ si $P$ mejora con $E$. $E$ = datos, $P$ = desempeño (no el algoritmo ni el nº de parámetros).
+- Paradigmas: **supervisado** (regresión: $y$ continuo; clasificación: $y$ discreto), **no supervisado** (clustering, reducción de dimensión), **refuerzo** (actuar y recibir recompensas).
+- Meta: **generalizar**. Train ajusta, validación decide, test se usa **una vez**. Data leakage = el test influye en decisiones ⇒ nota optimista.
+- Underfit = estudiante que siempre responde «C»; overfit = el que memorizó el examen pasado.
+- Tres herramientas: álgebra lineal (modelo $\hat{\mathbf{y}}=\mathbf{X}\mathbf{w}$), probabilidad (incertidumbre, Bayes), optimización (gradiente, convexidad).
+
+## Fórmulas
+
+$$
+\hat R(h) = \frac1n\sum_i \ell(h(\mathbf{x}_i), y_i)\quad\text{(riesgo empírico, ERM)}
+$$
+
+$$
+\mathbf{a}^\top\mathbf{b} = \Vert\mathbf{a}\Vert\Vert\mathbf{b}\Vert\cos\theta,\qquad \Vert\mathbf{v}\Vert_2 = \sqrt{\textstyle\sum v_j^2},\quad \Vert\mathbf{v}\Vert_1 = \textstyle\sum\lvert v_j\rvert
+$$
+
+$$
+P(A\mid B) = \frac{P(B\mid A)P(A)}{P(B)}\qquad \text{posterior} \propto \text{likelihood}\times\text{prior}
+$$
+
+$$
+w \leftarrow w - \eta\,\nabla J(w)\qquad (\text{para } J=(w-1)^2 \text{ converge si } 0<\eta<1)
+$$
+
+## Trampas de examen
+
+- En clasificación $y$ es discreto (si es continuo, es regresión).
+- El clustering es no supervisado; la regresión es supervisada.
+- Con una enfermedad rara, un positivo suele ser falsa alarma: $P(A\mid B)\ne P(B\mid A)$.
+- Convexo ⇒ todo mínimo local es global.

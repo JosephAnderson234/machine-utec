@@ -100,13 +100,27 @@ export default defineConfig({
 					],
 				},
 				{
-					label: '8 · Examen',
+					label: '8 · Práctica',
+					items: [
+						{ label: 'Laboratorio de Python (en el navegador)', slug: 'laboratorio', badge: { text: 'nuevo', variant: 'success' } },
+						{ label: 'Guía de los notebooks del curso', slug: 'notebooks', badge: { text: 'nuevo', variant: 'success' } },
+						{ label: 'Resúmenes imprimibles (PDF)', slug: 'resumenes', badge: { text: 'nuevo', variant: 'success' } },
+						{
+							label: 'Resúmenes por unidad',
+							collapsed: true,
+							items: ['fundamentos', 'regresion', 'regularizacion', 'clasificacion', 'generativos', 'svm', 'kernels', 'arboles'].map((u) => ({ slug: `resumenes/${u}` })),
+						},
+					],
+				},
+				{
+					label: '9 · Examen',
 					items: [
 						{ label: 'Banco de preguntas (oficial)', slug: 'examen/banco' },
 						{ label: 'Modo examen cronometrado', slug: 'examen/modo-examen', badge: { text: 'nuevo', variant: 'success' } },
 						{ label: 'Generador de ejercicios', slug: 'examen/generador', badge: { text: 'nuevo', variant: 'success' } },
+						{ label: 'Explícalo con tus palabras', slug: 'examen/explicalo', badge: { text: 'nuevo', variant: 'success' } },
 						{ label: 'Simulacro extra', slug: 'examen/simulacro' },
-						{ label: 'Flashcards', slug: 'examen/flashcards' },
+						{ label: 'Flashcards (repaso espaciado)', slug: 'examen/flashcards' },
 					],
 				},
 			],

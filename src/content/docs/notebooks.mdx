@@ -1,0 +1,145 @@
+---
+title: "Guía de los notebooks del curso"
+description: "Qué hace cada uno de los 22 notebooks de ML_Course (sesiones 01–07), en qué fijarse, qué ejercicio hacer y con qué página de teoría se conecta."
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Los notebooks de `lessons/ML_Course` son el complemento práctico de cada clase. Todos **construyen el método desde cero en NumPy y lo comparan con scikit-learn**, así que leerlos es la mejor forma de entender qué hace cada fórmula. Esta guía te dice qué mirar en cada uno para no perderte en el código.
+
+:::tip[Cómo correrlos]
+En una terminal, dentro de `lessons/ML_Course`: `jupyter lab`. Necesitas `numpy`, `pandas`, `matplotlib`, `scikit-learn` y `scipy`. Las salidas vienen **borradas**: ejecuta las celdas en orden (Shift + Enter). Las celdas marcadas `# <-- CHANGE ME` están hechas para editarlas y volver a correr. Si no quieres instalar nada, el [laboratorio de Python](/laboratorio/) de esta web reproduce lo esencial en el navegador.
+:::
+
+## Mapa rápido
+
+| Sesión | Notebooks | Tema | Teoría |
+| --- | --- | --- | --- |
+| 01 | 01a – 01e | datos, EDA, particiones, primer pipeline | [fundamentos](/fundamentos/intro/) |
+| 02 | 02a – 02d | regresión lineal desde cero | [regresión](/regresion/modelo/) |
+| 03 | 03a – 03c | sesgo–varianza, ridge/lasso, CV | [regularización](/regularizacion/sesgo-varianza/) |
+| 04 | 04a – 04d | logística, métricas, softmax | [clasificación](/clasificacion/logistica/) |
+| 05 | 05a – 05c | Naive Bayes, LDA, QDA | [generativos](/generativos/bayes/) |
+| 06–07 | 06a, 06b, 07 | SVM, dual, kernels | [SVM](/svm/geometria/), [kernels](/kernels/truco/) |
+
+<Tabs>
+<TabItem label="Sesión 01">
+
+### 01a · Datos estructurados
+- **Qué hace:** una tabla de departamentos → alquiler. Una fila = un ejemplo; separa la matriz $\mathbf{X}$ y el target $\mathbf{y}$; tipos de feature (continua, conteo, nominal, booleana); **one-hot**; escalas muy distintas; `DataFrame` → arreglo de NumPy.
+- **Fíjate en:** por qué una categoría nominal **nunca** se codifica como 1, 2, 3 (inventa un orden), y que las estadísticas para estandarizar salen **solo del train**.
+- **Ejercicio:** codifica con `pd.get_dummies(..., drop_first=True)`: ¿cuántas columnas quedan y por qué conviene quitar una?
+
+### 01b · Datos no estructurados
+- **Qué hace:** imágenes (matriz $H\times W$, tensor $H\times W\times 3$), sonido (señal, FFT, espectrograma), series de tiempo (ventanas para formar $(\mathbf{X},\mathbf{y})$) y un vistazo a texto (bolsa de palabras).
+- **Fíjate en:** aplanar una imagen o usar bolsa de palabras **pierde estructura**; en series de tiempo el test es **el futuro** (partición en orden temporal).
+- **Ejercicio:** muestra `digits.images[42]` como matriz y como imagen; ¿cuál es su etiqueta?
+
+### 01c · EDA y limpieza
+- **Qué hace:** `.info()`, `.describe()`, histogramas, faltantes; arregla tipos, categorías mal escritas, valores imposibles, duplicados; imputar vs eliminar; outliers con IQR.
+- **Fíjate en:** la regla **«partir antes de transformar»**: imputar o escalar con todo el dataset filtra información del test.
+- **Ejercicio:** imputa una columna con la mediana y con la media: ¿cuándo difieren mucho?
+
+### 01d · Train / validación / test
+- **Qué hace:** la partición en tres; la trampa de afinar en el test; la **maldición del ganador** (hasta con datos de puro ruido); validación cruzada; `GridSearchCV`; CV anidada; lista de fugas.
+- **Fíjate en:** la frase clave del notebook: *todo conjunto que usas para decidir, lo ajustas*. Por eso validación y test deben ser distintos. → Simulador equivalente: [maldición del ganador](/regularizacion/validacion-cruzada/).
+- **Ejercicio:** cambia el `random_state` de las particiones y vuelve a correr: ¿se mantiene la conclusión?
+
+### 01e · Primer pipeline completo
+- **Qué hace:** T/P/E → limpiar → separar test → `ColumnTransformer` + `Pipeline` → baseline → comparar modelos con CV → evaluar **una vez** en test → curva de sobreajuste → descenso de gradiente → guardar el modelo.
+- **Fíjate en:** el **baseline** (predecir la media) como vara de medir, y que todo el preprocesamiento vive dentro del pipeline.
+- **Ejercicio:** en la sección 9 prueba `lr = 0.005` y `lr = 0.2`: ¿cuál se arrastra y cuál diverge?
+
+</TabItem>
+<TabItem label="Sesión 02">
+
+### 02a · Modelo y costo
+- **Qué hace:** la recta $\hat y = w_0 + w_1x$, residuales, MSE, la superficie del costo como **bowl** (contorno y 3-D), búsqueda por fuerza bruta y la forma matricial.
+- **Fíjate en:** por qué sumar residuales no sirve (se cancelan) y por qué el bowl tiene **un solo mínimo**.
+- **Ejercicio:** sube el ruido (`noise=4.0`): ¿el bowl se vuelve más plano o más empinado cerca del mínimo?
+
+### 02b · Ecuaciones normales
+- **Qué hace:** deriva $\mathbf{X}^\top\mathbf{X}\boldsymbol\theta = \mathbf{X}^\top\mathbf{y}$, lo resuelve con `inv`, `solve` y `lstsq`, recupera coeficientes conocidos, compara con sklearn, muestra la **proyección** y qué pasa con features **colineales**.
+- **Fíjate en:** que `lstsq` es más estable que `inv`, y que $\mathbf{X}^\top\mathbf{r} = \mathbf{0}$ *es* la condición de las ecuaciones normales. → [Calculadora](/regresion/modelo/).
+- **Ejercicio:** escribe en una línea `fit_normal(X, y)` y compáralo con `LinearRegression`.
+
+### 02c · Descenso de gradiente
+- **Qué hace:** batch GD desde cero, la tasa de aprendizaje, cómo el **escalado** cambia la forma del bowl, SGD y mini-batch, un estimador propio comparado con sklearn.
+- **Fíjate en:** el zigzag en un valle alargado y cómo desaparece al estandarizar. → [Curvas de nivel](/regresion/gradiente/).
+- **Ejercicio:** encuentra la tasa de aprendizaje más grande que todavía converge.
+
+### 02d · Evaluación y complejidad
+- **Qué hace:** MSE/RMSE/MAE/$R^2$ desde cero, evaluar en datos separados, outliers, **features polinómicas**, interacciones, la curva en U y los **pesos que explotan**, un adelanto de ridge, el dataset diabetes.
+- **Fíjate en:** «lineal» significa lineal en los **parámetros**. → [Polinomios](/regresion/evaluacion/).
+
+</TabItem>
+<TabItem label="Sesión 03">
+
+### 03a · Sesgo–varianza simulado
+- **Qué hace:** el experimento mental hecho código: re-muestrear, re-ajustar, y **medir** sesgo², varianza y σ² por Monte Carlo; la U al barrer el grado.
+- **Fíjate en:** sesgo² baja y varianza sube con la complejidad; su suma más σ² es la U. → [Simulador](/regularizacion/sesgo-varianza/).
+- **Ejercicio:** sube `NOISE_SD`: ¿qué términos se mueven y dónde queda el mejor grado?
+
+### 03b · Ridge y lasso desde cero
+- **Qué hace:** pesos que explotan; ridge en forma cerrada; lasso por **descenso por coordenadas con soft-threshold**; los mapas de encogimiento; caminos de coeficientes.
+- **Fíjate en:** el soft-threshold en código y cómo los pesos del lasso llegan a **exactamente** cero. → [Geometría ℓ1/ℓ2](/regularizacion/ridge-lasso/).
+- **Ejercicio:** agrega dos copias correlacionadas de una feature: ¿qué hace el lasso (elige una) y qué hace ridge (las reparte)?
+
+### 03c · Selección con validación cruzada
+- **Qué hace:** por qué una partición es ruidosa, K-fold desde cero (igual a sklearn), elegir λ en el mínimo de CV, el flujo honesto sin fugas, ridge vs lasso en diabetes.
+- **Fíjate en:** en diabetes, la regularización casi **empata** con OLS en RMSE; su ganancia es la **esparsidad** del lasso.
+- **Ejercicio:** aplica la regla de 1 error estándar: ¿generaliza igual el λ más simple?
+
+</TabItem>
+<TabItem label="Sesión 04">
+
+### 04a · El modelo logístico
+- **Qué hace:** por qué una recta no es probabilidad, la sigmoide estable, odds y log-odds, el **odds ratio** $e^{w_j}$, la frontera como punto (1-D) y recta (2-D), la neurona.
+- **Ejercicio:** sube la pendiente verdadera a `w=4.0`: ¿la sigmoide se afila? ¿se mueve $x^*$? → [Sigmoide](/clasificacion/logistica/).
+
+### 04b · Entrenar desde cero
+- **Qué hace:** por qué no error cuadrático (gradiente que se apaga, no convexo), cross-entropy como −log-verosimilitud, el gradiente $\mathbf{X}^\top(\mathbf{p}-\mathbf{y})/n$ **verificado con diferencias finitas**, convexidad, regularización L2.
+- **Fíjate en:** el chequeo numérico del gradiente: es la forma de verificar cualquier derivada que implementes. → [Superficie de pérdida](/clasificacion/entrenamiento/).
+- **Ejercicio:** prueba `lr=5.0` y `lr=0.02`: ¿cuál diverge y cuál se arrastra?
+
+### 04c · Evaluar un clasificador
+- **Qué hace:** matriz de confusión, precision/recall/F1, el umbral como perilla, ROC y AUC desde cero, por qué la accuracy miente con desbalance (cáncer de mama).
+- **Fíjate en:** AUC = probabilidad de que un positivo al azar tenga mayor score que un negativo al azar. → [Calculadora de métricas](/clasificacion/metricas/).
+- **Ejercicio:** elige el umbral que logra recall ≥ 0.98: ¿cuántas falsas alarmas cuesta?
+
+### 04d · Softmax
+- **Qué hace:** softmax estable, un score por clase, cross-entropy y su gradiente, la logística como softmax con K = 2, regiones de decisión, dígitos escritos a mano.
+- **Ejercicio:** comprueba que sumar una constante a todos los scores no cambia la softmax. → [Regiones](/clasificacion/softmax/).
+
+</TabItem>
+<TabItem label="Sesión 05">
+
+### 05a · Naive Bayes gaussiano
+- **Qué hace:** una gaussiana por feature y clase, el supuesto «naive» (producto), el clasificador en log-espacio, la frontera, datos reales (wine); coincide exactamente con `GaussianNB` (incluido `var_smoothing`).
+- **Fíjate en:** entrenar es **contar y promediar**: no hay optimizador ni tasa de aprendizaje. → [Naive Bayes](/generativos/naive-bayes/).
+
+### 05b · LDA y QDA
+- **Qué hace:** la covarianza como forma (elipses inclinadas), ajustar $\mu_k$, $\Sigma_k$ y la Σ agrupada, el discriminante $\delta_k$, QDA curva vs LDA recta con $\mathbf{w}=\Sigma^{-1}(\mu_1-\mu_0)$, el posterior de LDA como sigmoide.
+- **Fíjate en:** una convención de sklearn: su QDA divide por $N_k - 1$. → [LDA en 1-D](/generativos/lda-qda/).
+
+### 05c · Comparar los generativos
+- **Qué hace:** las tres fronteras lado a lado; cuántos datos necesita cada uno; el régimen donde las clases sí comparten forma; datos reales; regla práctica para elegir.
+- **Fíjate en:** con pocos datos el modelo más simple suele ganar aunque su supuesto sea falso; QDA se rompe con $d$ grande (necesita regularización). → [Curvas generativo vs discriminativo](/generativos/lda-qda/).
+
+</TabItem>
+<TabItem label="Sesiones 06–07">
+
+### 06a · Margen máximo y margen suave
+- **Qué hace:** el ejemplo de tres puntos verificado a mano; margen funcional vs geométrico; **solo los vectores de soporte importan** (agregar puntos lejanos deja `coef_` idéntico bit a bit); margen suave, los tres casos y el barrido de C; la hinge como pérdida + penalización; por qué escalar en cáncer de mama.
+- **Fíjate en:** el experimento de agregar puntos lejanos sin cambiar nada. → [Arrastra los puntos](/svm/geometria/).
+
+### 06b · El dual y el truco del kernel
+- **Qué hace:** resuelve el dual con SciPy (SLSQP) y recupera $\boldsymbol\alpha = (\tfrac12,\tfrac12,1)$, $\mathbf{w}=(1,1)$, $b=-1$; dualidad fuerte y $\sum\alpha_i = \Vert\mathbf{w}\Vert^2$; los tres casos KKT; esparsidad; la predicción solo usa productos internos; mapa explícito vs kernel polinómico.
+- **Fíjate en:** con cambiar **una línea** (el producto interno por un kernel) el mismo solver se vuelve un SVM RBF. → [Explorador del dual](/svm/dual/).
+
+### 07 · Kernels en la práctica
+- **Qué hace:** kernels válidos (Gram simétrica PSD, con autovalores) y dos impostores que fallan; la Gram como mapa de similitud; el zoo y el RBF infinito truncado; γ como dial de complejidad y la grilla (C, γ); kernel ridge en forma cerrada, igual a ridge con kernel lineal; comparación honesta en diabetes.
+- **Fíjate en:** el impostor `tanh` y la distancia: autovalores negativos. → [Prueba PSD](/kernels/practica/).
+
+</TabItem>
+</Tabs>

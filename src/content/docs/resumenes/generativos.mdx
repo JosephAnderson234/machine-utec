@@ -1,0 +1,43 @@
+---
+title: "Resumen 4 · Modelos generativos: Bayes, Naive Bayes, LDA y QDA"
+description: "Resumen imprimible de una página: ideas clave, fórmulas y trampas de examen de Modelos generativos: Bayes, Naive Bayes, LDA y QDA."
+tableOfContents: false
+prev: false
+next: false
+---
+
+<p class="no-print"><a href="/pdf/resumen-generativos.pdf" download>⬇ Descargar PDF</a> · <a href="/generativos/bayes/">ir a la teoría completa</a> · imprime con Ctrl + P</p>
+
+## Ideas clave
+
+- **Generativo:** modela $p(\mathbf{x}\mid y)$ y $P(y)$, luego Bayes. **Discriminativo:** $P(y\mid\mathbf{x})$ directo.
+- Regla **MAP**: $\hat y = \arg\max_k \pi_k\,p(\mathbf{x}\mid y=k)$; la evidencia $p(\mathbf{x})$ no cambia al ganador. MAP = MLE + prior.
+- MLE = **contar y promediar**: $\pi_k = N_k/N$, medias, varianzas, covarianzas.
+- **Naive Bayes:** independencia condicional; $d$ parámetros en vez de $2^d$; decidir con logs; Laplace evita ceros (MAP); probabilidades sobreconfiadas.
+- **LDA:** Σ compartida ⇒ el término cuadrático se cancela ⇒ frontera **lineal**, posterior $\sigma(\mathbf{w}^\top\mathbf{x}+b)$. **QDA:** $\Sigma_k$ propias ⇒ **cuadrática**, más parámetros.
+- Pocos datos ⇒ generativo aprende más rápido; muchos datos o supuestos falsos ⇒ discriminativo (Ng y Jordan).
+
+## Fórmulas
+
+$$
+P(y=k\mid\mathbf{x}) = \frac{\pi_k\,p(\mathbf{x}\mid y=k)}{\sum_j \pi_j\,p(\mathbf{x}\mid y=j)}
+$$
+
+$$
+p(w\mid y=k) = \frac{\text{count}(w,k)+\alpha}{\text{total}(k)+\alpha V}
+$$
+
+$$
+D^2 = (\mathbf{x}-\boldsymbol\mu)^\top\Sigma^{-1}(\mathbf{x}-\boldsymbol\mu),\qquad \delta_k = \log\pi_k - \tfrac12 D_k^2 - \tfrac12\log\lvert\Sigma_k\rvert
+$$
+
+$$
+\text{LDA: } \mathbf{w} = \Sigma^{-1}(\boldsymbol\mu_1-\boldsymbol\mu_0),\qquad \text{1-D: } x^* = \frac{\mu_0+\mu_1}{2} - \frac{\sigma^2}{\mu_1-\mu_0}\log\frac{\pi_1}{\pi_0}
+$$
+
+## Trampas de examen
+
+- $\pi_k = N_k/N$, no $N_k/K$.
+- LDA = Σ **compartida**; QDA = Σ **propia**.
+- Gaussian NB: $2Kd$ números (+ priors).
+- Prior raro ⇒ la frontera se corre hacia la clase rara.

@@ -1792,3 +1792,30 @@ figure.diagram .katex svg {
 	height: inherit;
 	max-width: none;
 }
+
+/* Impresión: anular animaciones de entrada (GSAP deja títulos con opacidad 0) y compactar */
+@media print {
+	.sl-markdown-content :is(h1, h2, h3, p, li, .katex-display, .sl-heading-wrapper) {
+		opacity: 1 !important;
+		transform: none !important;
+	}
+	.sl-markdown-content h2 {
+		font-size: 13pt !important;
+		margin-top: 0.9rem !important;
+		margin-bottom: 0.2rem !important;
+	}
+	.sl-markdown-content :is(li, p) {
+		margin-top: 0.15rem !important;
+		line-height: 1.4 !important;
+	}
+	.sl-markdown-content .katex-display {
+		margin: 0.35rem 0 !important;
+		padding: 0 !important;
+	}
+	.content-panel h1 {
+		font-size: 18pt !important;
+	}
+	.content-panel {
+		padding-block: 0.4rem !important;
+	}
+}
