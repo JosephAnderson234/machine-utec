@@ -1,0 +1,49 @@
+---
+title: "Resumen 8 · Ensambles: bagging, random forest y boosting"
+description: "Resumen imprimible de una página: ideas clave, fórmulas y trampas de examen de Ensambles: bagging, random forest y boosting."
+tableOfContents: false
+prev: false
+next: false
+---
+
+<p class="no-print"><a href="/ensambles/equipos/">ir a la teoría completa</a> · imprime con Ctrl + P (o guarda como PDF)</p>
+
+## Ideas clave
+
+- **Sabiduría de la multitud** (Galton, 787 adivinanzas): el promedio de muchos le gana al típico individuo **si sus errores no coinciden**.
+- Votar ayuda solo si cada miembro es mejor que el azar **y** sus errores son poco correlacionados: 3 votantes de 70 % → 0.784; de 40 % → 0.352; con los mismos 3 errores → 7/10.
+- Promediar baja la **varianza** ($\sigma^2/n$ si son independientes), **no el sesgo**. Por eso se promedian modelos de varianza alta: árboles profundos, no stumps.
+- **Bagging** = bootstrap + agregar (voto o promedio). Cada bootstrap deja fuera ~36.8 % de las filas: el puntaje **out-of-bag** es una validación gratis. Más árboles no sobreajusta: solo estabiliza.
+- **Random forest**: bagging + en cada split solo `max_features` features al azar («banca a la estrella») ⇒ árboles menos parecidos ⇒ el promedio baja más la varianza.
+- **Boosting** es secuencial: cada modelo débil corrige al anterior. AdaBoost re-pesa los errores; gradient boosting ajusta los **residuos** (gradiente negativo). Baja el **sesgo**; puede sobreajustar con muchas rondas ⇒ learning rate pequeño + early stopping.
+- **Voting / stacking**: equipos de modelos distintos; stacking aprende cómo combinarlos con predicciones out-of-fold.
+
+## Fórmulas
+
+$$
+P(\text{mayoría de 3 acierta}) = p^3 + 3p^2(1-p)
+$$
+
+$$
+\operatorname{Var}(\bar f) = \rho\,\sigma^2 + \frac{1-\rho}{n}\,\sigma^2 \quad(\rho = \text{correlación entre miembros})
+$$
+
+$$
+P(\text{fila fuera del bootstrap}) = (1-1/n)^n \to e^{-1}\approx0.368
+$$
+
+$$
+\alpha_m = \tfrac12\ln\frac{1-\varepsilon_m}{\varepsilon_m},\qquad F(\mathbf{x}) = \operatorname{sign}\textstyle\sum_m \alpha_m h_m(\mathbf{x})
+$$
+
+$$
+F_m(\mathbf{x}) = F_{m-1}(\mathbf{x}) + \eta\,h_m(\mathbf{x}),\quad h_m \approx y - F_{m-1}(\mathbf{x})\ \text{(residuos)}
+$$
+
+## Trampas de examen
+
+- Promediar **no** arregla el sesgo: 100 stumps promediados siguen siendo un stump.
+- Bagging con 1,000 árboles no sobreajusta; boosting con 1,000 rondas sí puede.
+- Con $\varepsilon=0.5$ el voto de AdaBoost es 0 (moneda); con $\varepsilon>0.5$ sería negativo.
+- La importancia de variables (MDI) no es causalidad y favorece features con muchos cortes posibles.
+- Árboles muy correlacionados limitan la mejora: el término $\rho\sigma^2$ no baja con $n$.

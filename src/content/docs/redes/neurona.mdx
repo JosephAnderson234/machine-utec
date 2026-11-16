@@ -1,0 +1,183 @@
+---
+title: "11.1 · Una neurona y el muro de XOR"
+description: "Multiplicar, sumar y doblar; frontera recta; prueba de las diagonales de XOR."
+---
+import Solucion from '../../../components/Solucion.astro';
+
+import EnSimple from '../../../components/EnSimple.astro';
+import Pasos from '../../../components/Pasos.astro';
+import CasoUso from '../../../components/CasoUso.astro';
+import Quiz from '../../../components/Quiz.tsx';
+import Conexiones from '../../../components/Conexiones.astro';
+import Recursos from '../../../components/Recursos.astro';
+import Fuente from '../../../components/Fuente.astro';
+import NeuronaXor from '../../../components/sim/NeuronaXor.tsx';
+import { R } from '../../../data/recursos';
+
+<EnSimple id="redes/neurona" />
+
+## Empieza aquí: tres cuentas y una decisión
+
+Una neurona recibe dos números. En la diapositiva, los pesos son $(2,-1)$ y el sesgo $-1$. Primero calcula $z=2x_1-x_2-1$; después convierte $z$ en un valor entre 0 y 1 mediante la *sigmoide* (curva en S) $a=1/(1+e^{-z})$. Si $a>1/2$, responde 1.
+
+**Tu turno — multiplica, suma y dobla.** Antes de seguir, calcula $z$, la probabilidad y la clase para A $(1,1)$, B $(2,1)$ y C $(0,1)$.
+
+<Solucion>
+
+1. A: $z=2(1)-1-1=0$; $\sigma(0)=0.5$. Está en la frontera y la regla estricta $>0.5$ le da clase 0.
+2. B: $z=2(2)-1-1=2$; $\sigma(2)\approx0.881$. Da clase 1.
+3. C: $z=2(0)-1-1=-2$; $\sigma(-2)\approx0.119$. Da clase 0. La sigmoide es creciente, así que el signo del score basta para decidir.
+
+| Punto | Cuenta de $z$ | $a$ aproximado | Respuesta |
+| --- | --- | --- | --- |
+| A $(1,1)$ | $2-1-1=0$ | $0.500$ | 0 con la regla estricta $>1/2$ |
+| B $(2,1)$ | $4-1-1=2$ | $0.881$ | 1 |
+| C $(0,1)$ | $0-1-1=-2$ | $0.119$ | 0 |
+
+</Solucion>
+
+<figure>
+<svg viewBox="0 0 520 130" role="img" aria-label="Dos entradas con pesos llegan a una suma y luego a una activación">
+  <g fill="none" stroke="currentColor" stroke-width="2"><path d="M75 30 L220 62 M75 100 L220 68 M290 65 L430 65"/></g>
+  <g fill="var(--sl-color-accent)"><circle cx="250" cy="65" r="35"/><circle cx="450" cy="65" r="33"/></g>
+  <g fill="var(--sl-color-white)" font-size="17" text-anchor="middle"><text x="48" y="36">x₁</text><text x="48" y="106">x₂</text><text x="250" y="70">Σ+b</text><text x="450" y="70">σ(z)</text></g>
+  <g fill="currentColor" font-size="14"><text x="128" y="28">×w₁</text><text x="130" y="110">×w₂</text></g>
+</svg>
+<figcaption><strong>Cómo leerlo:</strong> cada flecha multiplica una entrada; el círculo central suma y añade el sesgo; la salida dobla el resultado.</figcaption>
+</figure>
+
+## Puente: de cuentas a frontera
+
+Eso es una **neurona artificial**: $z=\mathbf w^\top\mathbf x+b$, $a=\phi(z)$. La sigmoide es creciente y cruza $1/2$ en $z=0$, así que la decisión anterior equivale a preguntar si $2x_1-x_2-1>0$. En dos dimensiones, $z=0$ es **una recta**. Cambiar la activación monotónica no cambia esa frontera.
+
+El caso límite de las cuatro esquinas, llamado XOR (*exclusive OR*, «o exclusivo»), pide 1 si las entradas difieren:
+
+| $x_1$ | $x_2$ | XOR |
+| --- | --- | --- |
+| 0 | 0 | 0 |
+| 0 | 1 | 1 |
+| 1 | 0 | 1 |
+| 1 | 1 | 0 |
+
+<NeuronaXor client:visible />
+
+## La prueba del muro
+
+<Pasos titulo="Por qué ninguna recta resuelve XOR">
+
+1. Escribe el score antes de activar: $f(x_1,x_2)=w_1x_1+w_2x_2+b$.
+2. En la diagonal de clase 0, $f(0,0)+f(1,1)=b+(w_1+w_2+b)=w_1+w_2+2b$.
+3. En la diagonal de clase 1, $f(0,1)+f(1,0)=(w_2+b)+(w_1+b)=w_1+w_2+2b$.
+4. XOR exige que ambos scores de la primera diagonal sean $≤ 0$ y ambos de la segunda sean $>0$. Entonces las dos sumas tendrían signos distintos, aunque son iguales. Imposible.
+5. Sí se aciertan tres esquinas: $f=x_1+x_2-0.5$ falla solo en $(1,1)$. Por ello **3/4 es el techo** de una neurona.
+
+</Pasos>
+
+La clase probó **274,625 neuronas** en una cuadrícula de parámetros y ninguna llegó a cuatro aciertos. La identidad de arriba explica por qué cualquier búsqueda, aunque pruebe infinitos parámetros, fracasará. XNOR (invertir las etiquetas) tiene el mismo obstáculo.
+
+<figure><svg viewBox="0 0 480 220" role="img" aria-label="Las dos diagonales de XOR tienen la misma suma de scores"><rect x="60" y="25" width="150" height="150" fill="none" stroke="var(--sl-color-text)"/><circle cx="60" cy="175" r="9" fill="var(--sl-color-accent)"/><circle cx="210" cy="25" r="9" fill="var(--sl-color-accent)"/><rect x="51" y="16" width="18" height="18" fill="var(--sl-color-text)"/><rect x="201" y="166" width="18" height="18" fill="var(--sl-color-text)"/><path d="M63 171L206 29M65 29L205 171" stroke="var(--sl-color-accent)" stroke-width="2" stroke-dasharray="5 5"/><g fill="var(--sl-color-text)" font-size="16"><text x="250" y="58">círculos: (0,0), (1,1)</text><text x="250" y="94">cuadrados: (0,1), (1,0)</text><text x="250" y="145">cada diagonal suma</text><text x="250" y="169">w₁ + w₂ + 2b</text></g></svg><figcaption><strong>Cómo leerlo:</strong> las clases ocupan diagonales alternadas. Una recta que deja los cuadrados a un lado no puede dejar ambos círculos al otro: las sumas de scores de ambas diagonales son iguales.</figcaption></figure>
+
+## Actividades de las diapositivas: intenta antes de abrir
+
+**Tu turno — dibuja las cuatro esquinas.** Coloca círculos en $(0,0)$ y $(1,1)$ y cuadrados en $(0,1)$ y $(1,0)$. Traza una recta que separe las dos clases. Si no la encuentras, explica por qué dos rectas sí podrían hacerlo.
+
+<Solucion>
+
+1. Las esquinas de cada clase están enfrentadas, no juntas.
+2. Cualquier recta que ponga $(0,1)$ y $(1,0)$ del lado positivo debe dar scores positivos en ambas. Su suma es $w_1+w_2+2b$.
+3. Para poner $(0,0)$ y $(1,1)$ del lado negativo, su suma debería ser negativa. Es la misma expresión. Contradicción.
+4. Dos cortes sucesivos sí sirven: primero preguntar OR y luego excluir el caso AND. Eso motiva la red de la siguiente página.
+
+</Solucion>
+
+**Tu turno — inventa pesos enteros.** Elige $w_1=2$, $w_2=-1$, $b=-1$. Calcula los cuatro scores y suma por diagonales. ¿Qué patrón permanece si cambias los tres números?
+
+<Solucion>
+
+En orden $(0,0),(0,1),(1,0),(1,1)$ los scores son $-1,-2,1,0$. Las diagonales suman $-1+0=-1$ y $-2+1=-1$. La igualdad siempre se mantiene porque cada diagonal contiene una vez $w_1$, una vez $w_2$ y dos veces $b$.
+
+</Solucion>
+
+**Predice primero — diez puntos.** En los diez puntos del tema de árboles, una regresión logística entrenada acierta 7. ¿Es el máximo que puede lograr una recta? Prueba el score $6x_1+5x_2-63.5$.
+
+<Solucion>
+
+No. Esa recta acierta 9 de 10; solo falla el punto $(7,2)$. Por ejemplo, $(3,9)$ da $18+45-63.5=-0.5$, $(8,3)$ da $48+15-63.5=-0.5$ y $(6,5)$ da $36+25-63.5=-2.5$. La regresión logística optimiza probabilidades mediante entropía cruzada, no el número de aciertos. El mejor score lineal tampoco alcanza 10, por el patrón de etiquetas.
+
+</Solucion>
+
+**Compruébalo — el muro.** (a) Si inviertes las etiquetas, ¿puede una neurona resolver XNOR? (b) ¿Puede hacerlo una suma de mil tocones que solo miran $x_1$ o $x_2$? (c) ¿Qué término simple rompe la igualdad?
+
+<Solucion>
+
+1. XNOR solo intercambia qué diagonal debe ser positiva. La contradicción no cambia.
+2. Cada tocón aporta una función $g(x_1)$ o $h(x_2)$. Al sumarlos resulta una función aditiva; ambas diagonales aún suman lo mismo. Mil rondas no cambian esa estructura.
+3. El producto $x_1x_2$ vale 1 solo en $(1,1)$. El score $x_1+x_2-2x_1x_2-0.5$ da $(-0.5,0.5,0.5,-0.5)$ y sí separa.
+
+</Solucion>
+
+## Lo que muestran los diez puntos y el boosting
+
+La diapositiva **«One neuron draws one straight line»** retoma los diez puntos del tema de árboles: una neurona logística solo puede mover y girar su recta $w_1x_1+w_2x_2+b=0$. Cada score positivo queda en un semiplano. La sigmoide cambia la confianza, pero, por ser creciente, conserva el lado elegido. En esos diez puntos una recta no representa todas las etiquetas. Este hecho separa la **capacidad del modelo** del éxito del algoritmo que busca pesos.
+
+**«Measured: boosting on the corners»** hace la misma prueba con boosting de tocones. Tras 1,000 rondas solo acierta 2 de 4 en esa corrida. La cuenta exacta anterior explica el límite estructural: al sumar reglas que miran una coordenada cada una, el modelo sigue siendo $g(x_1)+h(x_2)$. Un árbol con profundidad dos sí puede preguntar por ambas coordenadas en secuencia.
+
+### Ir más a fondo (opcional): interacción discreta
+
+La igualdad de diagonales puede medirse como una diferencia. En las cuatro esquinas, esa diferencia detecta si existe interacción entre las entradas.
+
+<Pasos titulo="Derivar el contraste de interacción">
+
+1. Define $D=f(1,1)-f(1,0)-f(0,1)+f(0,0)$. Restar los cambios de cada coordenada deja solo el efecto de combinarlas.
+2. Para $f=g(x_1)+h(x_2)+b$, sustituye los cuatro valores. $g(1)$ aparece una vez con signo positivo y una con negativo; lo mismo ocurre con $g(0)$, $h(1)$, $h(0)$ y $b$. Por tanto $D=0$.
+3. Para $f=x_1x_2$, solo $f(1,1)=1$; los otros tres valores valen cero. Así $D=1$.
+4. Para una regla XOR con scores $(-0.5,0.5,0.5,-0.5)$, $D=-2$. Un contraste no nulo certifica que el modelo ya combina las variables.
+
+</Pasos>
+
+## Diapositivas de esta página
+
+«Let's start with four points» (el reto inicial), «A neuron: multiply, add, bend» (la cuenta $z$ y la sigmoide), «One neuron draws one straight line» (los diez puntos), «Four corners: what can one neuron do?» (techo 3/4), «Why no line can: add the diagonals» (prueba), «Not only lines: any model that adds» (mismo obstáculo para sumas), «Measured: boosting on the corners» (1,000 tocones) y «Check yourself: the wall» (ejercicios de arriba).
+
+## Errores típicos
+
+- Decir que la sigmoide curva la **frontera** de una neurona. Curva la probabilidad; el umbral $1/2$ sigue siendo una recta.
+- Confundir XOR con OR: en $(1,1)$, OR vale 1 y XOR vale 0.
+- Interpretar 274,625 pruebas fallidas como una prueba estadística. La prueba es la igualdad de diagonales.
+- Suponer que más tocones independientes crean interacción entre $x_1$ y $x_2$.
+
+:::caution[Trampa de examen]
+Más épocas, otra tasa de aprendizaje o más datos repetidos no cambian qué funciones puede representar una sola neurona. Primero distingue un problema de **representación** de uno de **optimización**.
+:::
+
+### Ir más a fondo (opcional): por qué una suma de tocones tampoco basta
+
+Un tocón sobre $x_1$ o $x_2$ aporta una función de una sola variable. Una suma aditiva tiene forma $f(x_1,x_2)=g(x_1)+h(x_2)+b$, y satisface exactamente la misma igualdad de diagonales. Para romperla hace falta una **interacción**, por ejemplo $x_1x_2$: $x_1+x_2-2x_1x_2-0.5$ da scores $(-0.5,0.5,0.5,-0.5)$ en las cuatro esquinas. Esta es la pista de lo que hará una capa oculta.
+
+```python
+import numpy as np
+X = np.array([[0, 0], [0, 1], [1, 0], [1, 1]])
+score = X[:, 0] + X[:, 1] - 2 * X[:, 0] * X[:, 1] - 0.5
+print(score.tolist())
+# [-0.5, 0.5, 0.5, -0.5]
+```
+
+<CasoUso titulo="Filtro de reglas simples" sector="clasificación" icono="🧩">
+Una neurona logística es útil si una combinación lineal de variables basta para decidir. Por ejemplo, un score de riesgo puede sumar aportes de edad y presión. Si la regla depende de «uno u otro, pero no ambos», verifica interacciones o usa una red con capa oculta.
+</CasoUso>
+
+<Quiz client:visible id="redes-neurona" preguntas={[
+  {q:'Con w=(2,-1), b=-1, ¿cuál es z en (2,1)?',opts:['0','1','2','4'],ok:2},
+  {q:'Si z=0, ¿qué devuelve la sigmoide?',opts:['0','0.5','1','No está definida'],ok:1},
+  {q:'La frontera de una neurona de dos entradas con sigmoide es…',opts:['una recta','un círculo','dos rectas','cualquier curva'],ok:0},
+  {q:'Máximo de aciertos de una sola neurona en XOR',opts:['2/4','3/4','4/4','depende de los datos'],ok:1},
+  {q:'¿Cuánto vale f(0,0)+f(1,1) para f=w₁x₁+w₂x₂+b?',opts:['b','w₁+w₂+b','w₁+w₂+2b','0'],ok:2},
+  {q:'¿Qué término rompe la identidad de diagonales?',opts:['otro sesgo','x₁x₂','w₁x₁','una sigmoide final'],ok:1},
+  {q:'¿Más épocas permiten a una neurona representar XOR?',opts:['Sí','No'],ok:1},
+  {q:'Para f=2x₁−x₂−1, ¿cuánto suman los scores de cada diagonal?',opts:['-2','-1','0','1'],ok:1},
+]} />
+
+<Conexiones items={[{href:'/clasificacion/logistica/',titulo:'Regresión logística',texto:'Una sigmoide sobre un score afín: la misma frontera recta.'},{href:'/arboles/cart/',titulo:'Árboles y XOR',texto:'Un árbol necesita mirar dos niveles para expresar la interacción.'},{href:'/ensambles/boosting/',titulo:'Boosting aditivo',texto:'Sumar tocones de una sola variable conserva el muro de XOR.'}]} />
+
+<Recursos items={[R.playground, R.g3b1bLA]} />
+<Fuente archivos={['ML_Course_Neural_Networks_I.pdf (slides 5–11)', '03-neural-networks-from-scratch-and-in-scikit-learn.ipynb']} />

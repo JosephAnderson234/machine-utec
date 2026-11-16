@@ -1,0 +1,50 @@
+---
+title: "Resumen 11–12 · Redes neuronales I y II"
+description: "Resumen imprimible de una página: ideas clave, fórmulas y trampas de examen de Redes neuronales I y II."
+tableOfContents: false
+prev: false
+next: false
+---
+
+<p class="no-print"><a href="/redes/neurona/">ir a la teoría completa</a> · imprime con Ctrl + P (o guarda como PDF)</p>
+
+## Ideas clave
+
+- Una **neurona**: multiplicar, sumar, doblar: $a = g(\mathbf w^\top\mathbf x + b)$. Sola dibuja **una recta**: es una regresión logística.
+- **XOR** no se puede con una recta: $f(0,0)+f(1,1) = f(1,0)+f(0,1)$ para todo modelo **aditivo** (también boosting de stumps).
+- Una **capa oculta** mueve los puntos a un espacio donde sí hay recta (OR + NAND → AND). Cada capa: **mezclar** (lineal) y **doblar** (activación). Sin activación, todo colapsa a un modelo lineal.
+- **Aproximación universal**: una capa oculta ancha aproxima cualquier función continua en un compacto, pero **no** dice cuántas unidades, ni que el entrenamiento las encuentre, ni que generalice.
+- **Cabezas**: regresión = lineal + MSE; binaria = sigmoide + cross-entropy; multiclase = softmax + cross-entropy. Error de salida = **predicho − real**.
+- **Backpropagation**: regla de la cadena de atrás hacia adelante; cuesta lo mismo que unos pocos forward. Verificar con gradiente numérico.
+- **Tasa η**: en un tazón de curvatura $c$, el factor por paso es $1-\eta c$: óptimo $\eta=1/c$, diverge si $\eta>2/c$. Curvaturas muy distintas = **mal condicionamiento**.
+- **Momentum** acumula gradientes; **Adam** da un paso por peso (con corrección de sesgo). Mini-batches: ruido útil y barato. **Inicializar** con escala Glorot/He (no en cero), **estandarizar** entradas, **weight decay** (AdamW), **early stopping**, **dropout**.
+
+## Fórmulas
+
+$$
+\mathbf a^{(l)} = g\bigl(W^{(l)}\mathbf a^{(l-1)} + \mathbf b^{(l)}\bigr),\qquad \text{ReLU}(z)=\max(0,z)
+$$
+
+$$
+\boldsymbol\delta^{(L)} = \hat{\mathbf y}-\mathbf y,\qquad \boldsymbol\delta^{(l)} = \bigl(W^{(l+1)\top}\boldsymbol\delta^{(l+1)}\bigr)\odot g'(\mathbf z^{(l)}),\qquad \frac{\partial L}{\partial W^{(l)}} = \boldsymbol\delta^{(l)}\mathbf a^{(l-1)\top}
+$$
+
+$$
+w_{t+1} = (1-\eta c)\,w_t,\qquad \eta^\star = 1/c,\qquad \text{diverge si } \eta > 2/c,\qquad \eta_{\text{compromiso}} = \frac{2}{c_{\min}+c_{\max}}
+$$
+
+$$
+\mathbf v_t = \beta\mathbf v_{t-1} + \nabla L,\quad \mathbf w \leftarrow \mathbf w - \eta\mathbf v_t\quad(\text{paso estable} \approx \tfrac{1}{1-\beta}\times)
+$$
+
+$$
+\hat{\mathbf m}_t = \frac{\mathbf m_t}{1-\beta_1^t},\quad \hat{\mathbf v}_t = \frac{\mathbf v_t}{1-\beta_2^t},\quad \mathbf w \leftarrow \mathbf w - \eta\,\frac{\hat{\mathbf m}_t}{\sqrt{\hat{\mathbf v}_t}+\epsilon}
+$$
+
+## Trampas de examen
+
+- Pesos en cero ⇒ todas las unidades ocultas iguales para siempre (simetría).
+- Con $\eta = 2/c$ oscila sin bajar; con $\eta>2/c$ explota.
+- La aproximación universal no garantiza aprender ni generalizar.
+- Dropout se apaga en test (con la versión «invertida» se divide entre $p$ al entrenar).
+- Con Adam, usa weight decay desacoplado (AdamW), no L2 en la pérdida.

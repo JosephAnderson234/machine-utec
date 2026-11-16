@@ -1,3 +1,8 @@
+import { JERGA_ENSAMBLES } from './final/ensambles';
+import { JERGA_CLUSTERING } from './final/clustering';
+import { JERGA_REDUCCION } from './final/reduccion';
+import { JERGA_REDES } from './final/redes';
+import { JERGA_MLOPS } from './final/mlops';
 // Diccionario de jerga → explicación en lenguaje simple. Se usa para los tooltips automáticos del texto:
 // la primera aparición de cada término en una página queda subrayada con puntos.
 // [formas en que aparece en el texto (sin importar mayúsculas), explicación]
@@ -94,4 +99,9 @@ export const JERGA: [string[], string][] = [
 	[['estocástico', 'SGD'], 'Que usa un ejemplo (o un grupito) al azar en cada paso: más rápido pero más «tembloroso».'],
 	[['R²', 'coeficiente de determinación'], 'Qué tanto mejor es el modelo que predecir siempre el promedio. 1 = perfecto, 0 = igual que el promedio.'],
 	[['RMSE', 'MSE', 'MAE'], 'Formas de medir el error típico de una predicción numérica (RMSE y MAE están en las mismas unidades que lo que predices).'],
+	...JERGA_ENSAMBLES,
+	...JERGA_CLUSTERING,
+	...JERGA_REDUCCION,
+	...JERGA_REDES,
+	...JERGA_MLOPS,
 ];

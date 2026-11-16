@@ -1,6 +1,9 @@
-# CS3061 · Machine Learning — web de estudio (Parte 1)
+# CS3061 · Machine Learning — web de estudio (parcial y final)
 
-Web interactiva para repasar la primera parte de Machine Learning (UTEC 2026-II): regresión lineal, regularización, logística y métricas, modelos generativos, SVM, kernels y árboles de decisión.
+Web interactiva para repasar Machine Learning (UTEC 2026-II).
+
+- **Final (unidades 8–13):** ensambles, clustering, reducción de dimensionalidad, redes neuronales I y II, MLOps. Ruta en `/final/`, plan de contenido en `PLAN-FINAL.md`, simulacro en `/examen/simulacro-final/`. Datos por unidad (En simple, jerga, glosario, flashcards) en `src/data/final/<unidad>.ts`.
+- **Parcial (unidades 0–7):** regresión lineal, regularización, logística y métricas, modelos generativos, SVM, kernels y árboles de decisión.
 
 - **32 páginas** en español: teoría con derivaciones paso a paso (`<Pasos>`), casos de uso reales (`<CasoUso>`), código de scikit-learn/NumPy verificado, quizzes y tarjetas de «conexiones» entre temas.
 - **38 simuladores y calculadoras** en React que corren en el navegador (SVM con SMO, CART paso a paso, calculadoras de ecuaciones normales y de métricas, curvas generativo vs discriminativo, bagging de árboles, prueba PSD de kernels…).
@@ -43,7 +46,7 @@ pnpm preview
 - Lenguaje simple: cada página de teoría abre con `<EnSimple id="..."/>` (textos en `src/data/ensimple.ts`; `python scripts/add-ensimple.py` lo inserta en páginas nuevas). Las palabras técnicas del texto reciben un tooltip automático con su explicación simple (`src/data/jerga.ts`, lógica en `src/scripts/jerga.ts`).
 - Contenido generado por scripts (editar la fuente y regenerar):
   - `python scripts/build-lab.py` → `laboratorio.mdx` (desde `scripts/lab_snippets.py`; prueba el código con Python antes).
-  - `python scripts/build-resumenes.py` → `resumenes/*.mdx`. Los PDF de `public/pdf/` se regeneran imprimiendo esas páginas (A4, márgenes 12 mm).
+  - `python scripts/build-resumenes.py` → `resumenes/*.mdx` (unidades del final en `scripts/resumenes_final.py`). Los PDF de `public/pdf/` se regeneran imprimiendo esas páginas (A4, márgenes 12 mm).
 
 - Si editas o agregas quizzes, corre `python scripts/build-pool.py` para actualizar el banco del modo examen (`src/data/pool.ts` se versiona, así Vercel no necesita Python).
 

@@ -1,6 +1,6 @@
 ---
-title: "Machine Learning · Parte 1"
-description: "Web de estudio interactiva para la primera parte de CS3061 Machine Learning (UTEC 2026-II)."
+title: "Machine Learning · CS3061"
+description: "Web de estudio interactiva para CS3061 Machine Learning: parcial y final (UTEC 2026-II)."
 template: splash
 tableOfContents: false
 ---
@@ -9,11 +9,12 @@ import Terminal from '../../components/Terminal.astro';
 
 <div class="so-hero not-content">
 	<div>
-		<p data-anim style="color: var(--sl-color-accent); font-family: var(--__sl-font-mono); font-size: .85rem; margin:0"><code style="background:none;padding:0;color:inherit;font-size:inherit">{'$ python repasar.py --curso CS3061 --parte 1'}</code></p>
-		<h1 data-anim>Del ajuste de una recta <span class="grad">al truco del kernel</span>, tocando cada idea.</h1>
-		<p class="tag" data-anim>Las 9 lecciones del profesor Hurtado explicadas a fondo, con 38 simuladores y calculadoras que corren en tu navegador, casos de uso reales, derivaciones paso a paso, código, diagramas, conexiones entre temas y el banco de preguntas oficial resuelto.</p>
+		<p data-anim style="color: var(--sl-color-accent); font-family: var(--__sl-font-mono); font-size: .85rem; margin:0"><code style="background:none;padding:0;color:inherit;font-size:inherit">{'$ python repasar.py --curso CS3061 --parte final'}</code></p>
+		<h1 data-anim>De una recta <span class="grad">a un modelo en producción</span>, tocando cada idea.</h1>
+		<p class="tag" data-anim>Las 15 lecciones del profesor Hurtado (parcial y final) explicadas desde cero hasta el nivel de examen, con 50 simuladores y calculadoras que corren en tu navegador, casos de uso reales, derivaciones paso a paso, código, diagramas, conexiones entre temas y el banco de preguntas oficial resuelto.</p>
 		<div class="actions" data-anim>
-			<a class="so-btn primary" href="/mapa/">Ver el mapa conceptual →</a>
+			<a class="so-btn primary" href="/final/">Ruta del final →</a>
+			<a class="so-btn" href="/mapa/">Mapa conceptual</a>
 			<a class="so-btn" href="/examen/banco/">Banco de preguntas</a>
 			<a class="so-btn" href="/examen/modo-examen/">Modo examen</a>
 			<a class="so-btn" href="/formulario/">Formulario</a>
@@ -26,12 +27,25 @@ import Terminal from '../../components/Terminal.astro';
 </div>
 
 <div class="so-stats not-content">
-	<div><b data-count="38">0</b><span>simuladores y calculadoras</span></div>
-	<div><b data-count="9">0</b><span>lecciones cubiertas</span></div>
+	<div><b data-count="50">0</b><span>simuladores y calculadoras</span></div>
+	<div><b data-count="15">0</b><span>lecciones cubiertas</span></div>
 	<div><b data-count="31">0</b><span>conexiones en el mapa</span></div>
-	<div><b data-count="255">0</b><span>preguntas, flashcards y preguntas abiertas</span></div>
+	<div><b data-count="560">0</b><span>preguntas, flashcards y preguntas abiertas</span></div>
 </div>
 
+<h2 class="not-content" style="margin-top:2rem">Final · unidades 8–13</h2>
+<div class="so-cards not-content">
+	<a class="so-card" href="/final/"><span class="n">→</span><span class="tagnew">empieza aquí</span><h3>Ruta del final</h3><p>Qué repasar del parcial antes de cada unidad y en qué orden estudiar.</p></a>
+	<a class="so-card" href="/ensambles/equipos/"><span class="n">08</span><span class="tagnew">final</span><h3>Ensambles</h3><p>Galton y la sabiduría de la multitud, bootstrap, random forest, AdaBoost y gradient boosting.</p></a>
+	<a class="so-card" href="/clustering/kmeans/"><span class="n">09</span><span class="tagnew">final</span><h3>Clustering</h3><p>k-means con 8 alquileres a mano, silhouette, GMM con EM, DBSCAN y dendrogramas.</p></a>
+	<a class="so-card" href="/reduccion/por-que/"><span class="n">10</span><span class="tagnew">final</span><h3>Reducción de dimensión</h3><p>La maldición de la dimensión, PCA y SVD, LDA, NMF, t-SNE y UMAP.</p></a>
+	<a class="so-card" href="/redes/neurona/"><span class="n">11</span><span class="tagnew">final</span><h3>Redes neuronales I</h3><p>Una neurona = una recta, el muro del XOR, capas ocultas y backpropagation a mano.</p></a>
+	<a class="so-card" href="/redes/tasa-aprendizaje/"><span class="n">12</span><span class="tagnew">final</span><h3>Redes neuronales II</h3><p>η = 1/c, condicionamiento, momentum, Adam, inicialización, dropout y early stopping.</p></a>
+	<a class="so-card" href="/mlops/reproducibilidad/"><span class="n">13</span><span class="tagnew">final</span><h3>MLOps</h3><p>Reconstruir el modelo, training-serving skew, canary, drift y PSI.</p></a>
+	<a class="so-card" href="/examen/simulacro-final/"><span class="n">✎</span><span class="tagnew">final</span><h3>Simulacro del final</h3><p>Cálculos estilo «Your turn» de las seis lecciones, con explicación.</p></a>
+</div>
+
+<h2 class="not-content" style="margin-top:2rem">Parcial · unidades 0–7</h2>
 <div class="so-cards not-content">
 	<a class="so-card" href="/fundamentos/intro/"><span class="n">00</span><h3>Fundamentos</h3><p>T, P, E; paradigmas; generalizar; Bayes contando personas y el descenso de gradiente con η en vivo.</p></a>
 	<a class="so-card" href="/regresion/modelo/"><span class="n">01</span><h3>Regresión lineal</h3><p>Arrastra puntos, minimiza cuadrados, proyecta sobre el espacio columna y mira el bowl convexo.</p></a>

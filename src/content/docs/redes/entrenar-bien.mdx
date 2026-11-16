@@ -1,0 +1,200 @@
+---
+title: "12.3 · Entrenar bien una red"
+description: "Inicialización, escalado, regularización, early stopping y receta de diagnóstico."
+---
+import Solucion from '../../../components/Solucion.astro';
+
+import EnSimple from '../../../components/EnSimple.astro';
+import Pasos from '../../../components/Pasos.astro';
+import CasoUso from '../../../components/CasoUso.astro';
+import Quiz from '../../../components/Quiz.tsx';
+import Conexiones from '../../../components/Conexiones.astro';
+import Recursos from '../../../components/Recursos.astro';
+import Fuente from '../../../components/Fuente.astro';
+import { R } from '../../../data/recursos';
+
+<EnSimple id="redes/entrenar-bien" />
+
+## Empieza aquí: dos neuronas idénticas no forman equipo
+
+Imagina dos unidades ocultas con pesos y sesgos iguales a cero. Para cualquier entrada producen la misma salida. Reciben el mismo gradiente y, después de actualizarse, siguen siendo iguales. Una capa de dos unidades actúa como si tuviera una sola. En la prueba XOR de la diapositiva, una red con tres unidades `tanh` iniciada en cero **no aprende XOR**; con pesos aleatorios normales, **17 de 20** inicios sí lo resuelven. Es un problema de simetría, no de paciencia.
+
+<figure><svg viewBox="0 0 560 155" role="img" aria-label="Inicialización igual deja unidades idénticas; inicialización distinta permite especializarse"><g fill="none" stroke="var(--sl-color-text)" stroke-width="2"><path d="M45 60 L185 40 M45 60 L185 115 M255 40 L500 75 M255 115 L500 75"/></g><g fill="var(--sl-color-accent)"><circle cx="220" cy="40" r="30"/><circle cx="220" cy="115" r="30"/><circle cx="510" cy="75" r="28"/></g><g fill="var(--sl-color-bg)" text-anchor="middle" font-size="14"><text x="220" y="45">h₁</text><text x="220" y="120">h₂</text><text x="510" y="80">ŷ</text></g><g fill="var(--sl-color-text)" font-size="14"><text x="265" y="26">mismos pesos → mismo h y gradiente</text><text x="265" y="138">distintos pesos → pueden especializarse</text></g></svg><figcaption><strong>Cómo leerlo:</strong> la arquitectura tiene dos caminos, pero pesos iguales los hacen equivalentes. La aleatoriedad rompe esa igualdad.</figcaption></figure>
+
+## Puente: empezar con diversidad y escala adecuada
+
+Inicializar pesos **distintos** no basta: su tamaño también importa. Si son enormes, `tanh` se satura y su derivada casi desaparece; si son diminutos en muchas capas, las señales se encogen. Para $n$ entradas independientes de varianza $s^2$, una ReLU deja aproximadamente la mitad de la energía: el factor de escala por capa es $ns^2/2$.
+
+<Pasos titulo="Derivar la escala He para ReLU">
+
+1. La suma $z=\sum_{j=1}^n w_j a_j$ tiene energía aproximada $n s^2$ veces la de las entradas, suponiendo pesos independientes centrados.
+2. Si $z$ es aproximadamente simétrico, ReLU anula la mitad negativa: la energía de salida es cerca de $ns^2/2$ veces la anterior.
+3. Para que la escala se conserve entre capas, iguala $ns^2/2=1$; sale $s^2=2/n$, la inicialización **He**.
+4. Para `tanh` cerca de cero se usa como regla aproximada $s^2\approx1/n$; la inicialización **Glorot/Xavier** equilibra abanicos de entrada y salida, con varianza $2/(n_{\rm in}+n_{\rm out})$ en su forma normal.
+
+</Pasos>
+
+Si $n=100$ y $s=1$, el factor ReLU es $50$ por capa; después de 20 capas sería $50^{20}\approx9.54\times10^{33}$. Con $s^2=1/n$, ReLU da factor $1/2$ y después de 20 capas $2^{-20}\approx9.54\times10^{-7}$. He evita ambos extremos en esta aproximación. Para 50 entradas, $s=\sqrt{2/50}=0.2$.
+
+<figure><svg viewBox="0 0 550 190" role="img" aria-label="Activaciones que explotan, se apagan o conservan escala"><g fill="none" stroke-width="3"><path stroke="var(--sl-color-text)" d="M45 115L140 80L235 45L330 15"/><path stroke="var(--sl-color-accent)" d="M45 115L140 112L235 109L330 106"/><path stroke="var(--sl-color-gray-3)" d="M45 115L140 140L235 158L330 170"/></g><g fill="var(--sl-color-text)" font-size="14"><text x="345" y="24">pesos grandes: explota</text><text x="345" y="108">He: escala parecida</text><text x="345" y="174">pesos pequeños: se apaga</text><text x="35" y="185">capas →</text></g></svg><figcaption><strong>Cómo leerlo:</strong> cada tramo es otra capa. La escala de los pesos decide si la energía de las activaciones crece, se conserva aproximadamente o desaparece.</figcaption></figure>
+
+## Ejercicios de las diapositivas: dónde empezar
+
+**Predice primero — escala de entrada.** En las cuatro lecturas, $x_2$ varía diez veces más que $x_1$. Si divides $x_2$ entre 10, ¿cuáles son las nuevas curvaturas y cuántos pasos requiere el descenso cuadrático ideal desde cero?
+
+<Solucion>
+
+La curvatura asociada a una entrada escala con su cuadrado. Al dividir $x_2$ por 10, la curvatura 100 se divide por 100 y queda 1, igual que la de $x_1$. Con tasa $\eta=1$, ambos errores se multiplican por $1-1=0$: el modelo llega a los nuevos pesos óptimos en un paso. En las unidades originales, la tasa equilibrada requería unas 461 iteraciones para bajar el error a $10^{-4}$.
+
+</Solucion>
+
+**Compruébalo — inicialización.** Para una unidad ReLU con 50 entradas, calcula la desviación He. Explica por qué pesos cero o pesos todos iguales impiden que las unidades ocultas se especialicen.
+
+<Solucion>
+
+La varianza He es $2/50=0.04$ y su desviación es $\sqrt{0.04}=0.2$. Si dos unidades empiezan con el mismo vector de pesos y el mismo sesgo, calculan la misma salida en cada ejemplo y reciben la misma derivada. Una actualización idéntica conserva la igualdad por inducción. Hace falta romper la simetría con valores distintos.
+
+</Solucion>
+
+**Predice primero — diez capas `tanh`.** Una escala inicial $s=0.20$ deja dispersión 0.85 en la décima capa; otra escala tipo Xavier deja 0.23. ¿Se puede decidir solo con la dispersión cuál está sana?
+
+<Solucion>
+
+No. Una `tanh` puede dar muchos valores cercanos a $-1$ y $+1$: la dispersión parece grande, pero la pendiente allí casi vale cero. En la corrida de la diapositiva, la escala que deja 0.85 tiene cerca de 58.9 % de unidades saturadas. Hay que revisar también la proporción saturada y los gradientes, no solo la desviación de activaciones.
+
+</Solucion>
+
+:::caution[Trampa de examen]
+ReLU tiene derivada 1 cuando está activa, pero eso **no elimina** los gradientes que explotan o desaparecen por productos de pesos. Además, ReLU en cero vale cero: iniciar todas las unidades en cero no rompe la simetría.
+:::
+
+## Preparar entradas y frenar la memorización
+
+Estandariza cada variable con media y desviación calculadas **solo en entrenamiento**. Aplica la misma transformación a validación, test y nuevos datos. Así las tasas de aprendizaje tienen una escala más manejable y se evitan fugas.
+
+**Weight decay** (decaimiento de pesos) agrega $\tfrac\lambda2\|W\|_2^2$ a la pérdida. Bajo SGD simple, la actualización queda $W\leftarrow(1-\eta\lambda)W-\eta\nabla_W L$: primero encoge pesos, luego toma el paso de datos. Con $\eta\lambda=0.01$, un peso sin gradiente de datos pasa de 1 a 0.99 en un paso y a $0.99^{100}\approx0.366$ tras cien.
+
+**Early stopping** (parada temprana) guarda los pesos con mejor pérdida de validación y detiene si no mejora durante una paciencia acordada. El test no participa en elegir la época. Es una forma de limitar cuánto aprende la red del ruido.
+
+En la prueba de la diapositiva con lunas y 20 etiquetas invertidas, se apartan 20 de 100 puntos de entrenamiento para validar. La mejor época es la 59: pérdida de validación 0.32, frente a 0.92 al final. Recuperar los pesos de esa época dio precisión 0.86 en el conjunto reservado, frente a 0.77 con el último modelo. Sobre diez particiones, la mediana fue 0.84 y mejoró frente a entrenar hasta el final en ocho de diez. La regla no es «siempre detener en la época 59», sino medir cada corrida por validación.
+
+**Predice primero — entrenar más.** Con 100 puntos de dos lunas y 20 etiquetas alteradas a propósito, ¿mejorará necesariamente la precisión en 500 puntos nuevos al pasar de 200 a 1,000 épocas?
+
+<Solucion>
+
+No. La red de 1,185 parámetros aprende parte de las etiquetas falsas: su precisión de entrenamiento sube a 0.87, pero la precisión reservada termina en 0.77, unos 0.08 puntos menos que en la época 200 de esa corrida. Mejorar entrenamiento y empeorar datos nuevos es sobreajuste. La validación permite escoger la época antes de mirar test.
+
+</Solucion>
+
+**Dropout** (apagado aleatorio) conserva cada unidad con probabilidad $p$ durante entrenamiento; si sobrevive, divide su salida por $p$. Para una salida de 3 y $p=0.8$, en entrenamiento se observa 0 o 3.75, con esperanza $0.8(3.75)=3$; al evaluar se usa 3 sin apagar nada. En PyTorch, `Dropout(0.2)` indica **probabilidad de apagar** 0.2, no de conservar.
+
+**AdamW** desacopla el decaimiento: $W\leftarrow W-\eta\hat m/(\sqrt{\hat v}+\epsilon)-\eta\lambda W$. Meter $\lambda W$ dentro del gradiente de Adam lo normaliza por una escala distinta para cada peso y ya no equivale a encoger cada peso uniformemente. `MLPClassifier` de scikit-learn ofrece `alpha` como penalización L2 acoplada; no ofrece dropout ni AdamW.
+
+**Predice primero — más penalización.** En las lunas con etiquetas alteradas, ¿qué ocurre al subir $\lambda$ de 0 a 0.3? ¿Por qué no basta una sola partición?
+
+<Solucion>
+
+La mediana de precisión reservada sube de 0.80 sin penalización a 0.89 con $\lambda=0.01$; después cae y con $0.3$ llega a 0.50 porque los pesos se encogen demasiado. La precisión sin penalización ya varía aproximadamente entre 0.74 y 0.90 según la partición. Por eso se comparan las mismas particiones para cada $\lambda$ y se mira el efecto repetido.
+
+</Solucion>
+
+**Compruébalo — cuándo parar.** Con $\eta=0.1$ y $\lambda=0.1$, ¿por cuánto se multiplica un peso sin gradiente de datos en un paso y en cien? Para dropout con probabilidad de conservar $p=0.5$ y activación 4, ¿qué salidas posibles hay al entrenar y cuál es su promedio?
+
+<Solucion>
+
+El factor de decaimiento por paso es $1-\eta\lambda=0.99$. En cien pasos es $0.99^{100}\approx0.366$. Con dropout invertido la unidad da 0 si se apaga o $4/0.5=8$ si sobrevive; ambos casos tienen probabilidad 0.5, así que el promedio es 4. En evaluación se usa 4 sin sorteo.
+
+</Solucion>
+
+### Ir más a fondo (opcional): regularizar sin mezclar escalas
+
+<Pasos titulo="Por qué AdamW separa el decaimiento">
+
+1. Bajo descenso simple, añadir $\lambda w$ al gradiente da $w' = w-\eta(g+\lambda w)=(1-\eta\lambda)w-\eta g$. Penalizar dentro o encoger fuera coincide.
+2. Adam divide el gradiente por $\sqrt{\hat v}+\epsilon$. Si se introduce $\lambda w$ antes de esa división, el encogimiento depende de la escala adaptativa de cada parámetro.
+3. Con $\eta=0.01$, $\lambda=0.1$ y $w=1$, el gradiente de penalización es 0.1. Si $\sqrt{\hat v}=10$, el paso de penalización acoplada es $0.01(0.1/10)=0.0001$; si $\sqrt{\hat v}=0.1$, es $0.01(0.1/0.1)=0.01$.
+4. AdamW aplica el mismo encogimiento $\eta\lambda w=0.001$ a ambos pesos, por fuera de la normalización. Así la fuerza de la penalización tiene una lectura común.
+
+</Pasos>
+
+### Ir más a fondo (opcional): qué forma de red usar
+
+Una **CNN** comparte filtros locales para imágenes; una **RNN** reutiliza un estado en secuencias; la **atención** permite que cada elemento pese información de otros elementos; la **normalización** controla la escala de activaciones internas. Son arquitecturas y técnicas adicionales, no sustitutos de separar datos, elegir pérdida y validar.
+
+<Pasos titulo="Cuántos pesos ahorra una convolución">
+
+1. Una imagen de $224\times224\times3$ contiene 150,528 números. Una capa densa con 1,000 unidades necesitaría $150,528\cdot1,000=150,528,000$ pesos: un conjunto distinto para cada posición.
+2. Un filtro local $3\times3\times3$ usa 27 pesos y se desliza por toda la imagen. Con 64 filtros se usan $27\cdot64=1,728$ pesos de filtro.
+3. La razón $150,528,000/1,728\approx87,111$ muestra el ahorro. Los filtros comparten el mismo detector en todas las posiciones; por ejemplo, $(-1,1)$ aplicado a $0,0,1,1,1,0,0,0$ da $0,1,0,0,-1,0,0$ y marca bordes.
+4. En una RNN se reutiliza una matriz a lo largo del tiempo; un gradiente que atraviesa diez pasos con factor 0.5 deja $0.5^{10}\approx0.000977$ de magnitud. La atención evita ese camino secuencial directo: cada posición pondera valores de otras mediante softmax de productos consulta–clave.
+
+</Pasos>
+
+**Compruébalo — otras formas.** (a) ¿Cuántos pesos de filtro tienen 32 filtros $5\times5\times3$? (b) ¿Qué queda de un gradiente multiplicado por 0.5 durante diez pasos? (c) Si los scores de atención son $(\ln4,\ln2,0)$, ¿qué pesos reciben tres valores?
+
+<Solucion>
+
+(a) $32\cdot5\cdot5\cdot3=2,400$ pesos, sin contar sesgos. (b) $0.5^{10}=1/1024\approx0.000977$. (c) Softmax convierte las exponenciales $(4,2,1)$ en pesos $(4/7,2/7,1/7)$; la salida es el promedio ponderado de los tres valores con esos pesos.
+
+</Solucion>
+
+**Tu turno — normalizar una fila.** Aplica normalización por capa a $(2,4,6,8)$ con desviación poblacional. En atención, combina valores $(7,14,0)$ con pesos $(4/7,2/7,1/7)$.
+
+<Solucion>
+
+La media de la fila es 5; la varianza es $(({-3})^2+({-1})^2+1^2+3^2)/4=5$. La desviación es $\sqrt5\approx2.236$. El resultado es aproximadamente $(-1.34,-0.45,0.45,1.34)$. La atención da $(4/7)7+(2/7)14+(1/7)0=4+4+0=8$. La normalización usa estadísticas de la fila; la atención pondera valores de distintas posiciones.
+
+</Solucion>
+
+## Diapositivas de esta página
+
+«Why not start at zero?», «The scale: one layer, by hand», «Twenty layers, forward and back», «Ten tanh layers: which start is broken?» y «Standardize the inputs first» tratan el inicio. «Train longer: better or worse?», «Weight decay: the ridge, on every weight», «Early stopping: keep the best epoch», «Dropout: switch units off at random», «Weight decay under Adam: use AdamW» tratan generalización. «Convolution shares weights; recurrence repeats one», «Attention in one sentence; normalization over what?», «Which fix for which symptom? The evidence» y «The recipe, in order, and what to do when it breaks» conectan arquitectura y diagnóstico. Los «Check yourself» están resueltos arriba.
+
+## Errores típicos
+
+- Calcular media y desviación con test: introduce información futura en el entrenamiento.
+- Interpretar un error de entrenamiento bajo como prueba de generalización.
+- Conservar los pesos de la última época en vez de los mejores según validación.
+- Usar `alpha` de scikit-learn como si fuera dropout o AdamW.
+- Confundir probabilidad de conservar una unidad con probabilidad de apagarla.
+
+## Receta de diagnóstico
+
+1. Define tarea, métrica y una referencia simple; separa train, validación y test.
+2. Estandariza con train; inicia pesos distintos con He para ReLU o Glorot para `tanh`.
+3. Entrena una red pequeña; observa pérdida de train y validación por época.
+4. Si la pérdida explota, baja $\eta$ y revisa escala de entradas. Si apenas baja, revisa tasa, inicialización y gradientes. Si train mejora pero validación empeora, prueba weight decay, early stopping, dropout o una red menor.
+5. Elige configuración usando validación. Evalúa una sola vez en test y guarda **preprocesador y red juntos**.
+
+```python
+import numpy as np
+from sklearn.neural_network import MLPClassifier
+X = np.array([[0,0],[0,1],[1,0],[1,1]])
+y = np.array([0,1,1,0])
+net = MLPClassifier(hidden_layer_sizes=(8,), activation='tanh', solver='lbfgs',
+                    alpha=0.001, random_state=0, max_iter=2000)
+net.fit(X, y)
+print(net.predict(X).tolist())
+# [0, 1, 1, 0]
+```
+
+El bloque muestra una comprobación mínima de capacidad sobre las cuatro esquinas, **no** una estimación de generalización: cuatro puntos de entrenamiento son insuficientes para medir desempeño fuera de muestra.
+
+<CasoUso titulo="Precio mediano de viviendas" sector="regresión" icono="🏠">
+El cuaderno práctico usa 20,640 distritos de California con ocho entradas y compara una red `MLPRegressor(64,64)` con una regresión lineal. En su partición y semilla, la red obtiene $R^2=0.789$ frente a $0.591$; ambos números son de **test**. La red usa early stopping y conserva el escalador para transformar distritos nuevos.
+</CasoUso>
+
+<Quiz client:visible id="redes-entrenar" preguntas={[
+  {q:'¿Por qué fallan pesos iniciales iguales en unidades ocultas?',opts:['son demasiado grandes','conservan la simetría','no existe pérdida','softmax falla'],ok:1},
+  {q:'Con ReLU y n=50, ¿desviación típica He?',opts:['0.02','0.1','0.2','2'],ok:2},
+  {q:'Con n=100, s²=1/n y ReLU, ¿factor aproximado por capa?',opts:['0.5','1','2','100'],ok:0},
+  {q:'Un peso 1 sin gradiente de datos y ηλ=0.01 queda tras un paso en…',opts:['0','0.01','0.99','1.01'],ok:2},
+  {q:'Dropout con probabilidad de conservar 0.8 y salida 3: si sobrevive, ¿cuánto sale?',opts:['2.4','3','3.75','0.8'],ok:2},
+  {q:'¿Qué conjunto elige la época de early stopping?',opts:['train','validación','test','todos'],ok:1},
+  {q:'En scikit-learn MLP, alpha es…',opts:['dropout','L2 acoplada','AdamW','tasa de aprendizaje'],ok:1},
+  {q:'¿Cuántos pesos tienen 32 filtros de 5×5×3, sin sesgos?',opts:['320','800','2,400','4,800'],ok:2},
+]} />
+
+<Conexiones items={[{href:'/regularizacion/ridge-lasso/',titulo:'Ridge y weight decay',texto:'Ambos castigan pesos grandes con L2.'},{href:'/regularizacion/validacion-cruzada/',titulo:'Validación',texto:'Elige época e hiperparámetros sin usar test.'},{href:'/redes/optimizadores/',titulo:'AdamW',texto:'Separa la regularización del paso adaptativo de Adam.'}]} />
+<Recursos items={[R.playground, R.skCV]} />
+<Fuente archivos={['ML_Course_Neural_Networks_II.pdf (slides 25–49)', '03-neural-networks-from-scratch-and-in-scikit-learn.ipynb']} />

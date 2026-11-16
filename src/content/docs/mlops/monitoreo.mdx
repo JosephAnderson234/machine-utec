@@ -1,0 +1,176 @@
+---
+title: "MLOps III: detectar fallas silenciosas"
+description: "Tres cambios de distribución, PSI a mano, alarmas, etiquetas tardías y model cards."
+---
+import EnSimple from '../../../components/EnSimple.astro';
+import Pasos from '../../../components/Pasos.astro';
+import CasoUso from '../../../components/CasoUso.astro';
+import Quiz from '../../../components/Quiz.tsx';
+import Conexiones from '../../../components/Conexiones.astro';
+import Recursos from '../../../components/Recursos.astro';
+import Fuente from '../../../components/Fuente.astro';
+import Solucion from '../../../components/Solucion.astro';
+import ShiftMonitorLab from '../../../components/sim/ShiftMonitorLab.tsx';
+import { R } from '../../../data/recursos';
+
+<EnSimple id="mlops/monitoreo" />
+
+## Empieza aquí: la respuesta sigue saliendo
+
+DigitReader no se detiene ante escáneres borrosos, trazos gruesos, 40 % de ceros o una sucursal donde los «7» se escriben como los «1» del entrenamiento. En la clase, el blur baja accuracy a 81.5 % y el trazo grueso a 66.3 %. La rama de ceros cambia el reparto de respuestas sin empeorar aciertos; la de «7» cambia la respuesta correcta **para una misma apariencia de imagen**. Son fallas o cambios silenciosos por motivos distintos.
+
+<svg viewBox="0 0 590 130" role="img" aria-label="Entradas, predicciones y etiquetas con retraso"><rect x="8" y="23" width="135" height="65" rx="7" fill="none" stroke="var(--sl-color-text)"/><text x="22" y="60" fill="var(--sl-color-text)">entradas X</text><path d="M145 55h40" stroke="var(--sl-color-text)"/><rect x="189" y="23" width="165" height="65" rx="7" fill="none" stroke="var(--sl-color-text)"/><text x="205" y="60" fill="var(--sl-color-text)">predicciones ŷ</text><path d="M355 55h40" stroke="var(--sl-color-text)"/><rect x="399" y="23" width="180" height="65" rx="7" fill="none" stroke="var(--sl-color-text)"/><text x="413" y="60" fill="var(--sl-color-text)">etiquetas y: +7 días</text></svg>
+*Cómo leerlo:* entradas y respuestas se ven hoy; el acierto se confirma al recibir etiquetas más tarde.
+
+<svg viewBox="0 0 570 160" role="img" aria-label="Blur conserva tinta pero redistribuye los píxeles">
+ <text x="15" y="22" fill="var(--sl-color-text)">antes: suma 32</text>{[0,0,16,16,0,0].map((v,i)=><g><rect x={20+i*42} y="40" width="34" height="34" fill={v?'var(--sl-color-accent)':'none'} stroke="var(--sl-color-text)"/><text x={28+i*42} y="101" fill="var(--sl-color-text)">{v}</text></g>)}<text x="280" y="68" fill="var(--sl-color-text)">→</text><text x="315" y="22" fill="var(--sl-color-text)">después: suma 32</text>{[0,4,12,12,4,0].map((v,i)=><g><rect x={315+i*40} y="40" width="32" height="34" fill={v?'var(--sl-color-accent)':'none'} fillOpacity={v/16} stroke="var(--sl-color-text)"/><text x={321+i*40} y="101" fill="var(--sl-color-text)">{v}</text></g>)}
+</svg>
+*Cómo leerlo:* el trazo cambia de forma aunque su intensidad total siga en 32; un monitor que solo suma tinta no lo ve.
+
+
+## Puente: tres tipos de cambio
+
+*Covariate shift*: cambia $P(X)$, por ejemplo un escáner que difumina píxeles. *Label shift* o cambio de prior: cambia $P(y)$, como una nueva sucursal con más ceros. *Concept shift*: cambia $P(y\mid X)$, por ejemplo «7» escritos como los «1» del entrenamiento; si $X$ y las predicciones son idénticos, **ningún monitor sin etiquetas lo descubre**. Los mecanismos pueden coexistir: es una clasificación de qué cambió, no un diagnóstico automático a partir de un gráfico.
+
+## PSI a mano
+
+El *population stability index* (PSI) compara proporciones en intervalos fijados: $\mathrm{PSI}=\sum_b(q_b-p_b)\ln(q_b/p_b)$, donde $p$ es referencia y $q$ es hoy. Con dos intervalos, antes $(0.5,0.5)$ y hoy $(0.3,0.7)$:
+
+<Pasos titulo="Calcular PSI de dos intervalos">
+
+1. Primer intervalo: $(0.3-0.5)\ln(0.3/0.5)=(-0.2)\ln(0.6)\approx0.1022$.
+2. Segundo: $(0.7-0.5)\ln(0.7/0.5)=0.2\ln(1.4)\approx0.0673$.
+3. Suma: $0.1695\approx0.17$. Señala cambio de distribución; no demuestra caída de accuracy.
+4. Ajusta el umbral con lotes sanos del mismo tamaño: en el curso, un lote sano de 200 puede llegar a PSI 0.105 para tinta total en el percentil 95; con 50, el percentil llega a 0.387.
+</Pasos>
+
+<ShiftMonitorLab client:visible />
+
+El PSI de **tinta total** no ve el blur: redistribuye píxeles pero conserva la suma. En un lote de 200, ambos dan PSI 0.067; el trazo grueso da 8.09. Por eso se vigilan píxeles individuales (corrigiendo por 64 pruebas), confianza y mezcla de respuestas. Otra opción es un *domain classifier*: etiqueta «pasado» y «hoy», entrena un clasificador y evalúa AUC fuera de muestra. En el curso: AUC 0.49 sin cambio, 0.996 con blur y 1.000 con trazo grueso. AUC alta indica **distinguibilidad**, no necesariamente daño.
+
+:::caution[Trampa de examen]
+Los umbrales PSI 0.10 y 0.25 son reglas de pulgar sin base universal. Con lotes pequeños el azar eleva PSI. Y una alarma después de reentrenar puede significar que la línea describe al modelo viejo: recalibra sobre días sanos del nuevo modelo, junto con accuracy.
+:::
+
+```python
+import numpy as np
+p = np.array([.5,.5]); q = np.array([.3,.7])
+psi = np.sum((q-p)*np.log(q/p))
+print(round(float(psi), 4))
+# 0.1695
+```
+
+<CasoUso titulo="Vigilar una nueva sucursal" sector="finanzas" icono="🏦">Sube la proporción de ceros y el PSI de respuestas avisa. Si la accuracy etiquetada permanece estable, el cambio es de mezcla, no una prueba de deterioro. El equipo revisa la distribución y actualiza la ficha antes de decidir si reentrena.</CasoUso>
+
+### Ejercicios de predicción y comprobación
+
+**Escáneres nuevos.** Predice si DigitReader se detiene ante blur de 0.8 píxeles o trazos dos veces más gruesos. ¿Cuántos aciertos esperas sobre 540 según la medición de clase?
+
+<Solucion>
+
+1. El formato sigue siendo 64 valores entre 0 y 16, así que el sistema responde sin error de programa.
+2. Con blur la clase midió 81.5 %, unos $0.815(540)\approx440$ aciertos. Con trazos gruesos midió 66.3 %, unos $0.663(540)\approx358$.
+3. La puerta de esquema no basta; píxeles individuales o un clasificador pasado/hoy pueden avisar antes de que lleguen etiquetas.
+</Solucion>
+
+**PSI y azar.** Una referencia 50/50 produce hoy 3 formularios claros y 7 oscuros. Calcula PSI con $\ln0.6=-0.51$ y $\ln1.4=0.34$. ¿Concluirías que hay un cambio real?
+
+<Solucion>
+
+1. El primer intervalo aporta $(0.3-0.5)(-0.51)=0.102$; el segundo, $(0.7-0.5)(0.34)=0.068$.
+2. La suma es 0.17. Sin embargo, un reparto al menos tan desigual como 3/7 ocurre con probabilidad $2(1+10+45+120)/1024=0.34375$ bajo 50/50.
+3. Con diez casos, la regla informal «0.10 moderado» no es una prueba de cambio. Se calibra con lotes sanos del mismo tamaño.
+</Solucion>
+
+**Blur a mano y múltiples pruebas.** El trazo $(0,0,16,16,0,0)$ se difumina: cada píxel retiene la mitad y comparte un cuarto con cada vecino. Calcula el nuevo vector y la tinta total. Si vigilas 100 píxeles con prueba al 5 %, ¿cuántos falsos avisos esperas y qué umbral Bonferroni usarías?
+
+<Solucion>
+
+1. Cada 16 aporta 8 a sí mismo y 4 a sus vecinos. Resulta $(0,4,12,12,4,0)$.
+2. La suma sigue siendo 32; PSI de tinta total no ve esta transformación.
+3. En 100 pruebas sanas, esperas $100(0.05)=5$ rechazos falsos. Para limitar la probabilidad de alguno a 5 %, cada prueba usa $0.05/100=0.0005$.
+</Solucion>
+
+**Pasado contra hoy.** Predice la AUC de un clasificador de dominio sin cambio, con blur y con trazo grueso. ¿Qué mide?
+
+<Solucion>
+
+1. Sin cambio, cerca de 0.5; el curso midió 0.49.
+2. Con blur, 0.996; con trazo grueso, 1.000, evaluadas fuera de muestra.
+3. AUC alta significa que las entradas de hoy se distinguen de las antiguas; no mide accuracy de DigitReader ni prueba daño.
+</Solucion>
+
+**Tres tipos de cambio.** Una sucursal pasa de 10 % a 40 % de ceros; otra usa los mismos trazos pero algunos «1» ahora significan «7». ¿Qué monitores pueden verlo hoy?
+
+<Solucion>
+
+1. La primera cambia el reparto de etiquetas $P(y)$; la mezcla de respuestas puede moverse. Puede mantener accuracy alta, así que PSI de respuestas no demuestra fallo.
+2. La segunda cambia $P(y\mid X)$ con imágenes iguales. Ni PSI de entrada, ni detector de dominio, ni confianza pueden saber el nuevo significado.
+3. Hace falta una muestra etiquetada o una auditoría de la regla de negocio. La accuracy llega con aproximadamente siete días de retraso.
+</Solucion>
+
+### Treinta días y el costo de esperar
+
+Antes de usar PSI como alarma, la clase simuló 200 lotes sanos: el percentil 95 fue **0.387** con 50 formularios y **0.105** con 200. El azar mueve más un lote pequeño. Con los nuevos escáneres, la confianza media cae de 0.969 a **0.838** y la proporción de respuestas con confianza mayor que 0.9 cae de 91.5 % a **50.2 %**. En la sucursal con 40 % de ceros, los 200 formularios se leen bien, el PSI de tinta es 0.068 (bajo 0.105), pero el PSI de reparto de respuestas llega a 0.58 (sobre 0.1).
+
+**Ejercicio: predice las barras de reentrenamiento.** El modelo viejo acierta 440/540 con blur. Se agregan 25, 200 o 400 imágenes borrosas etiquetadas, o se simula blur de 0.4 a 1.2 en imágenes viejas sin etiquetas nuevas. ¿Qué opción ganó en el experimento y qué límite tiene?
+
+<Solucion>
+
+1. Con 25 etiquetas nuevas llegó a 468 aciertos; con 200, a 498; con 400, a 517.
+2. El aumento artificial de imágenes viejas llegó a 520 sin nuevas etiquetas: fue la barra más alta en esta prueba.
+3. Solo puedes simular cambios que conoces. Si el problema real cambia el significado de la etiqueta, o la simulación no reproduce el escáner, hacen falta etiquetas nuevas y evaluación reservada.
+</Solucion>
+
+En la simulación del curso, los escáneres nuevos aparecen entre los días 12 y 18. Los píxeles y la confianza pueden avisar al instante; el PSI de tinta puede quedarse quieto porque el blur conserva la suma. La accuracy se conoce una semana después. La confianza media sana es 0.969 y el umbral 0.959 deja caer aproximadamente 1 % de días sanos. Los días 5 y 13 cruzan de forma aislada; la regla de dos días seguidos avisa el 14. Una regla de tres días tiene probabilidad $0.01^3=10^{-6}$ por terna sana **si los días son independientes**, pero demora al menos dos días adicionales y la correlación entre días invalida esa cifra simple.
+
+**Ejercicio de alarma.** Después de reentrenar, accuracy sube de 80.9 % a 92.5 %, pero la línea antigua de confianza avisa todos los días. ¿Por qué? ¿Qué haces?
+
+<Solucion>
+
+1. La línea 0.959 fue calibrada con el modelo viejo en escaneos nítidos. El nuevo modelo puede producir otra escala de confianza aunque acierte más.
+2. Mide días sanos del modelo nuevo con etiquetas y confianza. Ajusta una nueva línea con el mismo criterio de falsa alarma.
+3. Conserva la puerta de lanzamiento y comprueba por clase; una alerta vieja no justifica apagar un modelo mejor sin investigar.
+</Solucion>
+
+### Etiquetas, ficha y linaje
+
+Una alarma no dice cuántas etiquetas bastan: fija la mejora mínima y calcula potencia. Tras reentrenar, repite la puerta de calidad, el canary y la regla de reversión.
+
+Una *model card* (ficha del modelo) documenta uso previsto, datos, métricas, fallas y límites. Un *lineage* (linaje) responde «¿qué versión leyó este 8?» enlazando solicitud, preprocesamiento, versión de modelo, corrida, código y huella de datos. En un *feedback loop* (bucle de realimentación), la respuesta cambia los datos futuros: si solo se revisan formularios que el modelo declara dudosos, se dejan de observar sus errores seguros. Reserva muestreo independiente para evaluar.
+
+**Ejercicio de ficha.** Completa la ficha de DigitReader con los números medidos y calcula la probabilidad de tres falsas alarmas consecutivas al 1 % por día bajo independencia.
+
+<Solucion>
+
+1. Uso: una cifra manuscrita en imagen 8×8, valores 0..16. Entrenamiento: 1257 formularios; etiquetas con huella `d02dbe482ab4`; copias desplazadas un píxel.
+2. Test: 535/540 (99.1 %). Dígitos débiles: 8 con 50/52 y 3 con 53/55.
+3. Fallas conocidas: blur 81.5 %, trazo grueso 66.3 %, entrada 0..255 hace que todos se lean como 5. Los 13 escritores de train también aparecen en test; no hay prueba con escritores nuevos.
+4. Bajo independencia, $0.01^3=0.000001$, una por millón de ternas. En días correlacionados la probabilidad puede ser mayor; el retraso es de dos días adicionales.
+</Solucion>
+
+### Qué ve cada control
+
+El esquema ve unidades 0..255, pero no blur válido. La tinta total ve el trazo grueso y puede ignorar blur. Pruebas por píxel y detector de dominio ven imágenes nuevas, pero no saben si baja el acierto. Confianza y mezcla de respuestas pueden alertar, aunque también cambian sin daño. Solo las etiquetas retrasadas revelan el cambio de concepto y cuantifican accuracy. Antes de operar, comprueba esquema, registros, monitores calibrados con lotes sanos, muestra etiquetada, puerta de relanzamiento y reversión ensayada.
+
+<Quiz client:visible id="mlops-monitoreo" preguntas={[
+ {q:'Escáner borroso: ¿qué distribución cambia primero?',opts:['P(X)','solo P(y|X)','ninguna','solo el código'],ok:0},
+ {q:'Más ceros correctos en la sucursal:',opts:['label shift','concept shift obligado','bug de unidades','sin cambio'],ok:0},
+ {q:'Misma X pero otra respuesta correcta:',opts:['concept shift','solo covariate shift','NMF','PCA'],ok:0},
+ {q:'PSI de (0.5,0.5) frente a (0.3,0.7):',opts:['0','0.17','1','8.09'],ok:1},
+ {q:'Si la tinta antes y después es 32, ¿cuál es la diferencia de suma?',opts:['0','4','16','32'],ok:0},
+ {q:'AUC 0.996 del detector de dominio significa…',opts:['pasado y hoy distinguibles','accuracy de DigitReader 99.6 %','no hay cambio','concept shift probado'],ok:0},
+ {q:'Con 100 pruebas sanas al 5 %, ¿cuántos falsos avisos se esperan?',opts:['0','1','5','50'],ok:2},
+ {q:'Tras reentrenar, las alarmas antiguas deben…',opts:['recalibrarse con días sanos','ignorarse para siempre','duplicarse','fijarse a 0.25'],ok:0}
+]} />
+<Conexiones items={[{href:'/clasificacion/metricas/',titulo:'Métricas',texto:'Accuracy requiere etiquetas; AUC del detector responde otra pregunta.'},{href:'/regularizacion/validacion-cruzada/',titulo:'Validación',texto:'El detector de dominio necesita evaluación fuera de muestra.'},{href:'/mlops/despliegue/',titulo:'Release gate',texto:'Todo modelo reentrenado pasa por la misma puerta.'}]} />
+<Recursos items={[R.mlcc, R.skMetrics]} />
+<Fuente archivos={['ML_Course_MLOps.pdf (slides 29–54)']} />
+
+## Errores típicos
+
+- Leer PSI alto como prueba de caída de accuracy.
+- Creer que tinta total ve todo cambio de imagen.
+- Hacer muchas pruebas al 5 % sin controlar falsas alarmas.
+- Reentrenar por una alerta sin etiquetas ni puerta de salida.
+- Mantener la línea de confianza del modelo anterior tras reemplazarlo.

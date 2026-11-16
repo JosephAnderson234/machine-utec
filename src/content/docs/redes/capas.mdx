@@ -1,0 +1,214 @@
+---
+title: "11.2 · Capas: mezclar y doblar"
+description: "Redes A y B resuelven XOR; ReLU, linealidad y profundidad."
+---
+import Solucion from '../../../components/Solucion.astro';
+
+import EnSimple from '../../../components/EnSimple.astro';
+import Pasos from '../../../components/Pasos.astro';
+import CasoUso from '../../../components/CasoUso.astro';
+import Quiz from '../../../components/Quiz.tsx';
+import Conexiones from '../../../components/Conexiones.astro';
+import Recursos from '../../../components/Recursos.astro';
+import Fuente from '../../../components/Fuente.astro';
+import RedXorPaso from '../../../components/sim/RedXorPaso.tsx';
+import { R } from '../../../data/recursos';
+
+<EnSimple id="redes/capas" />
+
+## Empieza aquí: tres compuertas de dos entradas
+
+La primera neurona responde «al menos una entrada vale 1» (OR); la segunda, «no valen 1 ambas» (NAND). Una tercera responde 1 solo cuando ambas respuestas anteriores son 1 (AND). Así, $(x_1\operatorname{OR}x_2)\operatorname{AND}(x_1\operatorname{NAND}x_2)$ es XOR.
+
+Cada compuerta usa el escalón $H(z)=1$ si $z>0$ y 0 en otro caso. Los números de la red A son:
+
+| Compuerta | Pesos | Sesgo | Salida en $(0,0),(0,1),(1,0),(1,1)$ |
+| --- | --- | --- | --- |
+| OR | $(1,1)$ | $-0.5$ | $0,1,1,1$ |
+| NAND | $(-1,-1)$ | $1.5$ | $1,1,1,0$ |
+| AND sobre OR/NAND | $(1,1)$ | $-1.5$ | $0,1,1,0$ |
+
+<figure>
+<svg viewBox="0 0 560 160" role="img" aria-label="Dos entradas se mezclan en OR y NAND y luego en AND">
+  <g fill="none" stroke="currentColor" stroke-width="2"><path d="M55 45 L220 45 M55 45 L220 115 M55 115 L220 45 M55 115 L220 115 M290 45 L460 80 M290 115 L460 80"/></g>
+  <g fill="var(--sl-color-accent)"><circle cx="255" cy="45" r="36"/><circle cx="255" cy="115" r="36"/><circle cx="495" cy="80" r="36"/></g>
+  <g fill="var(--sl-color-bg)" text-anchor="middle" font-size="17"><text x="40" y="50">x₁</text><text x="40" y="120">x₂</text><text x="255" y="51">OR</text><text x="255" y="121">NAND</text><text x="495" y="86">AND</text></g>
+</svg>
+<figcaption><strong>Cómo leerlo:</strong> dos respuestas intermedias se vuelven entradas de una nueva compuerta. Ahí aparece la interacción que faltaba.</figcaption>
+</figure>
+
+## Puente: de compuertas a capas
+
+Las dos primeras compuertas forman una **capa oculta**. No intentan decidir XOR por separado; **mueven los cuatro puntos** a una nueva representación $(\mathrm{OR},\mathrm{NAND})$. Allí la última neurona sí separa las clases. El escalón enseña la idea, pero su derivada es cero casi en todas partes: cuesta entrenarlo con gradiente.
+
+La activación *ReLU* (*rectified linear unit*, unidad lineal rectificada), $\operatorname{ReLU}(z)=\max(0,z)$, también dobla y sí tiene pendiente 1 para $z>0$. En la red B de la clase, las dos neuronas ocultas reciben $x_1+x_2$ y $x_1+x_2-1$:
+
+$$
+\mathbf z^{(1)}=\begin{pmatrix}1&1\\1&1\end{pmatrix}\mathbf x+\begin{pmatrix}0\\-1\end{pmatrix},\qquad
+\mathbf h=\operatorname{ReLU}(\mathbf z^{(1)}),\qquad \hat y=h_1-2h_2.
+$$
+
+<Pasos titulo="Red B en las cuatro esquinas">
+
+1. En $(0,0)$: $\mathbf z=(0,-1)$; ReLU da $\mathbf h=(0,0)$; $\hat y=0$.
+2. En $(0,1)$: $\mathbf z=(1,0)$; $\mathbf h=(1,0)$; $\hat y=1$.
+3. En $(1,0)$ ocurre lo mismo: $\hat y=1$.
+4. En $(1,1)$: $\mathbf z=(2,1)$; $\mathbf h=(2,1)$; $\hat y=2-2=0$. Las cuatro etiquetas son exactas.
+
+</Pasos>
+
+<RedXorPaso client:visible />
+
+<figure><svg viewBox="0 0 560 210" role="img" aria-label="Las cuatro esquinas de XOR se transforman en un espacio donde una recta las separa"><g fill="none" stroke="var(--sl-color-text)" stroke-width="2"><path d="M45 175H215M60 190V25M335 175H520M350 190V25"/></g><g fill="var(--sl-color-accent)"><circle cx="65" cy="170" r="7"/><circle cx="205" cy="35" r="7"/><circle cx="355" cy="35" r="7"/><circle cx="505" cy="170" r="7"/></g><g fill="var(--sl-color-text)"><rect x="58" y="28" width="14" height="14"/><rect x="198" y="163" width="14" height="14"/><rect x="498" y="28" width="14" height="14"/><rect x="348" y="163" width="14" height="14"/></g><path d="M440 20V182" stroke="var(--sl-color-accent)" stroke-width="2" stroke-dasharray="5 4"/><g fill="var(--sl-color-text)" font-size="14"><text x="75" y="204">entrada (x₁,x₂)</text><text x="365" y="204">oculta (OR,NAND)</text><text x="240" y="100">→</text></g></svg><figcaption><strong>Cómo leerlo:</strong> cada figura conserva su clase, pero la capa oculta cambia sus coordenadas. En el espacio nuevo, AND separa los dos cuadrados de los dos círculos.</figcaption></figure>
+
+## Ejercicios de las diapositivas
+
+**Predice primero — ¿adónde fueron las cuatro esquinas?** Calcula $(\mathrm{OR},\mathrm{NAND})$ antes de mirar la respuesta.
+
+<Solucion>
+
+$(0,0)\mapsto(0,1)$; $(0,1)$ y $(1,0)\mapsto(1,1)$; $(1,1)\mapsto(1,0)$. Solo las dos esquinas de etiqueta 1 caen en $(1,1)$. El corte $h_1+h_2>1.5$ las selecciona. Esa es la tercera compuerta.
+
+</Solucion>
+
+**Compruébalo — espacio oculto de B.** Calcula las cuatro parejas $h$ de la red ReLU. ¿Por qué se rompe la igualdad de diagonales?
+
+<Solucion>
+
+1. Las entradas suman 0, 1, 1 y 2. La segunda unidad resta 1 antes de ReLU.
+2. Por eso $h=(0,0),(1,0),(1,0),(2,1)$.
+3. En la segunda coordenada, la diagonal $(0,0),(1,1)$ suma 1 y la otra suma 0. ReLU creó una interacción porque activó esa unidad solo cuando ambas entradas valen 1.
+
+</Solucion>
+
+**Tu turno — quita el doblez.** Sustituye ReLU por la identidad en B y multiplica los pesos. ¿Qué salida reciben las esquinas?
+
+<Solucion>
+
+Sin ReLU, $h=(x_1+x_2,x_1+x_2-1)$. La salida es $(x_1+x_2)-2(x_1+x_2-1)=2-x_1-x_2$. En orden $(0,0),(0,1),(1,0),(1,1)$ produce $(2,1,1,0)$; al umbral habitual no es XOR. Se puede escribir como una sola función afín, así que ninguna elección de sus pesos resolvería las cuatro esquinas.
+
+</Solucion>
+
+**Compruébalo — contar números.** Cuenta pesos y sesgos de redes densas 2–3–1 y 4–8–3.
+
+<Solucion>
+
+Cada unidad recibe un peso por entrada y un sesgo. Para 2–3–1: $(2+1)3+(3+1)1=9+4=13$. Para 4–8–3: $(4+1)8+(8+1)3=40+27=67$. La activación no añade parámetros.
+
+</Solucion>
+
+**Tu turno — compuertas y dobleces.** En la red A, calcula la salida para $(1,1)$ y $(0,1)$. Luego calcula $\operatorname{ReLU}(0)$ y su pendiente a cada lado de cero.
+
+<Solucion>
+
+Para $(1,1)$: OR=1, NAND=0, AND=0. Para $(0,1)$: OR=1, NAND=1, AND=1. ReLU(0)=0; a la izquierda la pendiente es 0 y a la derecha 1. Justo en cero no tiene derivada única, pero un programa elige una convención para entrenar.
+
+</Solucion>
+
+**Tu turno — más jorobas.** Para una curva con pendiente máxima $2\pi$, aproximar por escalones de ancho $1/H$ da error máximo aproximado $\pi/H$. ¿Qué cota da $H=64$?
+
+<Solucion>
+
+La cota pasa de $\pi/32\approx0.0982$ a $\pi/64\approx0.0491$: duplicar las ventanas reduce a la mitad el ancho de cada intervalo. La diapositiva mide 0.042 con 32 jorobas; la cota es conservadora y aproxima una escalera ideal, mientras las sigmoides tienen bordes suaves.
+
+</Solucion>
+
+## Versión completa: qué aporta la profundidad
+
+Para una capa $\ell$: $\mathbf z^{(\ell)}=W^{(\ell)}\mathbf a^{(\ell-1)}+\mathbf b^{(\ell)}$ y $\mathbf a^{(\ell)}=\phi(\mathbf z^{(\ell)})$. Si $\phi$ fuera la identidad, dos capas darían $W^{(2)}W^{(1)}\mathbf x+(W^{(2)}\mathbf b^{(1)}+\mathbf b^{(2)})$: **otra función afín**. La no linealidad es indispensable.
+
+Cada ReLU crea un quiebre. Capas sucesivas pueden volver a doblar el resultado de capas anteriores, produciendo muchas regiones con pocas unidades. La diapositiva construye una «carpa» $T(x)=2\operatorname{ReLU}(x)-4\operatorname{ReLU}(x-1/2)+2\operatorname{ReLU}(x-1)$ en $[0,1]$: sube hasta 1 y vuelve a 0. Componer carpas aumenta el número de tramos. **Profundidad multiplica posibilidades de composición**; no garantiza que entrenar encuentre los pesos.
+
+<Pasos titulo="Por qué la carpa crea más tramos al componerla">
+
+1. Para $0\le x\le1/2$, solo la primera ReLU está activa: $T(x)=2x$. Sube de 0 a 1.
+2. Para $1/2\le x\le1$, las dos primeras están activas: $T(x)=2x-4(x-1/2)=2-2x$. Baja de 1 a 0.
+3. En cada mitad, $T$ recorre otra vez todo $[0,1]$. Por eso $T(T(x))$ dibuja dos carpas y tiene cuatro tramos lineales, aunque la fórmula reusa la misma operación.
+4. Al repetir $d$ veces, cada tramo previo se parte en dos: aparecen $2^d$ tramos en este ejemplo. Es una demostración concreta de la ventaja de composición, no una garantía sobre cualquier conjunto de datos.
+
+</Pasos>
+
+## De dos sigmoides a una curva completa
+
+La diapositiva **«Two S-curves, subtracted»** propone dos sigmoides empinadas, una que sube cerca de $0.3$ y otra cerca de $0.5$. Al restarlas aparece una **joroba** de altura cercana a 1 dentro de ese intervalo y cercana a 0 fuera. Sumar jorobas de distintos anchos y alturas dibuja una escalera que sigue una curva. La versión técnica es la **aproximación universal**: con una activación continua no polinómica y suficiente ancho, una capa oculta puede acercarse tanto como se quiera a una función continua sobre un conjunto compacto.
+
+**Predice primero — dos curvas en S.** Si la primera se enciende en $0.3$ y la segunda en $0.5$, ¿qué vale aproximadamente su diferencia en $x=0.2$, $0.4$ y $0.7$?
+
+<Solucion>
+
+Antes de $0.3$ ambas están cerca de 0: diferencia 0. En $0.4$ la primera está cerca de 1 y la segunda de 0: diferencia 1. Después de $0.5$ ambas están cerca de 1: diferencia 0. Una sigmoide real suaviza los bordes de la joroba.
+
+</Solucion>
+
+**Predice primero — capacidad y ruido.** La diapositiva muestra 20 puntos ruidosos: 2 unidades tienen error de entrenamiento 0.24 y distancia 0.22 a la curva real; 32 unidades bajan el error de entrenamiento a 0.13, pero pueden alejarse más de 1 de la curva. ¿Cuál escogerías para nuevos puntos?
+
+<Solucion>
+
+Escogería 2 unidades con esa evidencia: siguen mejor la curva verdadera. El modelo ancho puede dibujar la curva, pero también memorizar desviaciones del ruido. El teorema asegura existencia de pesos para aproximar una función continua; no asegura encontrarlos a partir de 20 observaciones ruidosas ni generalizar.
+
+</Solucion>
+
+**Compruébalo — una joroba.** Escribe las dos unidades para el intervalo $[0.2,0.6]$ con pendiente $s=100$. Si 16 jorobas fallan por 0.19 y el error baja aproximadamente como $1/H$, estima cuántas hacen falta para 0.02.
+
+<Solucion>
+
+La salida es $\sigma(100x-20)-\sigma(100x-60)$: pesos de entrada 100 y 100, sesgos $-20$ y $-60$, pesos de salida $+1$ y $-1$. La anchura es $0.4$. Escalando $16(0.19/0.02)=152$ jorobas, unas 304 unidades. La diapositiva midió que 150 jorobas dan error 0.015; la cuenta es una aproximación, no una ley exacta.
+
+</Solucion>
+
+### Ir más a fondo (opcional): qué afirma la aproximación
+
+<Pasos titulo="Construir una aproximación por jorobas">
+
+1. Divide $[0,1]$ en $H$ intervalos pequeños. Como la función objetivo es continua en un intervalo cerrado, cambia poco dentro de intervalos suficientemente estrechos.
+2. Resta dos sigmoides muy empinadas en los extremos de cada intervalo. La diferencia se acerca a una ventana que vale 1 dentro y 0 fuera.
+3. Multiplica cada ventana por la altura de la función en ese intervalo y suma. Obtienes una escalera que aproxima la curva salvo cerca de los bordes.
+4. Aumenta $H$ para reducir el error de discretización y aumenta la pendiente para estrechar los bordes. La red es una suma de unidades ocultas; este argumento explica por qué el ancho ayuda. No aporta un algoritmo de entrenamiento ni una cota de generalización.
+
+</Pasos>
+
+## Diapositivas de esta página
+
+«Three gates, wired: net A» y «The hidden layer moved the points» explican las compuertas y el nuevo espacio; «But net A cannot learn» y «Bends with a slope» motivan ReLU: un escalón casi nunca da gradiente útil. «Net B: a ReLU network in integers», «The layer rule: mix, then bend» y «Drop the bend: what is left?» construyen y desmontan B. «With the bend, depth multiplies», «Two S-curves, subtracted», «Many bumps: any curve», «The theorem, stated properly» y «What the theorem does not promise» cubren composición, aproximación y límites. Los tres «Check yourself» están resueltos arriba.
+
+## Errores típicos
+
+- Contar la capa de entrada como si aplicara ReLU; solo entrega datos.
+- Pensar que más capas lineales crean una frontera curva. Sus matrices se multiplican en una sola matriz.
+- Confundir «existe una red» con «gradiente encontrará esa red».
+- Contar pesos sin sesgos al calcular el tamaño de una arquitectura.
+
+:::caution[Trampa de examen]
+La aproximación universal dice que una red suficientemente ancha puede aproximar una función continua en un dominio compacto con la activación adecuada. No dice que una red pequeña baste, que el gradiente encuentre los pesos, ni que generalice a nuevos datos.
+:::
+
+### Ir más a fondo (opcional): simetría de unidades
+
+Intercambiar las dos unidades ocultas de B y también sus pesos de salida deja idéntica la función. Los parámetros pasan a sesgos $(-1,0)$ y pesos de salida $(-2,1)$. Hay varias representaciones del mismo predictor: los pesos individuales no siempre tienen una interpretación única.
+
+```python
+import numpy as np
+X = np.array([[0, 0], [0, 1], [1, 0], [1, 1]])
+H = np.maximum(0, X @ np.array([[1, 1], [1, 1]]) + [0, -1])
+print((H @ np.array([1, -2])).tolist())
+# [0, 1, 1, 0]
+```
+
+<CasoUso titulo="Dos lunas entrelazadas" sector="clasificación" icono="🌙">
+En `03-neural-networks-from-scratch-and-in-scikit-learn.ipynb`, 1,000 puntos forman dos lunas. La frontera lineal no sigue su forma; una capa oculta de 16 unidades ReLU crea tramos que rodean ambas. El cuaderno separa 750 puntos para entrenar y 250 para evaluar.
+</CasoUso>
+
+<Quiz client:visible id="redes-capas" preguntas={[
+  {q:'¿Qué combinación de compuertas da XOR?',opts:['OR AND NAND','OR AND (NAND)','OR OR NAND','solo AND'],ok:1},
+  {q:'¿Qué da ReLU(-1)?',opts:['-1','0','1','no está definida'],ok:1},
+  {q:'En la red B, h en (1,1) es…',opts:['(2,1)','(1,1)','(2,0)','(0,0)'],ok:0},
+  {q:'En (1,1), la salida h₁−2h₂ vale…',opts:['-1','0','1','2'],ok:1},
+  {q:'Dos capas sin activación intermedia equivalen a…',opts:['una función afín','un XOR','un árbol','softmax'],ok:0},
+  {q:'¿Cuál es la pendiente de ReLU para z positivo?',opts:['0','1','z','infinita'],ok:1},
+  {q:'La aproximación universal garantiza encontrar los pesos con gradiente.',opts:['Verdadero','Falso'],ok:1},
+  {q:'¿Cuántos parámetros tiene una red densa 2–3–1 con sesgos?',opts:['9','10','13','16'],ok:2},
+]} />
+
+<Conexiones items={[{href:'/redes/neurona/',titulo:'El muro XOR',texto:'La capa oculta aporta la interacción que una recta no puede dar.'},{href:'/kernels/truco/',titulo:'Mapa de características',texto:'Ambos métodos transforman las entradas antes de separar.'},{href:'/arboles/cart/',titulo:'Cajas y regiones',texto:'Árboles y ReLU crean funciones por regiones de forma distinta.'}]} />
+<Recursos items={[R.playground, R.g3b1bLA]} />
+<Fuente archivos={['ML_Course_Neural_Networks_I.pdf (slides 12–27)', '03-neural-networks-from-scratch-and-in-scikit-learn.ipynb']} />

@@ -1,0 +1,45 @@
+---
+title: "Resumen 9 · Clustering"
+description: "Resumen imprimible de una página: ideas clave, fórmulas y trampas de examen de Clustering."
+tableOfContents: false
+prev: false
+next: false
+---
+
+<p class="no-print"><a href="/clustering/kmeans/">ir a la teoría completa</a> · imprime con Ctrl + P (o guarda como PDF)</p>
+
+## Ideas clave
+
+- **No supervisado**: no hay etiquetas. Un buen grupo es **cercano por dentro y lejano de los demás**, pero «cercano» depende de las features que miras.
+- **k-means** repite dos pasos: *unir* cada punto a su centro más cercano y *mover* cada centro al promedio de su grupo. Para cuando nadie cambia.
+- Minimiza la **WCSS**; ningún paso la sube (el promedio es la mejor constante cuadrática). Converge, pero a un **mínimo local**: reinicios (`n_init`) y **k-means++**.
+- Supone grupos **redondos y de tamaño parecido**, y depende de las **unidades**: estandariza (cm vs mm cambia la respuesta).
+- ¿Cuántos grupos? **Codo** (WCSS vs $K$) y **silhouette**. Ojo: el clustering **siempre responde**, aunque no haya grupos.
+- Comparar con etiquetas conocidas: **ARI** (0 = azar, 1 = idéntico).
+- **GMM**: cada grupo es una nube gaussiana; pertenencia **blanda** (EM: paso E = responsabilidades, paso M = re-estimar). **DBSCAN**: grupos = regiones densas (ε, minPts), forma libre y separa **ruido**. **Jerárquico**: unir lo más cercano y cortar el dendrograma; la **linkage** cambia el resultado.
+
+## Fórmulas
+
+$$
+\text{WCSS} = \sum_k \sum_{i\in G_k} \lVert \mathbf{x}_i - \mathbf{c}_k \rVert^2,\qquad \mathbf{c}_k = \frac{1}{\lvert G_k\rvert}\sum_{i\in G_k}\mathbf{x}_i
+$$
+
+$$
+s(i) = \frac{b(i)-a(i)}{\max\{a(i),b(i)\}}\in[-1,1]
+$$
+
+$$
+\gamma_{ik} = \frac{\pi_k\,\mathcal N(\mathbf{x}_i\mid\boldsymbol\mu_k,\Sigma_k)}{\sum_j \pi_j\,\mathcal N(\mathbf{x}_i\mid\boldsymbol\mu_j,\Sigma_j)}
+$$
+
+$$
+\text{ARI} = \frac{\text{acuerdo} - \text{azar}}{1-\text{azar}}
+$$
+
+## Trampas de examen
+
+- Dos corridas de k-means con distinto resultado no es un bug: es el inicio aleatorio.
+- Más $K$ siempre baja la WCSS (con $K=n$ vale 0): no elijas $K$ minimizando WCSS.
+- Silhouette negativa ⇒ el punto está más cerca del otro grupo.
+- DBSCAN «no necesita $K$», pero ε decide cuántos grupos salen.
+- k-means no encuentra lunas ni anillos: sus fronteras son rectas (Voronoi).

@@ -1,0 +1,159 @@
+---
+title: "¿Por qué gana el equipo?"
+description: "Voto, errores compartidos, sesgo y varianza de un ensamble."
+---
+import EnSimple from '../../../components/EnSimple.astro';
+import Pasos from '../../../components/Pasos.astro';
+import Solucion from '../../../components/Solucion.astro';
+import CasoUso from '../../../components/CasoUso.astro';
+import Quiz from '../../../components/Quiz.tsx';
+import Conexiones from '../../../components/Conexiones.astro';
+import Recursos from '../../../components/Recursos.astro';
+import Fuente from '../../../components/Fuente.astro';
+import TeamVotes from '../../../components/sim/TeamVotes.tsx';
+import { R } from '../../../data/recursos';
+
+<EnSimple id="ensambles/equipos" />
+
+## Empieza aquí: tres personas que votan
+
+Tres personas responden diez preguntas de sí/no. Cada una acierta **7 de 10**. Si sus tres errores caen en preguntas diferentes, en cada pregunta quedan dos votos correctos: el equipo logra **10 de 10**. Si las tres se equivocan en las mismas preguntas, el equipo sigue en **7 de 10**. Si los errores se solapan de dos en dos, la sesión construye un equipo de **6 de 10**. El número de aciertos individuales no basta: importa *dónde* se equivocan.
+
+<svg viewBox="0 0 620 130" role="img" aria-label="Tres votantes con errores separados; cada columna tiene al menos dos aciertos" style={{maxWidth:'100%'}}><text x="5" y="24" fill="currentColor">V1</text><text x="5" y="55" fill="currentColor">V2</text><text x="5" y="86" fill="currentColor">V3</text>{Array.from({length:10},(_,i)=><g key={i}>{[0,1,2].map(j=><rect key={j} x={55+i*54} y={5+j*31} width="42" height="25" rx="4" fill={(j===0&&i>=7)||(j===1&&i>=4&&i<=6)||(j===2&&i>=1&&i<=3)?'var(--sl-color-orange)':'var(--sl-color-green)'}/>)}<text x={75+i*54} y="119" textAnchor="middle" fill="currentColor">{i+1}</text></g>)}</svg>
+
+*Cómo leerlo:* verde es acierto y naranja error. Ninguna columna tiene dos naranjas: el voto mayoritario siempre acierta.
+
+**Puente.** Combinar predicciones de varios modelos se llama *ensemble* (ensamble). Para clases se vota; para números se promedia. El árbol profundo de la unidad anterior cambia mucho cuando cambia la muestra: sus errores son candidatos para cancelarse.
+
+## Del ejemplo a la probabilidad
+
+Supón que cada votante acierta con probabilidad $p=0.7$ y que sus errores son **independientes**. El equipo acierta si aciertan los tres o exactamente dos:
+
+<Pasos titulo="Mayoría de tres, a mano">
+
+1. Los tres aciertan con probabilidad $0.7^3=0.343$.
+2. Una persona falla y las otras dos aciertan con probabilidad $0.7^2(0.3)=0.147$ para cada una de tres posiciones.
+3. Sumamos $0.343+3(0.147)=0.784$. La ganancia frente al 0.7 individual es 0.084.
+4. Si $p=0.4$, el mismo cálculo da $0.4^3+3(0.4^2)(0.6)=0.352$: una mayoría amplifica también a malos votantes.
+
+</Pasos>
+
+Para un número impar $B$ de votantes independientes, la probabilidad exacta es $\sum_{k=(B+1)/2}^{B}\binom Bk p^k(1-p)^{B-k}$. Con $B=25$ y $p=0.7$, la sesión obtiene **0.983**. El requisito de independencia es fuerte: modelos entrenados sobre los mismos datos suelen compartir errores.
+
+<TeamVotes client:visible />
+
+## Promediar cancela dispersión, no dirección equivocada
+
+Piensa en dardos: el **sesgo** es que el centro de los tiros cae lejos de la diana; la **varianza** es que los tiros se dispersan. Promediar tiros independientes reduce dispersión. Si todos apuntan mal, el promedio también apunta mal.
+
+Si cada predicción tiene varianza $\sigma^2$, todas tienen la misma covarianza $\rho\sigma^2$, y promediamos $B$ predicciones, entonces:
+
+$$\operatorname{Var}(\bar f)=\frac{1}{B^2}\left[B\sigma^2+B(B-1)\rho\sigma^2\right]=\sigma^2\left[\rho+\frac{1-\rho}{B}\right].$$
+
+**Ir más a fondo (opcional).** Cuando $\rho=0$, queda $\sigma^2/B$: la desviación típica baja como $1/\sqrt B$. Cuando $\rho=1$, queda $\sigma^2$: copias idénticas no ayudan. La esperanza del promedio es la misma esperanza de cada modelo; por eso el sesgo común no desaparece.
+
+En la ola ruidosa de la sesión, un árbol profundo tiene dispersión 0.300 en $x=1$; el promedio de diez entrenados sobre diez muestras independientes baja a **0.094**. Los tocones, en cambio, quedan cerca de **0.47 por debajo** del valor real incluso después de promediarlos.
+
+:::caution[Trampa de examen]
+«Un ensamble siempre mejora» es falso. Puede empeorar si cada miembro acierta menos que una moneda o si los errores se superponen. En datos reales, tampoco puedes tratar árboles bootstrap como perfectamente independientes.
+:::
+
+## En código
+
+```python
+from math import comb
+p, B = 0.7, 3
+prob = sum(comb(B, k) * p**k * (1-p)**(B-k) for k in range(B//2+1, B+1))
+print(round(prob, 3))  # 0.784
+```
+
+<CasoUso titulo="Varios árboles para evaluar solicitudes" sector="finanzas" icono="🏦">Un árbol de decisión profundo puede cambiar su primera pregunta si cambian pocos clientes. Un banco puede promediar muchos árboles entrenados con muestras diferentes y validar la calidad en datos nuevos. La predicción se estabiliza, aunque los errores sistemáticos de los datos históricos siguen presentes.</CasoUso>
+
+## Por qué importa cada paso
+
+
+### La conjetura colectiva de Galton
+
+Imagina doce personas estimando cuántos dulces hay en un frasco. Anotan sus conjeturas antes de hablar: así no se copian. La slide recuerda el experimento de Galton con **787** conjeturas sobre el peso de un buey. El valor real era **1198 lb** y la mediana de las conjeturas, **1207 lb**: diferencia de 9 lb, aproximadamente **0.75 %**. Las conjeturas individuales típicas erraban cerca de 3 %. La mediana resiste una conjetura disparatada; el promedio necesita errores con signos que se compensen. En la simulación de la slide, 200 personas estiman 850 dulces: el error típico individual es 17 %, mientras el promedio de 1000 multitudes falla solo 1.2 % y supera al 96 % de sus integrantes. Si todos subestiman, el promedio queda en **733**, a 117 de 850: **13.8 %**. La regla técnica es que promediar quita variación aleatoria, pero conserva el desplazamiento común.
+
+<svg viewBox="0 0 620 145" role="img" aria-label="Aciertos individuales, promedio cercano y promedio sesgado" style={{maxWidth:'100%'}}><line x1="35" y1="74" x2="580" y2="74" stroke="currentColor"/><line x1="375" y1="20" x2="375" y2="112" stroke="var(--sl-color-text)" strokeDasharray="4 3"/><text x="375" y="16" textAnchor="middle" fill="currentColor">verdad 850</text>{[145,230,305,360,405,485,520].map((x,i)=><circle key={i} cx={x} cy="74" r="7" fill="var(--sl-color-accent)"/>)}<circle cx="365" cy="74" r="11" fill="var(--sl-color-green)"/><circle cx="257" cy="74" r="11" fill="var(--sl-color-orange)"/><text x="240" y="119" fill="currentColor">promedio 733 si todos sesgan</text></svg>
+
+*Cómo leerlo:* los puntos pequeños son opiniones distintas; el verde representa un promedio cercano a la verdad y el naranja un promedio desplazado por un error común. Las posiciones de los puntos individuales son ilustrativas; 733 y 850 proceden de la slide.
+
+### Por qué un árbol ofrece algo que promediar
+
+En las dos lunas, tres remuestreos de **180** observaciones producen árboles de **19, 10 y 14 hojas**. Los tres alcanzan test entre **0.858 y 0.867**, pero sus fronteras son diferentes. La exactitud parecida no significa que respondan igual a cada punto futuro. Es **varianza**: cambiar los datos cambia la función aprendida. Un tocón casi no cambia, pero una sola pregunta suele dejar **sesgo**: no dibuja las dos lunas. Un árbol profundo sí puede seguirlas, a costa de ser inestable. Bagging aprovechará justamente esa inestabilidad.
+
+<svg viewBox="0 0 620 160" role="img" aria-label="Dardos dispersos alrededor del objetivo y dardos juntos fuera del objetivo" style={{maxWidth:'100%'}}><g fill="none" stroke="var(--sl-color-text)"><circle cx="150" cy="77" r="55"/><circle cx="150" cy="77" r="26"/><circle cx="455" cy="77" r="55"/><circle cx="455" cy="77" r="26"/></g>{[[120,53],[176,58],[132,103],[163,94],[145,77],[183,111]].map(([x,y],i)=><circle key={i} cx={x} cy={y} r="5" fill="var(--sl-color-accent)"/>)}{[[484,53],[490,64],[479,67],[493,76],[486,81]].map(([x,y],i)=><circle key={i} cx={x} cy={y} r="5" fill="var(--sl-color-orange)"/>)}<text x="150" y="151" textAnchor="middle" fill="currentColor">poca desviación, mucha dispersión</text><text x="455" y="151" textAnchor="middle" fill="currentColor">desviación común</text></svg>
+
+*Cómo leerlo:* cada dardo es el modelo entrenado en otra muestra. El primer conjunto se dispersa alrededor del blanco: promediar lo acerca al centro. El segundo está compacto y apartado: el promedio permanece apartado.
+
+### Ir más a fondo: de la media a la varianza
+
+La varianza mide cuánto cambia una predicción si repites el entrenamiento. La fórmula siguiente cuantifica exactamente cuánto puede reducirla un promedio de $B$ modelos con igual varianza y correlación de pares $\rho$.
+
+<Pasos titulo="Derivar la reducción y sus límites">
+
+1. Escribe $\bar f=B^{-1}\sum_{b=1}^B f_b$. Multiplicar por $1/B$ multiplica la varianza por $1/B^2$.
+2. La varianza de una suma contiene $B$ varianzas individuales $\sigma^2$ y $B(B-1)$ covarianzas ordenadas $\rho\sigma^2$. Por eso $\operatorname{Var}(\bar f)=[B\sigma^2+B(B-1)\rho\sigma^2]/B^2$.
+3. Divide cada término por $B^2$: $\sigma^2[\rho+(1-\rho)/B]$. Si $\rho=0$, queda $\sigma^2/B$ y la desviación típica es $\sigma/\sqrt B$.
+4. Si $\rho=1$, queda $\sigma^2$: copiar un modelo no añade información. Si $\rho>0$, aun con infinitos miembros queda el piso $\rho\sigma^2$.
+5. La esperanza sí se conserva: $E[\bar f]=B^{-1}\sum_bE[f_b]=E[f_b]$ cuando son idénticos en promedio. Por tanto, si todos apuntan 0.47 por debajo, la media también.
+
+</Pasos>
+
+En la ola ruidosa, la dispersión observada de **0.300** de un árbol cae a **0.094** con diez árboles entrenados en datos independientes; $0.300/\sqrt{10}\approx0.095$. Es una coincidencia cercana a la predicción ideal. En bagging real los árboles comparten el conjunto original y su correlación deja un piso mayor.
+
+## Ejercicios de las slides
+
+**Tu turno: estimación colectiva.** Doce personas dan las conjeturas 80, 90, 100, 110, 120, 130, 140, 150, 160, 170, 180 y 190 para un frasco con 135 dulces. ¿Qué predice el promedio? ¿Y si cada persona resta 20 a su propia conjetura? *(Ejemplo propio para practicar la actividad de la slide.)*
+
+<Solucion>
+
+1. Los números forman pares de suma 270: 80+190, 90+180, etc. Hay seis pares, así que la suma es $6\cdot270=1620$.
+2. El promedio es $1620/12=135$: acierta exactamente en este ejemplo propio.
+3. Restar 20 a cada número resta 20 al promedio: pasa a 115. Su error es 20. Un sesgo compartido permanece.
+
+</Solucion>
+
+**Tu turno: mayoría independiente.** Tres votantes aciertan con probabilidad 0.7 de forma independiente. Calcula la probabilidad de que la mayoría acierte. Después repite con 0.4.
+
+<Solucion>
+
+1. La mayoría acierta cuando hay exactamente dos o tres aciertos.
+2. Con 0.7: tres aciertos $0.7^3=0.343$; dos aciertos $3(0.7)^2(0.3)=0.441$. Total $0.784$.
+3. Con 0.4: tres aciertos $0.4^3=0.064$; dos aciertos $3(0.4)^2(0.6)=0.288$. Total $0.352$. Más votantes malos empeoran la decisión.
+
+</Solucion>
+
+**Compruébalo: ¿qué modelo gana más al promediar 100 copias?** Compara un árbol profundo y una regresión lineal ajustados a remuestreos del mismo conjunto.
+
+<Solucion>
+
+1. Un árbol profundo cambia muchas fronteras cuando cambian pocas filas: tiene varianza alta.
+2. Una recta ajustada a suficientes puntos suele cambiar menos: su varianza inicial es menor.
+3. El promedio puede reducir más la parte variable del árbol. Ninguno elimina su sesgo propio ni el ruido de las etiquetas.
+
+</Solucion>
+
+<Quiz client:visible id="ens-equipos" preguntas={[
+ {q:'Tres votantes independientes aciertan cada uno con p=0.7. ¿Probabilidad de mayoría correcta?',opts:['0.700','0.784','0.900','1.000'],ok:1},
+ {q:'Si los tres cometen los mismos errores, ¿qué gana votar?',opts:['Nada','8.4 puntos','30 puntos','Varianza cero'],ok:0},
+ {q:'Con p=0.4 independiente, la mayoría de tres acierta…',opts:['0.352','0.400','0.600','0.784'],ok:0},
+ {q:'¿Qué baja al promediar modelos independientes?',opts:['El sesgo común','La varianza','El ruido irreducible','La dimensión'],ok:1},
+ {q:'Si la correlación de errores es 1, al crecer B la varianza del promedio…',opts:['Tiende a cero','Se mantiene en σ²','Se duplica','Se vuelve negativa'],ok:1},
+ {q:'¿Qué modelo conviene promediar para bajar varianza?',opts:['Un árbol profundo e inestable','Diez copias idénticas de una recta','Un tocón con sesgo alto','Un clasificador peor que azar'],ok:0},
+ {q:'Si σ²=9 y B=3 independientes, ¿varianza del promedio?',opts:['1','3','9','27'],ok:1},
+ {q:'La mediana 1207 lb frente a 1198 lb difiere en…',opts:['9 lb','19 lb','90 lb','0 lb'],ok:0}
+]} />
+
+<Conexiones items={[{href:'/arboles/poda/',titulo:'Árboles inestables',texto:'El problema que el promedio de árboles busca aliviar.'},{href:'/regularizacion/sesgo-varianza/',titulo:'Sesgo y varianza',texto:'Los dardos explican qué puede y no puede arreglar el promedio.'}]} />
+<Recursos items={[R.mluRF,R.mluBiasVar,R.islr]} />
+<Fuente archivos={['ML_Course_Ensemble_Methods.pdf (slides 1–16)','session-09-simple-a-why-teams-win.ipynb']} />
+
+## Errores típicos
+
+- Confundir 10/10 en el ejemplo de errores separados con una garantía probabilística.
+- Tratar 0.784 como válido cuando los errores de votantes se correlacionan.
+- Creer que un promedio corrige una subestimación que todos comparten.
+- Llamar «mejor» a un árbol solo porque su exactitud media es parecida: también importa la estabilidad.

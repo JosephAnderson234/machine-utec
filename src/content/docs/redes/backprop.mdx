@@ -1,0 +1,194 @@
+---
+title: "11.3 · Pérdidas y retropropagación"
+description: "Cabezas para cada tarea y backpropagation a mano en la red B."
+---
+import Solucion from '../../../components/Solucion.astro';
+
+import EnSimple from '../../../components/EnSimple.astro';
+import Pasos from '../../../components/Pasos.astro';
+import CasoUso from '../../../components/CasoUso.astro';
+import Quiz from '../../../components/Quiz.tsx';
+import Conexiones from '../../../components/Conexiones.astro';
+import Recursos from '../../../components/Recursos.astro';
+import Fuente from '../../../components/Fuente.astro';
+import { R } from '../../../data/recursos';
+
+<EnSimple id="redes/backprop" />
+
+## Empieza aquí: ¿cuánto hay que corregir?
+
+La red B de la página anterior daba 0 para la esquina $(1,1)$. Para aprender a mano, la diapositiva **rompe** uno de sus pesos de salida: cambia $(1,-2)$ por $(1,-1)$. Ahora $\mathbf h=(2,1)$ y predice $\hat y=2-1=1$, pero la respuesta es $y=0$. La pérdida cuadrática $L=\tfrac12(\hat y-y)^2$ vale $0.5$. Si aumentamos un poco $\hat y$, la pérdida sube: la corrección debe ir en sentido contrario.
+
+<figure>
+<svg viewBox="0 0 580 150" role="img" aria-label="Flujo hacia delante y gradientes hacia atrás en una red">
+<defs><marker id="arrow-redes" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0 0L8 4L0 8" fill="currentColor"/></marker></defs>
+<g fill="none" stroke="var(--sl-color-accent)" stroke-width="3" marker-end="url(#arrow-redes)"><path d="M115 47H240M335 47H455"/></g>
+<g fill="none" stroke="var(--sl-color-text)" stroke-width="3" marker-end="url(#arrow-redes)"><path d="M455 105H335M240 105H115"/></g>
+<g fill="currentColor" font-size="17" text-anchor="middle"><text x="75" y="52">entrada x</text><text x="285" y="52">oculta h</text><text x="500" y="52">pérdida L</text><text x="290" y="137">gradientes y responsabilidades</text></g>
+</svg>
+<figcaption><strong>Cómo leerlo:</strong> primero se calcula de izquierda a derecha; después la pérdida envía derivadas hacia la izquierda.</figcaption>
+</figure>
+
+## Puente: la señal «predicho menos real»
+
+La derivada de $\tfrac12(\hat y-y)^2$ respecto de $\hat y$ es $\hat y-y=1$. Esa es la **señal de error** que se reparte por las conexiones. La operación se llama *backpropagation* (retropropagación): aplicar la regla de la cadena hacia atrás, reutilizando resultados de la pasada hacia delante.
+
+<Pasos titulo="Backprop completo en la red B rota">
+
+1. **Forward:** $\mathbf x=(1,1)$, $\mathbf z^{(1)}=(2,1)$, $\mathbf h=\operatorname{ReLU}(\mathbf z^{(1)})=(2,1)$, $\hat y=(1,-1)\cdot(2,1)=1$, $L=0.5$.
+2. **Salida:** $\delta^{(2)}=\partial L/\partial\hat y=\hat y-y=1$.
+3. **Pesos de salida:** $\partial L/\partial\mathbf w^{(2)}=\delta^{(2)}\mathbf h=(2,1)$; para el sesgo de salida, $\partial L/\partial b^{(2)}=1$.
+4. **Volver a la capa oculta:** $\partial L/\partial\mathbf h=\delta^{(2)}\mathbf w^{(2)}=(1,-1)$. Como ambos $z$ son positivos, $\operatorname{ReLU}'(\mathbf z)=(1,1)$ y $\boldsymbol\delta^{(1)}=(1,-1)$.
+5. **Pesos de entrada:** $\partial L/\partial W^{(1)}=\boldsymbol\delta^{(1)}\mathbf x^\top=\begin{pmatrix}1&1\\-1&-1\end{pmatrix}$; $\partial L/\partial\mathbf b^{(1)}=(1,-1)$.
+6. **Actualizar:** a tasa $\eta=0.1$, $\mathbf w^{(2)}$ pasa de $(1,-1)$ a $(0.8,-1.1)$. Si cambiamos solo esos dos pesos, la predicción en $(1,1)$ pasa a $0.8(2)-1.1(1)=0.5$, y la pérdida a $0.125$.
+
+</Pasos>
+
+:::caution[Trampa de examen]
+En el paso 6 se actualizan **solo los pesos de salida** para aislar su efecto. Si actualizas también $W^{(1)}$ y ambos sesgos, debes volver a hacer todo el forward; no puedes reutilizar $\mathbf h=(2,1)$ como si no hubiera cambiado.
+:::
+
+<figure><svg viewBox="0 0 550 190" role="img" aria-label="Valores y derivadas de las dos unidades ocultas"><g fill="none" stroke="var(--sl-color-text)" stroke-width="2"><path d="M72 95L220 47M72 95L220 140M280 47L440 95M280 140L440 95"/></g><g fill="var(--sl-color-accent)"><circle cx="250" cy="47" r="30"/><circle cx="250" cy="140" r="30"/><circle cx="470" cy="95" r="34"/></g><g fill="var(--sl-color-text)" font-size="14"><text x="7" y="92">x=(1,1)</text><text x="205" y="16">h₁=2; δ₁=1</text><text x="200" y="183">h₂=1; δ₂=−1</text><text x="422" y="32">ŷ=1; δ=1</text><text x="315" y="59">w₁=1</text><text x="315" y="135">w₂=−1</text></g></svg><figcaption><strong>Cómo leerlo:</strong> el valor hacia delante está junto a cada unidad; su $\delta$ dice cómo cambia la pérdida al mover su entrada. El signo de $\delta$ decide el sentido de la corrección.</figcaption></figure>
+
+## Ejercicios de predicción y comprobación
+
+**Predice primero — ¿qué número mover?** En la red B rota, aumenta $w_2^{(2)}$ de $-1$ a $-0.999$ sin tocar los demás. Compara la pérdida con $0.5$. Haz lo mismo con $w_1^{(2)}$ de 1 a 1.001.
+
+<Solucion>
+
+1. Al mover $w_2$, la salida pasa a $2-0.999=1.001$. La pérdida es $1.001^2/2=0.5010005$; la pendiente aproximada es $(0.5010005-0.5)/0.001=1.0005$.
+2. Al mover $w_1$, la salida pasa a $1.001(2)-1=1.002$. La pérdida es $1.002^2/2=0.502002$; la pendiente aproximada es $2.002$.
+3. Ambas pendientes son positivas, así que descenso reduce ambos pesos. El peso que no se rompió tiene incluso mayor pendiente local: seguir un gradiente no significa localizar el componente que causó el error.
+
+</Solucion>
+
+**Tu turno — tres scores.** Aplica softmax a $(\ln4,\ln2,0)$ y calcula la pérdida y el vector de error si la primera clase es verdadera.
+
+<Solucion>
+
+Las exponenciales valen $(4,2,1)$; su suma es 7. Las probabilidades son $(4/7,2/7,1/7)$. La pérdida mide cuánta probabilidad faltó asignar a la clase correcta: $-\ln(4/7)=\ln(7/4)\approx0.560$. El vector de error es probabilidad menos etiqueta *one-hot*: $(4/7-1,2/7,1/7)=(-3/7,2/7,1/7)$. Suma cero porque las probabilidades y la etiqueta suman uno.
+
+</Solucion>
+
+**Predice primero — error con confianza equivocada.** Una sigmoide da $p=0.0025$ cuando $y=1$. ¿Cuál empuja más el score $z$: entropía cruzada o error cuadrático?
+
+<Solucion>
+
+Con entropía cruzada, la derivada respecto de $z$ es $p-y=-0.9975$. Con error cuadrático $\tfrac12(p-y)^2$, hay que multiplicar por $\sigma'(z)=p(1-p)$: resulta $(-0.9975)(0.0025)(0.9975)\approx-0.00249$. El primer empuje es unas 401 veces mayor con estos números redondeados; la diapositiva informa 405 con el valor no redondeado de $\sigma(-6)$. El factor extra casi anula el gradiente cuando la sigmoide está saturada.
+
+</Solucion>
+
+**Compruébalo — cabezas y pérdidas.** (a) Para logits $(0,0,0)$ con clase 1 verdadera, calcula probabilidades, pérdida y gradiente. (b) Repite con $(\ln3,0,0)$. (c) Elige cabeza para temperatura, spam y diez dígitos.
+
+<Solucion>
+
+1. Para tres ceros: probabilidades $(1/3,1/3,1/3)$, pérdida $\ln3\approx1.099$ y gradiente $(-2/3,1/3,1/3)$.
+2. Para $(\ln3,0,0)$: exponenciales $(3,1,1)$, probabilidades $(3/5,1/5,1/5)$ y pérdida $\ln(5/3)\approx0.511$.
+3. Temperatura: identidad y error cuadrático. Spam: sigmoide y entropía cruzada binaria. Dígitos: softmax y entropía cruzada multiclase.
+
+</Solucion>
+
+**Compruébalo — quién recibe la culpa.** Si B tiene otra vez el peso correcto $(1,-2)$, ¿qué gradientes produce $(1,1)$? Si una unidad ReLU recibiera $z<0$, ¿qué pasaría con su gradiente entrante?
+
+<Solucion>
+
+Con $(1,-2)$, la predicción en $(1,1)$ es 0, igual a $y$. Entonces $\delta^{(2)}=0$ y todos los gradientes de este ejemplo son cero. Para $z<0$, $\operatorname{ReLU}'(z)=0$: el error de esa unidad se detiene en ella. Esto explica la cautela con unidades «muertas».
+
+</Solucion>
+
+## Tres cabezas de salida, tres pérdidas
+
+La *cabeza* es la última transformación de la red. Elegimos según qué significa la respuesta:
+
+| Tarea | Cabeza | Pérdida por ejemplo | Señal respecto al score |
+| --- | --- | --- | --- |
+| Regresión | identidad $\hat y=z$ | $\tfrac12(\hat y-y)^2$ | $\hat y-y$ |
+| Binaria | sigmoide $p=\sigma(z)$ | $-y\ln p-(1-y)\ln(1-p)$ | $p-y$ |
+| Multiclase | softmax $p_k=e^{z_k}/\sum_j e^{z_j}$ | $-\ln p_c$ | $p_k-\mathbf1\{k=c\}$ |
+
+El ejercicio de la slide usa scores $(\ln4,\ln2,0)$. Sus exponenciales son $(4,2,1)$, así que softmax da $(4/7,2/7,1/7)$. Si la clase correcta es la primera, la pérdida es $-\ln(4/7)\approx0.560$. Para estabilidad numérica, se resta $\max_k z_k$ antes de exponenciar; las probabilidades no cambian.
+
+### Ir más a fondo (opcional): derivar «predicho menos real»
+
+<Pasos titulo="Derivada de la entropía cruzada multiclase">
+
+1. La pérdida mide el costo de asignar probabilidad $p_c$ a la clase real $c$: $L=-\ln p_c$. Con softmax, $p_c=e^{z_c}/\sum_k e^{z_k}$.
+2. Al tomar logaritmo, $L=-z_c+\ln\sum_k e^{z_k}$. Esta forma separa la clase real del normalizador.
+3. La derivada de $-z_c$ respecto de $z_j$ es $-1$ si $j=c$ y 0 en otro caso: $-y_j$.
+4. La derivada del segundo término es $e^{z_j}/\sum_k e^{z_k}=p_j$. Sumando ambos aportes, $\partial L/\partial z_j=p_j-y_j$.
+5. En binaria, la derivada de la sigmoide $p(1-p)$ cancela el denominador de la entropía cruzada. En regresión, derivar $\tfrac12(\hat y-y)^2$ da directamente $\hat y-y$. Por eso las tres parejas de cabeza y pérdida producen la misma forma de señal.
+
+</Pasos>
+
+### Ir más a fondo (opcional): por qué backprop es barato
+
+Para un producto $z=Wa+b$, cada entrada de $W$ participa en la salida. Diferenciar una por una repetiría casi todo el cálculo. Backprop guarda $a$ y propaga $\delta=\partial L/\partial z$: entonces $\partial L/\partial W=\delta a^\top$ y el error de la capa anterior es $W^\top\delta$ multiplicado por la derivada de su activación. El costo es del orden de unas pocas pasadas por las conexiones, no una pasada completa por cada peso.
+
+<Pasos titulo="De derivadas individuales al algoritmo completo">
+
+1. Guarda las entradas y salidas de cada capa durante la pasada hacia delante. Sin ellas habría que recalcularlas para cada derivada.
+2. En la salida, calcula una sola señal $\delta^{(D)}$. Para las cabezas emparejadas de arriba es predicción menos etiqueta.
+3. En una capa intermedia, suma las señales que regresan por todas sus conexiones: $W^{(\ell+1)\top}\delta^{(\ell+1)}$. Multiplica por $\phi'(z^{(\ell)})$ para medir el efecto sobre su entrada.
+4. Cada peso recibe el producto de la señal de su unidad destino por la activación de origen: $\partial L/\partial W^{(\ell)}=\delta^{(\ell)}a^{(\ell-1)\top}$. Cada sesgo recibe $\delta^{(\ell)}$.
+5. Una red de diez capas de cien unidades ronda 100,000 pesos. Diferencias finitas requieren una pasada de unas 100,000 operaciones **por peso**, unas $10^{10}$ operaciones. Backprop usa un recorrido de ida y uno de vuelta, del orden de $2\cdot10^5$ operaciones en esta comparación simplificada.
+
+</Pasos>
+
+## Qué observar al verla aprender
+
+En **«Watch it learn»**, una red 2–4–1 con cuatro `tanh` ocultas y sigmoide final entrena sobre 160 puntos de cuatro nubes; una época es una pasada sobre todos ellos. La frontera cambia porque los pesos de la capa oculta aprenden compuertas propias (**«What did it learn? Its own gates»**). Los inicios aleatorios no siempre llegan a la misma solución (**«Does training always find it?»**): una capacidad suficiente no implica que cada corrida encuentre buenos pesos. Para elegir activación, ancho y profundidad, mira tanto pérdida de entrenamiento como rendimiento en datos separados.
+
+**Predice primero — 200 inicios.** Una red de dos unidades puede representar XOR, pero ¿cuántos de 200 inicios aleatorios con `tanh` llegarán a cuatro aciertos? ¿Qué cambia al aumentar a tres y cuatro unidades?
+
+<Solucion>
+
+La diapositiva mide 95 de 200 con dos unidades, 154 con tres y 189 con cuatro. La solución existe ya con dos, pero el entrenamiento depende del punto de partida. En los diez puntos, ocho unidades con entradas estandarizadas aciertan todo desde 197 de 200 inicios, frente a 102 con entradas crudas. Escalar los datos puede ayudar más que solo ampliar la red.
+
+</Solucion>
+
+**Predice primero — forma de la frontera y cabeza.** Tras entrenar la red 2–4–1 sobre cuatro nubes alternadas, ¿esperas una sola recta? Para temperatura, cáncer binario y dígitos, ¿usarías identidad, sigmoide o softmax?
+
+<Solucion>
+
+La capa oculta dobla el espacio, así que la frontera final puede rodear regiones y no queda limitada a una recta. Temperatura es un número libre: identidad con error cuadrático. Cáncer sí/no: sigmoide con entropía cruzada binaria. Dígitos 0–9: softmax con entropía cruzada multiclase. En la evidencia de la clase, la combinación de sigmoide y error cuadrático necesitó 426 pasos para corregir una predicción muy equivocada, frente a 7 con entropía cruzada.
+
+</Solucion>
+
+## Diapositivas de esta página
+
+«Three heads, three losses», «Predicted minus actual», «Which loss pushes harder?» y «Check yourself: heads and losses» cubren las salidas y sus señales. «Which way should each number move?», «The error signal», «Passing the blame backward», «By hand: backpropagation on net B» y «The algorithm, and why it is cheap» forman la derivación. «Watch it learn», «What did it learn? Its own gates», «Does training always find it?», «Which output, which loss? The evidence», «Bend, width, depth: the evidence» y «Which one should I use?» conectan entrenamiento y elección. Los ejercicios de predicción y comprobación están arriba.
+
+## Errores típicos
+
+- Actualizar pesos y seguir usando activaciones calculadas con los pesos viejos.
+- Derivar una sigmoide con error cuadrático y olvidar el factor $p(1-p)$.
+- Usar diferencias finitas como método normal para miles de pesos: repite casi todo el trabajo.
+- Confundir la señal de salida $p-y$ con la derivada de **cada** peso: falta multiplicar por la activación que llega.
+
+```python
+import numpy as np
+x = np.array([1., 1.]); h = np.maximum(0, np.array([x.sum(), x.sum()-1]))
+w = np.array([1., -1.]); y = 0.
+error = w @ h - y
+print(h.tolist(), error, (error*h).tolist())
+# [2.0, 1.0] 1.0 [2.0, 1.0]
+```
+
+<CasoUso titulo="Clasificar dígitos manuscritos" sector="visión" icono="✍️">
+El cuaderno práctico usa una red con salida softmax para dígitos: cada una de las diez salidas representa la probabilidad de una clase. Backprop ajusta todos los pesos a partir de la pérdida de la clase verdadera; una matriz de confusión permite ver qué dígitos se mezclan.
+</CasoUso>
+
+<Quiz client:visible id="redes-backprop" preguntas={[
+  {q:'En la red B rota, ¿cuánto valen ŷ y L en (1,1)?',opts:['0 y 0','1 y 0.5','2 y 2','1 y 1'],ok:1},
+  {q:'Con L=½(ŷ−y)², la derivada respecto de ŷ es…',opts:['y−ŷ','ŷ−y','2(ŷ−y)','½'],ok:1},
+  {q:'Si h=(2,1) y δ=1, el gradiente de w de salida es…',opts:['(1,1)','(2,1)','(-2,-1)','(0,0)'],ok:1},
+  {q:'En z=(2,1), la derivada ReLU por unidad es…',opts:['(0,0)','(1,1)','(2,1)','no existe'],ok:1},
+  {q:'Softmax de (ln 4, ln 2, 0)',opts:['(4,2,1)','(4/7,2/7,1/7)','(1/4,1/2,1)','(1/3,1/3,1/3)'],ok:1},
+  {q:'¿Qué pérdida acompaña una salida softmax multiclase?',opts:['error absoluto','cross-entropy','Gini','hinge necesariamente'],ok:1},
+  {q:'¿Qué cambia si actualizas también W de entrada?',opts:['h debe recalcularse','h sigue (2,1)','la pérdida ya no existe','la salida se vuelve sigmoide'],ok:0},
+  {q:'Con tres logits cero y clase 1 verdadera, ¿cuánto vale la pérdida?',opts:['0','ln 2','ln 3','3'],ok:2},
+]} />
+
+<Conexiones items={[{href:'/regresion/gradiente/',titulo:'Regla de la cadena',texto:'El gradiente indica cómo mover cada parámetro.'},{href:'/clasificacion/entrenamiento/',titulo:'Cross-entropy',texto:'La misma pérdida logística aparece en la cabeza binaria.'},{href:'/redes/capas/',titulo:'Red B',texto:'Aquí calculamos cómo corregir sus pesos.'}]} />
+<Recursos items={[R.playground, R.sqGD]} />
+<Fuente archivos={['ML_Course_Neural_Networks_I.pdf (slides 28–49)', 'ML_Course_Neural_Networks_II.pdf (slides 2–3)', '03-neural-networks-from-scratch-and-in-scikit-learn.ipynb']} />

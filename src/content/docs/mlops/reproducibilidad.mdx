@@ -1,0 +1,143 @@
+---
+title: "MLOps I: poder reconstruir el modelo"
+description: "DigitReader, seis piezas de una corrida, huellas, tracking y niveles de automatización."
+---
+import EnSimple from '../../../components/EnSimple.astro';
+import Pasos from '../../../components/Pasos.astro';
+import CasoUso from '../../../components/CasoUso.astro';
+import Quiz from '../../../components/Quiz.tsx';
+import Conexiones from '../../../components/Conexiones.astro';
+import Recursos from '../../../components/Recursos.astro';
+import Fuente from '../../../components/Fuente.astro';
+import Solucion from '../../../components/Solucion.astro';
+import { R } from '../../../data/recursos';
+
+<EnSimple id="mlops/reproducibilidad" />
+
+## Empieza aquí: DigitReader sale del laboratorio
+
+DigitReader lee una cifra manuscrita por casilla de un formulario bancario. Cada imagen tiene 8×8 píxeles entre 0 y 16. Un SVM entrenado con 1257 formularios acertó **535 de 540** de test (99.1 %). Mañana atenderá imágenes nuevas que nadie corregirá de inmediato. Una nota de test no dice cómo reconstruir el modelo si hay un problema.
+
+<svg viewBox="0 0 600 130" role="img" aria-label="Flujo de entrenamiento, registro y servicio"><rect x="8" y="35" width="135" height="55" rx="7" fill="none" stroke="var(--sl-color-text)"/><text x="20" y="67" fill="var(--sl-color-text)">datos y etiquetas</text><path d="M145 62h40m-8-7 8 7-8 7" stroke="var(--sl-color-text)" fill="none"/><rect x="190" y="35" width="120" height="55" rx="7" fill="none" stroke="var(--sl-color-text)"/><text x="202" y="67" fill="var(--sl-color-text)">entrenamiento</text><path d="M312 62h40m-8-7 8 7-8 7" stroke="var(--sl-color-text)" fill="none"/><rect x="355" y="35" width="100" height="55" rx="7" fill="none" stroke="var(--sl-color-text)"/><text x="369" y="67" fill="var(--sl-color-text)">versión 3</text><path d="M458 62h35m-8-7 8 7-8 7" stroke="var(--sl-color-text)" fill="none"/><rect x="495" y="35" width="95" height="55" rx="7" fill="none" stroke="var(--sl-color-text)"/><text x="509" y="67" fill="var(--sl-color-text)">servicio</text></svg>
+*Cómo leerlo:* cada flecha necesita una versión y un registro; el modelo ocupa solo una caja del sistema.
+
+<svg viewBox="0 0 570 175" role="img" aria-label="Seis piezas de una corrida reunidas en un artefacto reproducible">
+ <rect x="205" y="55" width="155" height="68" rx="10" fill="none" stroke="var(--sl-color-accent)" strokeWidth="3"/><text x="230" y="85" fill="var(--sl-color-text)">corrida v3</text><text x="225" y="107" fill="var(--sl-color-text)">535 / 540</text>
+ {['datos','código','config.','semilla','entorno','hardware'].map((s,i)=><g><text x={i<3?15:455} y={35+(i%3)*53} fill="var(--sl-color-text)">{s}</text><path d={i<3?`M95 ${30+(i%3)*53}L205 80`:`M455 ${30+(i%3)*53}L360 95`} stroke="var(--sl-color-gray-3)"/></g>)}
+</svg>
+*Cómo leerlo:* la puntuación central solo se puede reconstruir si se registran las seis entradas de la corrida.
+
+
+### Ejercicio: predice antes de ver las fallas
+
+DigitReader recibe cinco cambios: píxeles 0..255, imágenes borrosas, trazos de doble grosor, una sucursal con 40 % de ceros y otra donde ciertos 7 se parecen a 1. ¿Cuál provocará una excepción de programa? ¿Qué información pedirías para descubrir cada problema?
+
+<Solucion>
+
+1. Todos los vectores siguen teniendo 64 posiciones numéricas. El programa no lanza excepción por ninguno; devuelve una cifra.
+2. El rango 0..255 lo detecta un contrato de entrada que exige 0..16. El blur y el grosor se detectan con pruebas por píxel o un clasificador pasado/hoy; la tinta total puede no detectar blur.
+3. La sucursal con más ceros cambia la mezcla de respuestas. Se monitoriza su proporción, pero se esperan etiquetas para comprobar aciertos.
+4. Si la imagen parece la misma y cambia su significado, solo las etiquetas nuevas o una auditoría de negocio revelan el cambio de concepto.
+</Solucion>
+
+## Puente: de «guardé el archivo» a «puedo repetirlo»
+
+Una corrida depende de **seis piezas**: datos (imágenes y etiquetas), código, configuración (preprocesamiento y $C=1$), semillas, entorno (versiones de bibliotecas) y hardware. La semilla controla azar, pero no repara etiquetas. En el experimento de la clase, una red con la misma semilla pasó de 468 a 525 aciertos al reparar etiquetas: +57. Con etiquetas reparadas, veinte semillas variaron entre 520 y 530: amplitud 10.
+
+En producción, el código del modelo es una parte pequeña. Hacen falta extracción y validación de datos, pruebas, empaquetado, despliegue, registro, alertas y una forma de volver atrás. El ejemplo de las diapositivas sigue cinco preguntas: ¿podemos reconstruir?, ¿entran los mismos datos?, ¿mejora de verdad?, ¿cómo lo lanzamos? y ¿cómo sabemos que sigue funcionando? Esta página responde la primera; las otras dos páginas siguen el resto.
+
+### Ejercicio: suma con redondeo
+
+La calculadora conserva dos cifras significativas y muestra $-999$ como $-1000$. Calcula $(1000-1000)+1$ y $1000+(-1000+1)$.
+
+<Solucion>
+
+1. Agrupando los grandes primero, $1000-1000=0$ exactamente; $0+1=1$.
+2. Agrupando el pequeño con $-1000$, el resultado exacto es $-999$, que la calculadora redondea a $-1000$.
+3. Queda $1000-1000=0$. El orden de suma cambió el resultado por el redondeo, como puede suceder en `float32` y reducciones paralelas.
+</Solucion>
+
+### Ejercicio: semilla, datos y huella
+
+Predice qué cambia más el resultado: cambiar semilla o reparar etiquetas. Luego decide si la suma de $(3,1,4,1,5)$ detecta intercambiar las dos primeras etiquetas.
+
+<Solucion>
+
+1. En la medición, reparar etiquetas mueve una misma semilla de 468 a 525: diferencia 57. Cambiar entre veinte semillas con datos reparados mueve entre 520 y 530: amplitud 10. Aquí dominan los datos.
+2. La suma original es $3+1+4+1+5=14$. Tras intercambiar: $1+3+4+1+5=14$.
+3. La suma no detecta el intercambio aunque se asignaron etiquetas a imágenes distintas. Una huella SHA-256 de una serialización estable y ordenada sí cambia.
+</Solucion>
+
+<Pasos titulo="Por qué el orden de sumar puede cambiar el resultado">
+
+1. Imagina una calculadora que retiene solo dos cifras significativas: redondea $-999$ a $-1000$.
+2. $(1000-1000)+1=1$.
+3. $1000+(-1000+1)$ redondea el paréntesis a $-1000$ y termina en 0.
+4. `float32` repite la idea alrededor de $10^8$: otro orden de reducción en hardware paralelo puede producir otra suma.
+</Pasos>
+
+Una huella de datos debe depender del **contenido y orden**. La suma de etiquetas $(3,1,4,1,5)$ es 14; intercambiar las dos primeras deja 14, aunque cambió qué imagen tiene qué etiqueta. SHA-256 del archivo serializado sí cambia. El curso muestra para las etiquetas reparadas la huella abreviada `d02dbe482ab4`; alterarlas da otra. Versiona datos y esquema de serialización, no solo el nombre del archivo.
+
+Un *experiment tracker* como MLflow registra parámetros, métricas, artefactos y huella. Un registro de modelos guarda versiones y un alias `champion` para la versión en servicio. En DigitReader, v0/v1/v2 tienen 514/522/530 aciertos por cambios de etiquetas; v3 llega a 535 al añadir imágenes desplazadas un píxel. El registro explica la diferencia.
+
+### Ejercicio: lee cuatro corridas
+
+v1 acertó 522, v2 530 y v3 535. Entre v1 y v2 cambia la huella de etiquetas; entre v2 y v3 se conserva esa huella pero se añaden copias de entrenamiento desplazadas un píxel. Explica los dos aumentos sin atribuirlos a una semilla.
+
+<Solucion>
+
+1. v1→v2: la huella cambia, así que cambió el contenido de las etiquetas; se corrigieron formularios del anotador descuidado. La configuración y el entorno siguen iguales.
+2. v2→v3: la huella de etiquetas es la misma; la configuración de datos de entrenamiento añade imágenes desplazadas arriba, abajo, izquierda y derecha.
+3. Los aumentos son $530-522=8$ y $535-530=5$. La tabla identifica qué cambió; no demuestra que una versión generalice mejor a otro banco.
+</Solucion>
+
+### Ejercicio: cambio de biblioteca y reconstrucción
+
+El equipo actualiza scikit-learn 0.21 a 0.22 con los mismos datos y el mismo código. También cambia el orden de filas de entrenamiento. ¿Puede cambiar el modelo? Dos redes con distinta semilla difieren por tres aciertos; ¿es necesariamente un fallo?
+
+<Solucion>
+
+1. Sí. Una biblioteca puede cambiar valores por defecto o algoritmos internos; hay que fijar y registrar versiones y volver a validar el artefacto.
+2. El orden de filas cambia el recorrido de métodos por minibatches y puede cambiar asociaciones de sumas en coma flotante. Una semilla fija no hace idénticas dos secuencias de datos distintas.
+3. Tres aciertos están dentro de la amplitud observada de diez entre semillas con etiquetas reparadas. No prueba una falla; exige comparar registros y distribución de corridas.
+</Solucion>
+
+:::caution[Trampa de examen]
+«Fijé `random_state`, luego reproduje el modelo» es insuficiente: quizá cambiaron etiquetas, dependencias o el orden de operaciones. Tampoco confundas una huella con un mecanismo de seguridad o con el archivo completo: sirve para verificar identidad de contenido bajo una serialización acordada.
+:::
+
+**Niveles de MLOps.** Nivel 0: pasos manuales. Nivel 1: entrenamiento como pipeline automatizado, con validación y despliegue. Nivel 2: también el código del pipeline pasa por CI/CD. El objetivo inmediato es registrar corridas, comprobar entradas y monitorear; automatizar sin trazabilidad solo acelera errores.
+
+Un *pipeline* (tubería de trabajo) fija el orden: obtener y validar datos, separar train/test, ajustar preprocesamiento solo en train, entrenar, evaluar con la puerta acordada, registrar y empaquetar. En nivel 0 una persona ejecuta celdas de notebook, difíciles de repetir en el mismo orden. En nivel 1 el entrenamiento se reejecuta como flujo versionado cuando llegan datos; en nivel 2 también pruebas y entrega del propio flujo pasan por integración continua. Una automatización solo es reproducible si conserva huellas, parámetros y artefactos.
+
+```python
+import hashlib
+import numpy as np
+a = np.array([3,1,4,1,5], dtype=np.uint8)
+b = np.array([1,3,4,1,5], dtype=np.uint8)
+print(a.sum(), b.sum(), hashlib.sha256(a.tobytes()).digest() == hashlib.sha256(b.tobytes()).digest())
+# 14 14 False
+```
+
+<CasoUso titulo="Auditar una predicción de un formulario" sector="finanzas" icono="🏦">Si alguien pregunta por qué se leyó un 8, el sistema registra versión de modelo, corrida, huella de etiquetas, código y configuración. Así puede reproducirse el incidente y comparar contra la versión previa.</CasoUso>
+
+<Quiz client:visible id="mlops-reproducibilidad" preguntas={[
+ {q:'¿Cuántos formularios acertó DigitReader?',opts:['535/540','540/540','525/540','530/540'],ok:0},
+ {q:'Una corrida pasa de 468 a 525: ¿cuántos aciertos ganó?',opts:['5','10','57','525'],ok:2},
+ {q:'Las semillas dan 520 a 530: ¿cuál es la amplitud?',opts:['3','5','10','57'],ok:2},
+ {q:'¿Qué resultado da la segunda asociación con redondeo?',opts:['0','1','-1','1000'],ok:0},
+ {q:'¿Por qué no basta sumar etiquetas como huella?',opts:['un intercambio conserva la suma','la suma es lenta','necesita GPU','siempre da cero'],ok:0},
+ {q:'Para (3,1,4,1,5), ¿cuánto vale la suma?',opts:['12','13','14','15'],ok:2},
+ {q:'Nivel 2 agrega…',opts:['CI/CD del pipeline','solo una semilla','ningún monitoreo','entrenamiento manual'],ok:0}
+ ,{q:'¿Cuánto creció v1→v2 en aciertos?',opts:['5','8','10','57'],ok:1}
+]} />
+<Conexiones items={[{href:'/regularizacion/validacion-cruzada/',titulo:'Splits',texto:'Versionar la partición evita cambiar el examen sin notarlo.'},{href:'/clasificacion/metricas/',titulo:'Accuracy',texto:'535/540 es una medición puntual, no una garantía futura.'},{href:'/svm/geometria/',titulo:'SVM',texto:'El clasificador dentro de DigitReader.'}]} />
+<Recursos items={[R.mlcc, R.skCV]} />
+<Fuente archivos={['ML_Course_MLOps.pdf (slides 2–15)']} />
+
+## Errores típicos
+
+- Creer que una semilla fija identifica datos, dependencias y hardware.
+- Usar suma de etiquetas como huella sensible al orden.
+- Comparar dos corridas solo por accuracy y olvidar el registro de cambios.
+- Automatizar un notebook sin versionar sus entradas ni salida.

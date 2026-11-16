@@ -1,0 +1,195 @@
+---
+title: "Otras formas de agrupar"
+description: "Mezclas gaussianas y EM, DBSCAN, jerárquico y espectral."
+---
+import EnSimple from '../../../components/EnSimple.astro';
+import Pasos from '../../../components/Pasos.astro';
+import Solucion from '../../../components/Solucion.astro';
+import CasoUso from '../../../components/CasoUso.astro';
+import Quiz from '../../../components/Quiz.tsx';
+import Conexiones from '../../../components/Conexiones.astro';
+import Recursos from '../../../components/Recursos.astro';
+import Fuente from '../../../components/Fuente.astro';
+import DensityExplorer from '../../../components/sim/DensityExplorer.tsx';
+import { R } from '../../../data/recursos';
+
+<EnSimple id="clustering/otras-formas" />
+
+## Empieza aquí: un alquiler entre dos grupos
+
+Los centros de los alquileres son 3.5 y 11.5. Un alquiler nuevo de **7** queda más cerca de 3.5, por lo que k-means lo asigna al grupo bajo sin expresar duda. Imagina ahora dos campanas de igual ancho, una sobre cada centro. Con varianza 8, sus alturas en 7 son **0.465** y **0.282**. La proporción $0.465/(0.465+0.282)\approx0.62$ indica **62 % bajo y 38 % alto**.
+
+<svg viewBox="0 0 580 160" role="img" aria-label="Dos campanas superpuestas y alquiler siete entre ellas" style={{maxWidth:'100%'}}><line x1="35" y1="135" x2="555" y2="135" stroke="currentColor"/><path d="M40 133 C80 125 105 55 165 45 C225 55 265 125 330 133" fill="none" stroke="var(--sl-color-accent)" strokeWidth="3"/><path d="M225 133 C295 125 350 55 425 45 C480 55 520 125 550 133" fill="none" stroke="var(--sl-color-orange)" strokeWidth="3"/><line x1="280" x2="280" y1="35" y2="135" stroke="currentColor" strokeDasharray="5 4"/><text x="151" y="26" fill="currentColor">3.5</text><text x="271" y="26" fill="currentColor">7</text><text x="419" y="26" fill="currentColor">11.5</text></svg>
+
+*Cómo leerlo:* en 7 ambas campanas tienen altura positiva. Su altura relativa, después de normalizar, da la pertenencia blanda; el dibujo es conceptual y las alturas numéricas se calculan abajo.
+
+**Puente.** k-means hace asignación **dura**: un solo grupo por punto. Una *Gaussian mixture model* (GMM, mezcla gaussiana) da una probabilidad o **responsabilidad** a cada nube. Cada nube tiene centro, tamaño, dispersión y, en varias dimensiones, orientación.
+
+<Pasos titulo="Pertenencia blanda del alquiler 7">
+
+1. Con igual peso y varianza 8, la altura relativa de una campana centrada en $\mu$ es $h(x;\mu)=\exp[-(x-\mu)^2/(2\cdot8)]$; el factor común de normalización se cancela.
+2. Para $x=7$, $h_{\rm baja}=\exp[-3.5^2/16]\approx0.465$ y $h_{\rm alta}=\exp[-4.5^2/16]\approx0.282$.
+3. La responsabilidad baja es $r_{\rm baja}=0.465/(0.465+0.282)\approx0.62$; la alta es 0.38.
+4. Si ambas varianzas bajan a 1.25, la responsabilidad baja sube a **0.96**: nubes estrechas dan respuestas casi duras.
+
+</Pasos>
+
+## De las nubes a otras geometrías
+
+EM alterna pertenencias y parámetros de las nubes. Sirve cuando interesa expresar duda o modelar grupos inclinados. Si la forma es una luna o un anillo, una sola campana por grupo no puede seguirla: DBSCAN conecta vecindarios densos y aparta ruido. Si interesa ver fusiones a distintas alturas, el agrupamiento jerárquico produce un dendrograma.
+
+<DensityExplorer client:visible />
+
+| Enlace jerárquico | Distancia que usa | Consecuencia |
+| --- | --- | --- |
+| Single | Par más cercano | Sigue cadenas; sensible a puentes |
+| Complete | Par más lejano | Prefiere grupos compactos |
+| Average | Promedio de todos los pares | Compromiso entre los anteriores |
+| Ward | Menor aumento de WCSS | Prefiere grupos compactos |
+
+Los mecanismos, cálculos y límites de cada uno se desarrollan después del código.
+
+## En código
+
+```python
+import numpy as np
+from sklearn.cluster import DBSCAN, AgglomerativeClustering
+from sklearn.mixture import GaussianMixture
+x = np.array([2,3,4,5,10,11,12,13], dtype=float).reshape(-1,1)
+print(GaussianMixture(n_components=2, covariance_type='spherical',
+                      n_init=10, random_state=0).fit(x).predict_proba([[7]]).round(2))
+print(AgglomerativeClustering(n_clusters=2, linkage='single').fit_predict(x))
+print(DBSCAN(eps=1.1, min_samples=2).fit_predict(x))
+```
+
+Las etiquetas 0 y 1 pueden intercambiarse entre corridas; compara particiones, no sus nombres.
+
+<CasoUso titulo="Detectar concentraciones de viajes" sector="movilidad" icono="🚕">Una ciudad agrupa puntos de subida de taxis. Las estaciones generan zonas densas irregulares y hay viajes aislados. DBSCAN permite marcar esos puntos como ruido. Para decidir nuevas paradas se revisan mapas, horarios y densidades: una agrupación espacial no cuenta toda la historia.</CasoUso>
+
+## Nubes, multitudes y árboles
+
+
+### Ir más a fondo: de alturas a probabilidades y EM
+
+Una altura gaussiana no es por sí sola una probabilidad de pertenencia. Primero se multiplica por el peso previo de la nube y luego se normaliza entre todas las nubes. La *responsabilidad* es ese resultado posterior.
+
+<Pasos titulo="Derivar pertenencia y actualización de nubes">
+
+1. Para la nube $k$, calcula una altura $q_k=\pi_k\mathcal N(x;\mu_k,\Sigma_k)$. $\pi_k$ es la proporción esperada de puntos de esa nube; la densidad mide compatibilidad geométrica.
+2. Divide por la suma de todas las alturas: $r_k=q_k/\sum_jq_j$. Así las responsabilidades suman 1. Con pesos iguales y varianza 8 en $x=7$, los factores comunes se cancelan y quedan 0.465 y 0.282: $r_{\rm baja}=0.6225$.
+3. En el paso E, repite ese cálculo para cada fila y nube. En el paso M, suma responsabilidades $N_k=\sum_i r_{ik}$ y actualiza $\pi_k=N_k/n$.
+4. La media nueva pondera cada fila por su responsabilidad: $\mu_k=(\sum_i r_{ik}x_i)/N_k$. La covarianza nueva pondera las desviaciones exteriores: $\Sigma_k=(\sum_i r_{ik}(x_i-\mu_k)(x_i-\mu_k)^\top)/N_k$.
+5. El paso E calcula una cota inferior de la log-verosimilitud y el M la maximiza con responsabilidades fijas; cada ciclo exacto no reduce la log-verosimilitud. Puede acabar en un óptimo local.
+6. En 13 dimensiones, una covarianza completa simétrica tiene $13\cdot14/2=91$ entradas libres, más 13 medias: **104** por nube, antes de contar su peso. Con pocas filas conviene una covarianza diagonal o esférica.
+
+</Pasos>
+
+En iris hay **150 flores** y **4 medidas**. La sesión compara ARI **0.73** de k-means y **0.90** de GMM completo: las nubes inclinadas representan mejor algunas variedades. Pero ninguna campana única sigue una luna curvada. Hacer las campanas más anchas acerca la pertenencia del alquiler 7 a 0.5; hacerlas estrechas la acerca a una decisión dura. Cambiar los pesos previos también cambia la pertenencia aunque las distancias permanezcan iguales.
+
+<svg viewBox="0 0 620 180" role="img" aria-label="Asignación dura frente a pertenencia blanda 62 por ciento y 38 por ciento" style={{maxWidth:'100%'}}><text x="20" y="42" fill="currentColor">k-means</text><rect x="150" y="20" width="390" height="40" rx="5" fill="var(--sl-color-accent)"/><text x="345" y="47" textAnchor="middle" fill="white">100 % grupo bajo</text><text x="20" y="121" fill="currentColor">GMM</text><rect x="150" y="99" width="242" height="40" rx="5" fill="var(--sl-color-accent)"/><rect x="392" y="99" width="148" height="40" rx="5" fill="var(--sl-color-orange)"/><text x="265" y="125" textAnchor="middle" fill="white">62 %</text><text x="465" y="125" textAnchor="middle" fill="white">38 %</text></svg>
+
+*Cómo leerlo:* ambas filas describen el mismo alquiler 7. k-means asigna una sola etiqueta; la mezcla conserva la incertidumbre relativa entre sus dos nubes.
+
+### DBSCAN a mano: núcleo, borde y ruido
+
+La idea simple es dibujar un círculo de radio $\varepsilon$ alrededor de cada punto. Si hay al menos `min_samples` puntos **incluido el centro**, ese punto es núcleo. Dos núcleos cercanos propagan el mismo grupo. Un punto sin suficientes vecinos que cae dentro del círculo de un núcleo es borde. El que no alcanza ningún núcleo queda ruido. En los diez puntos de la slide, P1, P4 y P10 sirven para comprobar tres situaciones distintas mirando sus filas de distancias. Conviene comparar **distancias al cuadrado** con $\varepsilon^2$ para evitar raíces; con $\varepsilon=4$, el umbral cuadrado es **16**. La condición incluye el borde: distancia exactamente 4 cuenta.
+
+<svg viewBox="0 0 620 185" role="img" aria-label="Núcleos conectados, un punto de borde y ruido aislado" style={{maxWidth:'100%'}}><circle cx="150" cy="88" r="58" fill="none" stroke="var(--sl-color-accent)" strokeDasharray="4 3"/><circle cx="225" cy="88" r="58" fill="none" stroke="var(--sl-color-accent)" strokeDasharray="4 3"/>{[[130,80],[155,62],[172,94],[205,82],[229,105]].map(([x,y],i)=><circle key={i} cx={x} cy={y} r="7" fill="var(--sl-color-accent)"/>)}<circle cx="275" cy="89" r="7" fill="var(--sl-color-green)"/><circle cx="490" cy="79" r="7" fill="var(--sl-color-orange)"/><text x="150" y="165" textAnchor="middle" fill="currentColor">núcleos conectados</text><text x="298" y="165" textAnchor="middle" fill="currentColor">borde</text><text x="490" y="165" textAnchor="middle" fill="currentColor">ruido</text></svg>
+
+*Cómo leerlo:* los círculos punteados son vecindarios de radio $\varepsilon$; los puntos azules forman una cadena densa, el verde toca un núcleo y el naranja queda aislado. Es un esquema, no las coordenadas de los diez puntos.
+
+Con un $\varepsilon$ diminuto casi nadie alcanza `min_samples`: mucho ruido. Con uno enorme se unen regiones antes separadas. Subir `min_samples` exige más densidad y puede convertir núcleos en borde o ruido. Por eso «no elegir $K$» no significa «sin parámetros». En las dos lunas, DBSCAN calibrado obtiene ARI **1.00** frente a **0.23** de k-means; en vino estandarizado de 13 dimensiones, los valores por defecto marcan **178** puntos como ruido. La comparación fue hecha con conocimiento de etiquetas; para datos nuevos se ajusta con criterio geométrico y uso final.
+
+### El árbol de fusiones y la escala de cálculo
+
+Con *single linkage* (enlace simple), el hueco mínimo entre grupos manda. En los alquileres, seis fusiones a distancia **1** unen cada bloque de cuatro; el último hueco es **5**. Cortar el dendrograma entre 1 y 5 deja dos bloques. Un alquiler nuevo 7.5 queda a **2.5** de 5 y de 10, por lo que puentea ambos bloques a altura 2.5. Un corte a altura 3 deja uno solo. Este encadenamiento sigue lunas: ARI **1.00** frente a **0.43** de average, **0.30** de Ward y **0.20** de complete. Con dos puntos atípicos, también puede unir las dos lunas y separar los atípicos: ARI **0.00**. DBSCAN puede marcar esos puntos como ruido.
+
+Ward mide el aumento de WCSS al fusionar grupos. Si un grupo de tamaño $n_A$ con media $\mu_A$ se une a otro de tamaño $n_B$ con media $\mu_B$, el aumento es $\frac{n_An_B}{n_A+n_B}\lVert\mu_A-\mu_B\rVert^2$. La fórmula mide cuánto sacrificamos en compacidad; por eso Ward tiende a grupos redondos. Guardar todas las distancias entre **100000** puntos requiere cerca de **5 mil millones** de pares, unos **40 GB** a 8 bytes por distancia, antes de otras estructuras. Para esa escala, usa un método escalable o una muestra.
+
+El método espectral conecta vecinos en un grafo y busca un corte con pocas conexiones. En las lunas la slide muestra ARI **1.00** con una escala adecuada, pero **0.29** con `gamma=1`: las conexiones también tienen un parámetro. En la tabla de evidencias, k-means alcanza ARI **0.90** en vino, GMM **0.81** en nubes inclinadas, y DBSCAN **1.00** en anillos; ninguna columna domina todas las filas.
+
+## Ejercicios de las slides
+
+**Predice primero: alquiler 7.** ¿Bajo o alto? ¿Qué cambia al ensanchar ambas campanas?
+
+<Solucion>
+
+1. 7 dista 3.5 del centro bajo y 4.5 del alto: k-means elige bajo.
+2. Con varianza 8, las alturas relativas son 0.465 y 0.282: responsabilidad baja $0.465/(0.465+0.282)=0.6225$.
+3. Al ensanchar ambas campanas, las alturas se parecen más y la responsabilidad se acerca a 0.5. La etiqueta dura puede seguir siendo bajo.
+
+</Solucion>
+
+**Predice primero: P1 y P2 son vecinos. ¿Ya forman un grupo DBSCAN?**
+
+<Solucion>
+
+1. Ser vecinos solo cumple la condición de distancia.
+2. Revisa si uno tiene al menos `min_samples` puntos en su radio, contándose a sí mismo. Si ninguno es núcleo, dos vecinos aislados no constituyen un grupo.
+3. Un núcleo permite crecer por conexiones de otros núcleos y anexar puntos de borde.
+
+</Solucion>
+
+**Compruébalo: gira los controles de DBSCAN.** Con $\varepsilon=4$ compara distancias cuadradas con 16. Predice el efecto de aumentar radio y `min_samples`.
+
+<Solucion>
+
+1. Un par a distancia cuadrada 16 entra en el vecindario; uno a 17 queda fuera.
+2. Aumentar $\varepsilon$ agrega vecinos: puede transformar ruido en borde o núcleo y unir grupos.
+3. Aumentar `min_samples` exige más vecinos: puede quitar núcleos y elevar el ruido.
+
+</Solucion>
+
+**Predice primero: ¿qué enlace sigue una luna? ¿Y qué pasa con dos puntos atípicos?**
+
+<Solucion>
+
+1. Single linkage enlaza pares cercanos consecutivos a lo largo de la luna, aunque el arco no sea redondo.
+2. Dos atípicos pueden crear un hueco mayor que el hueco entre lunas. Al pedir dos grupos, el corte puede separar los atípicos y unir ambas lunas.
+3. La slide da ARI 1.00 sin atípicos y 0.00 en ese caso adverso. DBSCAN ofrece una etiqueta de ruido.
+
+</Solucion>
+
+**Compruébalo: un noveno alquiler vale 7.5.** ¿A qué altura se unen los bloques con enlace simple? ¿Cuántos grupos deja un corte a 3? ¿Es práctico Ward con 100000 clientes?
+
+<Solucion>
+
+1. Las distancias del nuevo punto a 5 y 10 son ambas 2.5.
+2. El nuevo punto enlaza ambos bloques a altura 2.5. Cortar a 3 deja **un grupo**.
+3. Hay $100000\cdot99999/2\approx5\cdot10^9$ pares: unos 40 GB solo para números de 8 bytes. Ward jerárquico no es una primera opción práctica a esa escala.
+
+</Solucion>
+
+**Predice primero: ¿qué método elegirías para cada forma?** Considera nubes redondas, lunas, anillos, nubes inclinadas, un grupo pequeño junto a otro grande y vino con 13 medidas.
+
+<Solucion>
+
+1. Para nubes redondas, k-means es simple y en la comparación todos los métodos alcanzan ARI 1.00.
+2. Para lunas y anillos, DBSCAN sigue vecindarios conectados: ARI 1.00 en ambos con parámetros ajustados. Single linkage también sigue curvas, pero los atípicos lo vuelven frágil.
+3. Para nubes inclinadas y tamaños desiguales, GMM permite covarianzas y pesos distintos: ARI 0.81 y 1.00 en las dos filas de la slide.
+4. Para vino estandarizado, k-means logra ARI 0.90 en esa comparación; GMM es cercano. Son resultados de un experimento con etiquetas disponibles para evaluar, no garantías para datos nuevos.
+
+</Solucion>
+
+<Quiz client:visible id="clu-otras" preguntas={[
+ {q:'Con varianza 8, ¿cuál es P(grupo bajo | alquiler 7)?',opts:['0.38','0.50','0.62','0.96'],ok:2},
+ {q:'En EM, el paso E calcula…',opts:['Responsabilidades','Solo medias','WCSS','Número K'],ok:0},
+ {q:'Dos grupos unitarios con medias 5 y 10: ¿aumento WCSS de Ward al fusionarlos?',opts:['2.5','5','12.5','25'],ok:2},
+ {q:'En DBSCAN, min_samples cuenta…',opts:['Solo vecinos distintos','El propio punto también','Solo ruido','Número de grupos'],ok:1},
+ {q:'En scikit-learn, DBSCAN etiqueta ruido con…',opts:['0','1','−1','NaN'],ok:2},
+ {q:'Single linkage usa el par…',opts:['Más cercano','Más lejano','Promedio','Con mayor WCSS'],ok:0},
+ {q:'Un alquiler 7.5 entre los grupos hace que single linkage…',opts:['Separe más','Pueda encadenarlos','Sea idéntico a Ward','No cambie'],ok:1},
+ {q:'Con ε=4, ¿qué distancia cuadrada sigue dentro del radio?',opts:['16','17','25','32'],ok:0}
+]} />
+
+<Conexiones items={[{href:'/generativos/lda-qda/',titulo:'Gaussianas',texto:'GMM aprende varias nubes sin usar etiquetas.'},{href:'/clustering/kmeans/',titulo:'Asignación dura',texto:'GMM relaja la decisión exclusiva de k-means.'},{href:'/fundamentos/matematicas/',titulo:'Distancias',texto:'DBSCAN, jerárquico y espectral dependen de una noción de cercanía.'}]} />
+<Recursos items={[R.skLDA,R.islr,R.sqIndex]} />
+<Fuente archivos={['ML_Course_Clustering.pdf (slides de GMM, DBSCAN y jerárquico)','session-10-simple-b-how-many-groups-and-clouds.ipynb','session-10-simple-c-crowds-trees-and-choosing.ipynb']} />
+
+## Errores típicos
+
+- Leer 0.62 como distancia o certeza absoluta; depende de varianzas y pesos de la mezcla.
+- Contar solo vecinos ajenos en `min_samples`, omitiendo el propio punto.
+- Pensar que DBSCAN no requiere decidir parámetros porque no pide $K$.
+- Usar single linkage sin revisar puentes o valores atípicos.
+- Comparar ARI de métodos calibrados con etiquetas como si eso fuera una selección no supervisada.

@@ -1,0 +1,173 @@
+---
+title: "Bootstrap, bagging y bosques aleatorios"
+description: "Un equipo de árboles de un solo dataset, evaluación OOB e importancia de variables."
+---
+import EnSimple from '../../../components/EnSimple.astro';
+import Pasos from '../../../components/Pasos.astro';
+import Solucion from '../../../components/Solucion.astro';
+import CasoUso from '../../../components/CasoUso.astro';
+import Quiz from '../../../components/Quiz.tsx';
+import Conexiones from '../../../components/Conexiones.astro';
+import Recursos from '../../../components/Recursos.astro';
+import Fuente from '../../../components/Fuente.astro';
+import BootstrapLab from '../../../components/sim/BootstrapLab.tsx';
+import { R } from '../../../data/recursos';
+
+<EnSimple id="ensambles/bagging" />
+
+## Empieza aquí: diez tarjetas y una bolsa
+
+Tienes las tarjetas 1 a 10. Sacas una, apuntas su número, la devuelves y repites diez veces. En la primera muestra de la sesión salen **1, 1, 2, 3, 4, 5, 5, 9, 9, 10**. Quedan fuera 6, 7 y 8. Una segunda muestra deja fuera 2, 3, 4 y 10. Cada muestra entrena un árbol distinto.
+
+<svg viewBox="0 0 600 100" role="img" aria-label="Tarjetas del uno al diez: seis, siete y ocho fuera de la primera muestra" style={{maxWidth:'100%'}}>{[2,1,1,1,2,0,0,0,2,1].map((n,i)=><g key={i}><rect x={10+58*i} y="10" width="45" height="45" rx="5" fill={n?'var(--sl-color-accent)':'var(--sl-color-orange)'}/><text x={32+58*i} y="38" fill="var(--sl-color-white)" textAnchor="middle">{i+1}</text><text x={32+58*i} y="78" fill="currentColor" textAnchor="middle">×{n}</text></g>)}</svg>
+
+*Cómo leerlo:* azul indica que la tarjeta entró una o dos veces; naranja, que quedó **fuera de bolsa**.
+
+**Puente.** Este muestreo con reemplazo es *bootstrap*. Entrenar un modelo en cada muestra y combinar los resultados es *bagging* (*bootstrap aggregating*). La clasificación usa voto; la regresión, promedio. Los árboles profundos son buenos miembros porque varían mucho entre muestras.
+
+<BootstrapLab client:visible />
+
+## ¿Cuántos datos quedan fuera?
+
+Una extracción no elige una fila concreta con probabilidad $1-1/n$. Como hay $n$ extracciones independientes, la probabilidad de que esa fila quede fuera es $(1-1/n)^n$. Para $n=10$ da **34.9 %**; para $n$ grande tiende a $e^{-1}\approx 36.8\%$.
+
+<Pasos titulo="Fuera de bolsa: calcular sin simular">
+
+1. Fija una tarjeta de diez, por ejemplo la 6. En una extracción, 9 de 10 resultados no la eligen: probabilidad $9/10$.
+2. Devolver la tarjeta vuelve independientes las diez extracciones. La probabilidad de no verla en ninguna es $(9/10)^{10}=0.348678\ldots$.
+3. Multiplica por diez: en promedio quedan $3.48678$ tarjetas sin salir, aunque una muestra concreta puede dejar 3, 4 u otra cantidad.
+4. Al aumentar $n$, $(1-1/n)^n\to 1/e\approx0.3679$. Es la fracción típica de filas que puede juzgar un árbol sin haberlas visto.
+
+</Pasos>
+
+## Evaluación out-of-bag
+
+Para evaluar la fila $i$, usa solo los árboles cuyo bootstrap no incluyó $i$. Su voto *out-of-bag* (OOB) se compara con su etiqueta real. En los diez puntos de la sesión, cinco árboles logran **10/10** al votar sobre todos los puntos de entrenamiento, pero sus jueces OOB logran **7/10**: el primer número es optimista. En las lunas, 300 árboles dan OOB **0.9111** y test **0.9083** en una partición; no esperes igualdad exacta en otra muestra.
+
+:::caution[Trampa de examen]
+La cifra 36.8 % es la fracción esperada **por árbol** para muestras grandes. No significa que 36.8 % de las filas jamás reciban una predicción OOB en todo el bosque. Con muchos árboles, casi todas reciben numerosos votos.
+:::
+
+## Random forest: dejar a la estrella en la banca
+
+Si una variable predice muy bien, muchos árboles bootstrap la usarán como primera pregunta. Sus errores se parecerán y el promedio ganará menos. Un *random forest* (bosque aleatorio) sortea solo `max_features` variables candidatas **en cada split**. La estrella no siempre puede jugar; otras variables producen árboles diferentes. Aumenta diversidad, aunque cada árbol pueda empeorar un poco. `RandomForestClassifier` suele elegir $\sqrt p$ variables por corte; `RandomForestRegressor` usa otra configuración por defecto, así que conviene fijarla explícitamente al comparar experimentos.
+
+**Ir más a fondo (opcional).** La importancia por disminución media de impureza (MDI) suma las ganancias de Gini de los splits de una variable. Favorece variables continuas o con muchos valores. La importancia por permutación baraja una columna en validación y mide cuánto cae la calidad; si dos columnas están muy correlacionadas, barajar solo una puede subestimar a ambas.
+
+## En código
+
+```python
+from sklearn.datasets import make_moons
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import train_test_split
+X, y = make_moons(n_samples=300, noise=0.32, random_state=0)
+Xtr, Xte, ytr, yte = train_test_split(X, y, test_size=0.4,
+                                      random_state=0, stratify=y)
+forest = RandomForestClassifier(n_estimators=300, max_features=1,
+                                oob_score=True, random_state=0).fit(Xtr, ytr)
+print(round(forest.oob_score_, 3), round(forest.score(Xte, yte), 3))
+```
+
+En un problema real, elige hiperparámetros con validación o CV y deja el test intacto hasta el final. OOB da una estimación barata; su variación también importa.
+
+<CasoUso titulo="Clasificar parcelas con un bosque" sector="agricultura" icono="🌾">Una imagen satelital aporta bandas espectrales y medidas de textura. Un bosque de árboles tolera relaciones no lineales y se entrena con copias bootstrap de los campos etiquetados. La puntuación OOB orienta el ajuste; después se evalúa en parcelas de otra zona para medir generalización.</CasoUso>
+
+## De una muestra a un bosque
+
+
+### De diez tarjetas a cien árboles
+
+En una extracción con reemplazo, una tarjeta puede salir dos veces y otra ninguna. En la muestra de arriba, 1, 5 y 9 aparecen dos veces y 6, 7, 8 no aparecen. Repetir el procedimiento produce conjuntos de entrenamiento diferentes sin recolectar datos nuevos. Cada árbol profundo aprende fronteras algo distintas. Al votar, un corte inestable pierde influencia si los demás no lo repiten.
+
+Los diez puntos de la clase permiten seguir este procedimiento a mano: para cada árbol, anota su muestra, aprende sus preguntas, predice los diez puntos y deja que cada fila sea juzgada únicamente por árboles que no la incluyeron. Por eso **10/10** de entrenamiento y **7/10** OOB responden a preguntas diferentes. El primer valor comprueba adaptación a los datos vistos; el segundo aproxima rendimiento sobre una fila no vista por ese árbol.
+
+<svg viewBox="0 0 630 190" role="img" aria-label="Tres árboles bootstrap votan y cada uno evalúa sus filas no vistas" style={{maxWidth:'100%'}}><rect x="20" y="57" width="100" height="58" rx="8" fill="var(--sl-color-gray-5)"/><text x="70" y="82" textAnchor="middle" fill="currentColor">10 filas</text><text x="70" y="101" textAnchor="middle" fill="currentColor">originales</text>{[0,1,2].map((i)=><g key={i}><path d={`M120 86 L${190+i*140} 34`} stroke="var(--sl-color-gray-3)"/><rect x={170+i*140} y="15" width="110" height="60" rx="8" fill="var(--sl-color-accent-low)"/><text x={225+i*140} y="39" textAnchor="middle" fill="currentColor">bootstrap {i+1}</text><text x={225+i*140} y="58" textAnchor="middle" fill="currentColor">árbol {i+1}</text><path d={`M${225+i*140} 75 L360 145`} stroke="var(--sl-color-accent)"/></g>)}<rect x="300" y="143" width="125" height="38" rx="8" fill="var(--sl-color-green-low)"/><text x="362" y="168" textAnchor="middle" fill="currentColor">voto / promedio</text></svg>
+
+*Cómo leerlo:* cada rama toma una copia con reemplazo de las diez filas. Los árboles se entrenan en paralelo y sus respuestas se combinan. Para OOB, una fila usa solo las ramas donde quedó fuera.
+
+### Por qué 1000 árboles no equivalen a más profundidad
+
+El número de árboles controla cuántas respuestas promediamos. Con la arquitectura y los datos fijos, añadir árboles reduce la fluctuación del promedio y termina estabilizándolo. No hace que cada árbol memorice más. El piso de varianza depende de la correlación entre árboles: $\sigma^2[\rho+(1-\rho)/B]$ de la página anterior. Con $\rho=0.2$, pasar de 100 a 1000 árboles cambia el factor de varianza de $0.208$ a $0.2008$; la mejora es pequeña. Entrenar un bosque más grande sí cuesta más tiempo y memoria. La selección de profundidad, variables y datos todavía puede sobreajustar si se hace mirando el test.
+
+El caso de cáncer de mama tiene **569 tumores** y **30 mediciones**. Muchas mediciones de tamaño, como radio, perímetro y área, se parecen. Si una de ellas domina todas las primeras preguntas, los árboles bootstrap comparten errores. El bosque sortea candidatos **en cada nodo**, así que otras mediciones pueden participar. La importancia de una variable es una pista predictiva; no demuestra que cause la enfermedad.
+
+<svg viewBox="0 0 620 170" role="img" aria-label="Árboles bagging usan la misma variable y random forest usa candidatos distintos" style={{maxWidth:'100%'}}><text x="10" y="33" fill="currentColor">Bagging</text><text x="10" y="117" fill="currentColor">Bosque</text>{[0,1,2].map((i)=><g key={i}><rect x={120+i*155} y="8" width="120" height="53" rx="6" fill="var(--sl-color-orange-low)"/><text x={180+i*155} y="39" textAnchor="middle" fill="currentColor">radio</text><rect x={120+i*155} y="91" width="120" height="53" rx="6" fill="var(--sl-color-accent-low)"/><text x={180+i*155} y="122" textAnchor="middle" fill="currentColor">{['radio','textura','suavidad'][i]}</text></g>)}</svg>
+
+*Cómo leerlo:* la fila superior repite la misma primera pregunta. En la inferior, ocultar al azar algunas variables abre rutas distintas; esto baja la coincidencia de errores aunque algún árbol aislado sea menos preciso.
+
+### Ir más a fondo: OOB, correlación e importancia
+
+<Pasos titulo="Cuánto queda fuera y por qué la diversidad importa">
+
+1. Para una fila fija, cada extracción la evita con probabilidad $1-1/n$. Las $n$ extracciones independientes dan $P(\text{OOB})=(1-1/n)^n$.
+2. En $n=10$, el valor es $0.9^{10}=0.348678$. Para $n$ grande, $\log[(1-1/n)^n]=n\log(1-1/n)\to-1$, así que la probabilidad tiende a $e^{-1}=0.367879$.
+3. El promedio de $B$ árboles con correlación $\rho$ tiene varianza $\sigma^2[\rho+(1-\rho)/B]$. Bajar $\rho$ puede aportar más que aumentar $B$ cuando $B$ ya es grande.
+4. La importancia por impureza suma, para cada variable, las disminuciones ponderadas de Gini de sus cortes. Una variable con muchos umbrales tiene más oportunidades de ganar por azar.
+5. La importancia por permutación compara la calidad en validación antes y después de mezclar una columna. Si radio y perímetro son redundantes, mezclar solo radio deja perímetro disponible y puede hacer que ambos parezcan poco importantes.
+
+</Pasos>
+
+## Ejercicios de las slides
+
+**Predice primero: ¿100 árboles ganan siempre a 10?** Piensa en exactitud de test y en estabilidad de la predicción.
+
+<Solucion>
+
+1. Más árboles promedian más ruido del remuestreo y suelen estabilizar la predicción.
+2. La exactitud de test de una partición no tiene por qué subir en cada incremento: puede variar o quedarse igual.
+3. Al crecer mucho $B$, la correlación de errores impone un límite. Compara con validación, no prometas mejora estricta.
+
+</Solucion>
+
+**Compruébalo: 1000 árboles en vez de 100.** ¿Pueden esos 900 árboles adicionales provocar el mismo sobreajuste secuencial que 900 rondas de boosting?
+
+<Solucion>
+
+1. Cada árbol de bagging se ajusta sin intentar corregir los errores del bosque anterior.
+2. El promedio de 1000 predicciones se estabiliza respecto al de 100; añadir árboles por sí solo no incrementa la complejidad de cada árbol.
+3. Sí puede haber sobreajuste por árboles demasiado flexibles, variables mal elegidas o ajuste repetido con el test. Esa es una causa distinta.
+
+</Solucion>
+
+**Compruébalo: por qué esconder variables.** Si una variable domina todos los nodos raíz, ¿qué gana el bosque al sortear `max_features`?
+
+<Solucion>
+
+1. Sin sorteo, muchos árboles preguntan primero por la misma variable; sus predicciones se parecen.
+2. Si a algunos nodos se les oculta, buscan otra variable y cambian sus errores.
+3. El promedio se beneficia de menor correlación. La exactitud de un árbol individual puede bajar; se juzga el equipo.
+
+</Solucion>
+
+**Tu turno: dibuja dos muestras bootstrap.** En la primera lista de diez tarjetas aparecen 1, 1, 2, 3, 4, 5, 5, 9, 9, 10. Señala las tarjetas que juzgarán ese árbol como OOB y explica por qué repetir 1 no añade un dato nuevo.
+
+<Solucion>
+
+1. Compara con el conjunto original 1 a 10: faltan 6, 7 y 8. Esas tres filas pueden evaluarse con este árbol.
+2. La tarjeta 1 aparece dos veces porque cada extracción devuelve la tarjeta a la bolsa.
+3. La repetición aumenta su peso en esa muestra, pero no aporta una observación independiente nueva. Otro bootstrap puede dejar fuera un conjunto distinto.
+
+</Solucion>
+
+<Quiz client:visible id="ens-bagging" preguntas={[
+ {q:'Bootstrap de n filas significa…',opts:['n sin reemplazo','n con reemplazo','n/2 con reemplazo','copiar datos sin cambios'],ok:1},
+ {q:'En la primera muestra de diez tarjetas, ¿cuáles quedaron fuera?',opts:['1,5,9','6,7,8','2,3,4','ninguna'],ok:1},
+ {q:'Probabilidad de que una fila quede OOB con n=10',opts:['0.1','0.349','0.5','0.9'],ok:1},
+ {q:'¿Qué árboles votan para la predicción OOB de una fila?',opts:['Todos','Solo los que la incluyeron','Solo los que no la incluyeron','Solo el mejor'],ok:2},
+ {q:'¿Qué agrega random forest al bagging de árboles?',opts:['Residuos','Subconjunto de variables por split','Más etiquetas','Una red neuronal'],ok:1},
+ {q:'Una importancia MDI alta de una variable continua de ruido puede deberse a…',opts:['Muchos umbrales candidatos','Escalado incorrecto solamente','OOB','Falta de bootstrap'],ok:0},
+ {q:'Con n=10, ¿cuántas tarjetas OOB se esperan por muestra?',opts:['1','3.49','5','10'],ok:1},
+ {q:'Con ρ=0.2 y B=100, ¿factor de varianza σ²?',opts:['0.002','0.2','0.208','1'],ok:2}
+]} />
+
+<Conexiones items={[{href:'/arboles/poda/',titulo:'Árboles inestables',texto:'La varianza alta de un árbol profundo motiva bagging.'},{href:'/regularizacion/validacion-cruzada/',titulo:'Validación',texto:'OOB estima calidad sin reservar filas, pero el test final sigue teniendo su lugar.'}]} />
+<Recursos items={[R.mluRF,R.skTree,R.islr]} />
+<Fuente archivos={['ML_Course_Ensemble_Methods.pdf (slides 17–30)','session-09-simple-b-bagging-and-forests.ipynb']} />
+
+## Errores típicos
+
+- Interpretar 36.8 % como proporción fija de filas OOB en cada muestra pequeña.
+- Calcular OOB con árboles que sí entrenaron en la fila evaluada.
+- Pensar que `max_features` se sortea una sola vez para todo el bosque; se sortea en cada corte.
+- Leer importancia predictiva como causalidad.
+- Afirmar que 1000 árboles garantizan mejor test que 100.

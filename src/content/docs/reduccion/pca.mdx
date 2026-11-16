@@ -1,0 +1,131 @@
+---
+title: "PCA: la dirección que conserva la varianza"
+description: "Cuatro puntos, covarianza, autovalores, proyección y reconstrucción a mano."
+---
+import EnSimple from '../../../components/EnSimple.astro';
+import Pasos from '../../../components/Pasos.astro';
+import CasoUso from '../../../components/CasoUso.astro';
+import Quiz from '../../../components/Quiz.tsx';
+import Conexiones from '../../../components/Conexiones.astro';
+import Recursos from '../../../components/Recursos.astro';
+import Fuente from '../../../components/Fuente.astro';
+import Solucion from '../../../components/Solucion.astro';
+import PcaProjectionLab from '../../../components/sim/PcaProjectionLab.tsx';
+import { R } from '../../../data/recursos';
+
+<EnSimple id="reduccion/pca" />
+
+## Empieza aquí: cuatro puntos que se pueden calcular
+
+La sesión 11a usa $(7,5),(3,1),(6,2),(4,4)$. Su centro es $(5,3)$. Al restarlo quedan $(2,2),(-2,-2),(1,-1),(-1,1)$. Los dos primeros se extienden por la diagonal ascendente; los otros por la descendente.
+
+<svg viewBox="0 0 350 280" role="img" aria-label="Cuatro puntos centrados y dos ejes principales">
+ <path d="M30 140h290M175 20v240" stroke="var(--sl-color-text)" opacity=".5"/><path d="M60 255L290 25" stroke="var(--sl-color-accent)" strokeWidth="4"/><path d="M95 60l160 160" stroke="var(--sl-color-gray-3)" strokeWidth="3"/>{[[245,70],[105,210],[210,175],[140,105]].map(([x,y])=><circle cx={x} cy={y} r="6" fill="var(--sl-color-accent)"/>)}<text x="268" y="35" fill="var(--sl-color-text)">PC1</text><text x="250" y="224" fill="var(--sl-color-text)">PC2</text>
+</svg>
+*Cómo leerlo:* los ejes nuevos pasan por la media; PC1 sigue la diagonal de mayor dispersión.
+
+<svg viewBox="0 0 540 175" role="img" aria-label="La misma nube proyectada en ejes horizontal y diagonal">
+ <text x="20" y="20" fill="var(--sl-color-text)">eje horizontal: sombras cortas</text><path d="M20 145h215" stroke="var(--sl-color-text)"/>{[55,80,165,190].map(x=><circle cx={x} cy="145" r="5" fill="var(--sl-color-accent)"/>)}<text x="285" y="20" fill="var(--sl-color-text)">PC1: sombras más extendidas</text><path d="M285 145h235" stroke="var(--sl-color-text)"/>{[300,355,450,505].map(x=><circle cx={x} cy="145" r="5" fill="var(--sl-color-accent)"/>)}<path d="M258 50v98" stroke="var(--sl-color-gray-3)" strokeDasharray="5 4"/>
+</svg>
+*Cómo leerlo:* se prueban distintas direcciones sobre los mismos puntos. La que extiende más las sombras capta más varianza.
+
+
+## Puente: la nube elige sus ejes
+
+PCA (*análisis de componentes principales*) busca una dirección unitaria $v$ cuya «sombra» de los puntos tenga máxima varianza. Luego busca otra perpendicular a la primera. Una matriz de covarianza resume esa dispersión: $C=\tilde X^\top\tilde X/n$ en la convención de las diapositivas.
+
+Al girar una regla sobre la nube, las sombras se acercan y se separan. La gráfica de varianza contra ángulo alcanza su pico cuando la regla coincide con el eje largo. La distribución proyectada se «ensancha» allí y se estrecha al girar 90°. La segunda componente se elige perpendicular para no volver a contar la misma variación. La elipse de covarianza resume ese ancho en cada dirección.
+
+Un **autovector** es una dirección que una transformación solo estira o encoge: $Av=\lambda v$. Para imaginarlo, aplica una matriz a todos los puntos de un círculo: obtienes una elipse. Los ejes de esa elipse son direcciones especiales que no giraron. La longitud del estiramiento es el autovalor. En PCA la matriz es la covarianza, así que esos autovalores miden varianza sobre cada eje.
+
+La covarianza entre dos columnas mide cuánto se desvían **juntas** de sus medias. Si ambas suben juntas, es positiva; si una sube cuando la otra baja, negativa. En los cuatro puntos, las varianzas de ambas columnas son 2.5 y su covarianza es 1.5. Por eso la nube se inclina hacia la diagonal ascendente.
+
+<Pasos titulo="PCA completo con los cuatro puntos">
+
+1. Media $\mu=(5,3)$; se centra $\tilde X=X-\mu$.
+2. Productos centrados: $\sum x_1^2=10$, $\sum x_1x_2=6$, $\sum x_2^2=10$. Por tanto $C=\begin{pmatrix}2.5&1.5\\1.5&2.5\end{pmatrix}$.
+3. La ecuación característica $\det(C-\lambda I)=(2.5-\lambda)^2-1.5^2=0$ da $\lambda_1=4$ y $\lambda_2=1$.
+4. Resolver $Cv=\lambda v$ da $v_1=(1,1)/\sqrt2$ y $v_2=(1,-1)/\sqrt2$ (cambiarles el signo no cambia la dirección).
+5. PC1 conserva $4/(4+1)=80\%$ de la varianza. Para $(7,5)$, $z=(2,2)\cdot v_1=2\sqrt2$ y la reconstrucción con una componente es $\mu+zv_1=(7,5)$.
+6. Para $(6,2)$, $z=(1,-1)\cdot v_1=0$: se reconstruye como $(5,3)$ y pierde distancia cuadrada $1^2+(-1)^2=2$.
+</Pasos>
+
+Maximizar la varianza y minimizar el error **perpendicular** son la misma operación: $\lVert\tilde x\rVert^2=(v^\top\tilde x)^2+\lVert\tilde x-(v^\top\tilde x)v\rVert^2$. La suma es fija. Regresión lineal mide residuos verticales, así que resuelve otra pregunta.
+
+### Ir más a fondo: por qué aparecen autovectores
+
+Para $\lVert v\rVert=1$, la varianza proyectada es $v^\top Cv$. El lagrangiano $v^\top Cv-\lambda(v^\top v-1)$ tiene derivada $2Cv-2\lambda v=0$. Por ello $Cv=\lambda v$; elegir el mayor autovalor maximiza la varianza. Las componentes siguientes se restringen a ser ortogonales a las anteriores.
+
+<Pasos titulo="Ir más a fondo: ecuación característica de la diapositiva">
+
+1. Buscamos direcciones $v\ne0$ tales que $Av=\lambda v$. Al mover todo a un lado queda $(A-\lambda I)v=0$.
+2. Un sistema homogéneo solo tiene solución no nula si su matriz es singular. Por ello exigimos $\det(A-\lambda I)=0$.
+3. Para $A=\begin{pmatrix}2&1\\1&2\end{pmatrix}$, el determinante mide $(2-\lambda)^2-1=(\lambda-1)(\lambda-3)$. Los valores posibles son 3 y 1.
+4. Con $\lambda=3$, las filas de $(A-3I)v=0$ exigen $v_1=v_2$: dirección $(1,1)$. Con $\lambda=1$, exigen $v_1=-v_2$: dirección $(1,-1)$.
+5. Normalizamos dividiendo cada vector por $\sqrt2$. Son ortogonales porque su producto escalar vale cero. Para matrices grandes se usan algoritmos numéricos o SVD, no raíces de un polinomio escrito a mano.
+</Pasos>
+
+<Pasos titulo="Ir más a fondo: cociente de Rayleigh y error perpendicular">
+
+1. Cada sombra centrada mide $z_i=v^\top(x_i-\mu)$. Su varianza media es $\frac1n\sum_i z_i^2=v^\top Cv$.
+2. Para una dirección no normalizada, dividimos por $v^\top v$: $R(v)=v^\top Cv/(v^\top v)$. Esto evita ganar solo al multiplicar $v$ por un número grande.
+3. Escribimos $v$ como combinación de autovectores ortonormales: $v=\sum_j a_jv_j$. Entonces $R(v)=\sum_j\lambda_j a_j^2/\sum_j a_j^2$, un promedio ponderado de autovalores.
+4. Un promedio no supera su mayor término. El máximo es $\lambda_1$ al elegir $v_1$. Además, por Pitágoras, energía total = energía de la sombra + error perpendicular; minimizar este error da el mismo eje.
+</Pasos>
+
+### Ejercicio: proyecta antes de abrir
+
+Para el punto $(6,2)$ y media $(5,3)$, predice su coordenada sobre $v_1=(1,1)/\sqrt2$ y su reconstrucción con una componente. ¿Qué información se pierde?
+
+<Solucion>
+
+1. Centra: $(6,2)-(5,3)=(1,-1)$.
+2. La coordenada es el producto escalar: $z=(1,-1)\cdot(1,1)/\sqrt2=0$.
+3. Reconstruye $\hat x=\mu+zv_1=(5,3)$.
+4. Se pierde la desviación perpendicular $(1,-1)$; su error cuadrado es $1^2+(-1)^2=2$.
+</Solucion>
+
+### Receta completa y escala
+
+Primero divide train y test. Ajusta media y, si las unidades lo exigen, desviación estándar **solo en train**. Centra la matriz de train, calcula $C$, ordena sus autovectores, elige los primeros $k$ y proyecta cada fila como $z=(x-\mu)^\top V_k$. Reconstruye con $\hat x=\mu+V_kz$. Para test reutiliza la media y los ejes de train. Si una columna está en milímetros y otra en metros, la primera puede dominar por sus unidades aunque no aporte más señal: la estandarización cambia la pregunta a «variación en desviaciones estándar».
+
+<PcaProjectionLab client:visible />
+
+:::caution[Dos trampas]
+`numpy.cov` y `PCA.explained_variance_` usan $n-1$: aquí dan $16/3$ y $4/3$, no 4 y 1. Las **proporciones** siguen 0.8 y 0.2. Y cambiar metros por centímetros puede cambiar la dirección ganadora: estandariza cuando las unidades no son comparables, ajustando el escalador solo en train.
+:::
+
+```python
+import numpy as np
+from sklearn.decomposition import PCA
+X = np.array([[7.,5.],[3.,1.],[6.,2.],[4.,4.]])
+C = (X-X.mean(0)).T @ (X-X.mean(0)) / len(X)
+p = PCA(n_components=1).fit(X)
+print(C.tolist(), p.explained_variance_ratio_.round(2).tolist())
+print(p.inverse_transform(p.transform([[6.,2.]])).round(2).tolist())
+# [[2.5, 1.5], [1.5, 2.5]] [0.8]
+# [[5.0, 3.0]]
+```
+
+<CasoUso titulo="Reducir sensores correlacionados" sector="industria" icono="⚙️">Si veinte sensores miden movimientos parecidos, PCA puede guardar unas pocas coordenadas para un modelo posterior. El escalador y PCA se ajustan dentro de cada fold de validación para evitar fuga.</CasoUso>
+
+<Quiz client:visible id="reduccion-pca" preguntas={[
+ {q:'¿Media de los cuatro puntos?',opts:['(5,3)','(4,4)','(0,0)','(7,5)'],ok:0},
+ {q:'Covarianza C₁₂ con divisor n:',opts:['0','1','1.5','6'],ok:2},
+ {q:'Autovalores de C:',opts:['5 y 0','4 y 1','2.5 y 1.5','16 y 4'],ok:1},
+ {q:'Varianza conservada por PC1:',opts:['20 %','50 %','80 %','100 %'],ok:2},
+ {q:'Reconstrucción de (6,2) con PC1:',opts:['(6,2)','(5,3)','(0,0)','(7,5)'],ok:1},
+ {q:'¿Qué error minimiza PCA?',opts:['vertical','perpendicular','log-loss','0/1'],ok:1},
+ {q:'¿Por qué sklearn reporta 16/3?',opts:['divide por n−1','divide por n','normaliza a 1','usa otra matriz'],ok:0}
+ ,{q:'Para A=[[2,1],[1,2]], ¿qué autovalor corresponde a (1,1)?',opts:['1','2','3','4'],ok:2}
+]} />
+<Conexiones items={[{href:'/fundamentos/matematicas/',titulo:'Autovectores',texto:'Una matriz estira una dirección sin girarla.'},{href:'/regresion/modelo/',titulo:'Proyección',texto:'Regresión mide error vertical; PCA, perpendicular.'},{href:'/regularizacion/validacion-cruzada/',titulo:'Sin fuga',texto:'Ajusta el preprocesamiento dentro de cada fold.'}]} />
+<Recursos items={[R.g3b1bLA, R.mml]} />
+<Fuente archivos={['ML_Course_Dimensionality_Reduction.pdf (slides 11–32)','session-11a-pca-lda-and-factorizations.ipynb (§2–3)']} />
+
+## Errores típicos
+
+- Centrar test con una media calculada sobre test.
+- Confundir error perpendicular de PCA con residuo vertical de regresión.
+- Creer que cambiar el signo del autovector cambia la componente.
+- Olvidar que `sklearn` divide la varianza muestral por $n-1$.

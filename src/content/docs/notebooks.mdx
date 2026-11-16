@@ -1,6 +1,6 @@
 ---
 title: "Guía de los notebooks del curso"
-description: "Qué hace cada uno de los 22 notebooks de ML_Course (sesiones 01–07), en qué fijarse, qué ejercicio hacer y con qué página de teoría se conecta."
+description: "Qué hace cada notebook de ML_Course (sesiones 01–11 y prácticas sobre datos reales), en qué fijarse, qué ejercicio hacer y con qué página de teoría se conecta."
 ---
 
 import { Tabs, TabItem } from '@astrojs/starlight/components';
@@ -21,6 +21,11 @@ En una terminal, dentro de `lessons/ML_Course`: `jupyter lab`. Necesitas `numpy`
 | 04 | 04a – 04d | logística, métricas, softmax | [clasificación](/clasificacion/logistica/) |
 | 05 | 05a – 05c | Naive Bayes, LDA, QDA | [generativos](/generativos/bayes/) |
 | 06–07 | 06a, 06b, 07 | SVM, dual, kernels | [SVM](/svm/geometria/), [kernels](/kernels/truco/) |
+| 08 | 08 | árboles de decisión | [árboles](/arboles/impureza/) |
+| 09 | 09 simple a – c | ensambles: votar, bagging, RF, boosting | [ensambles](/ensambles/equipos/) |
+| 10 | 10 simple a – c | clustering: k-means, cuántos grupos, GMM, DBSCAN, jerárquico | [clustering](/clustering/kmeans/) |
+| 11 | 11a, 11b | PCA, LDA, FA, NMF; t-SNE, UMAP, kernel PCA, ICA | [reducción](/reduccion/por-que/) |
+| práctica | `practical/01`, `practical/03` | comparar clasificadores en datos reales; red neuronal desde cero y en scikit-learn | [redes](/redes/neurona/) |
 
 <Tabs>
 <TabItem label="Sesión 01">
@@ -140,6 +145,66 @@ En una terminal, dentro de `lessons/ML_Course`: `jupyter lab`. Necesitas `numpy`
 ### 07 · Kernels en la práctica
 - **Qué hace:** kernels válidos (Gram simétrica PSD, con autovalores) y dos impostores que fallan; la Gram como mapa de similitud; el zoo y el RBF infinito truncado; γ como dial de complejidad y la grilla (C, γ); kernel ridge en forma cerrada, igual a ridge con kernel lineal; comparación honesta en diabetes.
 - **Fíjate en:** el impostor `tanh` y la distancia: autovalores negativos. → [Prueba PSD](/kernels/practica/).
+
+</TabItem>
+<TabItem label="Sesión 08">
+
+### 08 · Árboles de decisión
+- **Qué hace:** el árbol de los 10 puntos leído en voz alta (cada camino es un AND de desigualdades); impureza como «costo de la mejor constante»; un split solo ve el **orden** de cada feature; el fallo voraz del XOR (las dos raíces candidatas tienen ganancia exactamente 0); tamaño del árbol = complejidad; árboles de regresión que **no extrapolan**; poda por costo-complejidad a mano y α por CV repetida; importancia de variables y lo que no significa; inestabilidad con 50 bootstraps.
+- **Fíjate en:** la última sección es el **puente a ensambles**: el mismo árbol re-entrenado en remuestras cambia su primera pregunta. → [Poda e inestabilidad](/arboles/poda/), [¿por qué gana el equipo?](/ensambles/equipos/).
+
+</TabItem>
+<TabItem label="Sesión 09">
+
+### 09 simple a · Por qué un equipo le gana a sus miembros
+- **Qué hace:** el buey de Galton (la adivinanza del medio cae a ~1 % de la verdad); árboles como miembros; tres votantes y diez ejemplos (cuándo votar ayuda y cuándo no); la binomial de los votantes independientes; promediar números: el ruido se cancela, el sesgo no.
+- **Fíjate en:** el experimento de los errores **que se solapan**: mismo 7/10 por votante, equipos muy distintos. → [Equipos](/ensambles/equipos/).
+- **Ejercicio:** ¿qué pasa con el voto de 25 votantes si cada uno acierta 40 %?
+
+### 09 simple b · Bagging y random forests
+- **Qué hace:** bootstrap (fórmula exacta y simulación de los que quedan fuera); bagging a mano en los 10 puntos; puntaje out-of-bag; lunas; cuándo bagging **no** ayuda (un modelo de sesgo alto); 1,000 árboles vs 100; cáncer de mama; árboles demasiado parecidos y el truco de RF (`max_features`); importancia de variables.
+- **Fíjate en:** que cada comparación se repite en **10 particiones**: una sola puede tener suerte. → [Bagging y RF](/ensambles/bagging/).
+
+### 09 simple c · Boosting y equipos de cualquier modelo
+- **Qué hace:** el stump; AdaBoost a mano (pesos de los errores, voto α) y luego con scikit-learn; gradient boosting a mano sobre residuos; bagging se estabiliza, boosting puede sobreajustar; tasa de aprendizaje y early stopping; boosting con otros modelos; voting y stacking; comparación cara a cara en datos reales.
+- **Fíjate en:** las curvas «más rondas» de bagging vs boosting. → [Boosting y stacking](/ensambles/boosting/).
+
+</TabItem>
+<TabItem label="Sesión 10">
+
+### 10 simple a · k-means y lo que puede salir mal
+- **Qué hace:** ordenar sin etiquetas; los 8 alquileres a mano (frontera 6.6 → 7.5); qué minimiza (WCSS) y por qué nunca sube; cuantizar una foto de 96,615 colores; malos inicios y mínimos locales; reinicios y k-means++ a mano; el ARI (acuerdo corregido por azar); supuestos; unidades (cm vs mm) y el vino.
+- **Fíjate en:** el default de scikit-learn (un solo inicio k-means++) también puede fallar. → [k-means a mano](/clustering/kmeans/).
+
+### 10 simple b · Cuántos grupos, y nubes
+- **Qué hace:** el codo; la silhouette a mano; el vino (ambos dicen 3); «el clustering siempre responde» (también en datos sin grupos); duro vs blando; gaussianas como nubes; pertenencia blanda a mano; EM; dónde paga la libertad de forma (iris).
+- **Fíjate en:** que el codo y la silhouette **sugieren**, no demuestran. → [¿Cuántos grupos?](/clustering/cuantos-grupos/).
+
+### 10 simple c · Densidades, árboles y cómo elegir
+- **Qué hace:** las nubes no se doblan; DBSCAN a mano en 10 puntos, formas arbitrarias y ruido; «no necesita K» es media verdad (ε decide); clustering jerárquico (unir lo más cercano y cortar el dendrograma); las linkages cambian la respuesta; tabla de evidencia de qué método para qué situación.
+- **Fíjate en:** el barrido de ε y la comparación de linkages. → [GMM, DBSCAN y jerárquico](/clustering/otras-formas/).
+
+</TabItem>
+<TabItem label="Sesión 11">
+
+### 11a · PCA, LDA y las factorizaciones
+- **Qué hace:** la maldición de la dimensionalidad (distancias que se parecen); **todo PCA en cuatro puntos**; las dos definiciones (máxima varianza = mínimo error de reconstrucción); cuántas componentes y el costo de parar; PCA no tiene unidades (estandarizar cambia la respuesta); cuando hay etiquetas, la varianza es la pregunta equivocada → LDA y sus dos muros; análisis factorial (ruido por feature) y factores no identificados; NMF cuando una cantidad negativa no tiene sentido.
+- **Fíjate en:** las tres «rupturas» de PCA: son el hilo de la unidad. → [PCA](/reduccion/pca/), [LDA, FA y NMF](/reduccion/lda-fa-nmf/).
+
+### 11b · t-SNE y UMAP
+- **Qué hace:** cuando una proyección plana no basta; kernel PCA; t-SNE paso 1 (un ancho de banda por punto, la perplejidad); el crowding y la Student-t; la advertencia que engaña (tamaños y distancias entre grupos); sin mapa para puntos nuevos; UMAP como grafo dibujado y sus dos perillas; ICA para separar fuentes.
+- **Fíjate en:** el mismo dato con otra perplejidad cuenta otro número de «manchas». → [t-SNE y UMAP](/reduccion/tsne-umap/).
+
+</TabItem>
+<TabItem label="Prácticas">
+
+### practical/01 · Comparar clasificadores (como un paper)
+- **Qué hace:** la tabla *Adult* del censo (48,842 personas): trampas reales de los datos (etiquetas del test con punto final, columna de pesos muestrales, columna duplicada, faltantes que informan); preprocesamiento y CV **a mano**; logística, Naive Bayes, SVM lineal/RBF y árbol; umbral elegido con puntajes out-of-fold; calibración; curvas de aprendizaje que invierten el ranking.
+- **Fíjate en:** es el puente entre el parcial y [MLOps](/mlops/reproducibilidad/): huellas SHA-256 de los datos, «aprender la receta solo del train y aplicarla a cualquier tabla».
+
+### practical/03 · Redes neuronales desde cero y en scikit-learn
+- **Qué hace:** parte A: parámetros, activaciones, forward, pérdida, **backpropagation** verificada con gradiente numérico, mini-batch GD, frontera en las lunas, dígitos; parte B: `MLPClassifier` (entrenar, evaluar, probabilidades, CV de hiperparámetros, guardar el modelo) y `MLPRegressor` en precios de casas.
+- **Fíjate en:** la verificación numérica del gradiente: así se comprueba que un backprop escrito a mano está bien. → [Backpropagation](/redes/backprop/).
 
 </TabItem>
 </Tabs>

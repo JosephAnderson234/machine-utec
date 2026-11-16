@@ -1,0 +1,168 @@
+---
+title: "¿Cuántos grupos hay?"
+description: "Escalas, codo, silhouette y el riesgo de hallar grupos donde no hay."
+---
+import EnSimple from '../../../components/EnSimple.astro';
+import Pasos from '../../../components/Pasos.astro';
+import Solucion from '../../../components/Solucion.astro';
+import CasoUso from '../../../components/CasoUso.astro';
+import Quiz from '../../../components/Quiz.tsx';
+import Conexiones from '../../../components/Conexiones.astro';
+import Recursos from '../../../components/Recursos.astro';
+import Fuente from '../../../components/Fuente.astro';
+import { R } from '../../../data/recursos';
+
+<EnSimple id="clustering/cuantos-grupos" />
+
+## Empieza aquí: ¿dos o tres montones de alquileres?
+
+Para los alquileres 2, 3, 4, 5, 10, 11, 12, 13, un grupo cuesta **138** en WCSS; dos cuestan **10**. Si dividimos uno de los grupos de cuatro en dos, el costo baja más, pero no aparece un hueco tan grande como entre 5 y 10. El salto 138 → 10 es la pista fuerte; las mejoras siguientes son menores.
+
+<svg viewBox="0 0 530 200" role="img" aria-label="Curva de codo: gran descenso entre K uno y K dos" style={{maxWidth:'100%'}}><line x1="45" y1="12" x2="45" y2="170" stroke="currentColor"/><line x1="45" y1="170" x2="515" y2="170" stroke="currentColor"/><path d="M95 30 L195 148 L295 154 L395 162 L495 170" fill="none" stroke="var(--sl-color-accent)" strokeWidth="3"/>{[[95,30],[195,148],[295,154],[395,162],[495,170]].map(([x,y],i)=><g key={i}><circle cx={x} cy={y} r="5" fill="var(--sl-color-orange)"/><text x={x} y="188" textAnchor="middle" fill="currentColor">{i+1}</text></g>)}<text x="8" y="22" fill="currentColor">WCSS</text><text x="500" y="188" fill="currentColor">K</text></svg>
+
+*Cómo leerlo:* el dibujo destaca el descenso grande de uno a dos grupos; la forma posterior es ilustrativa. La WCSS siempre desciende al aumentar $K$, así que no basta buscar su valor mínimo.
+
+**Puente.** El cambio marcado de pendiente se llama método del *elbow* (codo). Es una pista visual, no una prueba de que existan exactamente dos clases naturales.
+
+## Antes de medir: ¿qué distancia estás usando?
+
+Con distancia euclidiana, cambiar una medida de centímetros a milímetros multiplica esa coordenada por 10 y su contribución cuadrada por 100. Un algoritmo puede agrupar casi solo por esa columna. Si las variables usan unidades y dispersiones diferentes, estandariza: $z_j=(x_j-\bar x_j)/s_j$. Ajusta media y desviación **solo en el entrenamiento** si luego evaluarás en datos separados. Si todas las medidas son longitudes comparables en centímetros, como iris, mantener las unidades originales puede ser razonable. Escalar también expresa una decisión sobre qué diferencias importan.
+
+:::caution[Trampa de examen]
+«k-means es invariante al cambio de unidades» es falso. Multiplicar **todas** las coordenadas por la misma constante mantiene asignaciones y escala WCSS; cambiar solo una columna puede cambiar completamente los grupos.
+:::
+
+## Silhouette: comparación punto por punto
+
+Para un punto $i$, $a_i$ es la distancia promedio a los **otros** puntos de su grupo. $b_i$ es la menor distancia promedio a un grupo distinto. La *silhouette* (silueta) es $s_i=(b_i-a_i)/\max(a_i,b_i)$. Cerca de 1: bien dentro; cerca de 0: en frontera; negativa: más próximo a otro grupo en promedio.
+
+<Pasos titulo="Silhouette del alquiler 5, a mano">
+
+1. Su propio grupo es $\{2,3,4,5\}$. Las distancias de 5 a los otros son 3, 2 y 1: $a=2$.
+2. El otro grupo es $\{10,11,12,13\}$. Las distancias son 5, 6, 7 y 8: $b=(5+6+7+8)/4=6.5$.
+3. $s=(6.5-2)/6.5=4.5/6.5\approx0.6923$, que la sesión redondea a **0.69**.
+4. Promedia $s_i$ entre los puntos para puntuar un K. En estos alquileres, $K=2$ da **0.79**.
+
+</Pasos>
+
+La silhouette no se define normalmente para un único grupo ni para un grupo por punto. Tampoco certifica que haya grupos reales. La sesión obtiene **0.41** en puntos aleatorios uniformes, mayor que la puntuación de **0.28** del vino estandarizado con $K=3$. Aun así, el vino tiene variedades conocidas y el conjunto aleatorio no fue generado con ellas. El algoritmo **siempre responde** a la pregunta que le impones.
+
+## El vino: trece medidas
+
+En el vino hay 178 observaciones, 13 variables y tres variedades conocidas que se guardan solo para evaluar. Tras estandarizar, la sesión encuentra un codo suave cerca de $K=3$ y silhouette **0.28**. El ARI de k-means frente a las variedades es **0.90** en el experimento de comparación. Son preguntas distintas: silhouette mira geometría interna sin etiquetas; ARI requiere conocer las variedades.
+
+**Ir más a fondo (opcional).** La silhouette usa distancias entre pares de puntos; para conjuntos grandes puede ser costosa. Un buen puntaje también puede favorecer cortes geométricos de una nube continua. Examina estabilidad entre semillas y muestras, utilidad para una decisión real y ejemplos cercanos al borde antes de declarar «descubiertas» categorías.
+
+## En código
+
+```python
+import numpy as np
+from sklearn.cluster import KMeans
+from sklearn.metrics import silhouette_samples, silhouette_score
+x = np.array([2,3,4,5,10,11,12,13], dtype=float).reshape(-1,1)
+labels = KMeans(n_clusters=2, n_init=10, random_state=0).fit_predict(x)
+print(round(silhouette_samples(x, labels)[3], 2), round(silhouette_score(x, labels), 2))
+# 0.69 0.79
+```
+
+<CasoUso titulo="Segmentar compradores sin inventar categorías" sector="comercio" icono="🛒">Una tienda agrupa clientes por frecuencia de compra, gasto y devoluciones. Primero decide cómo escalar cada variable y prueba varios K. Aunque el codo sugiera tres grupos, revisa si son estables y si conducen a acciones útiles; no los presenta como tipos humanos naturales.</CasoUso>
+
+## Distancia antes que grupos
+
+
+### Cambiar centímetros a milímetros cambia la pregunta
+
+k-means busca grupos compactos según una distancia euclidiana. En dos mediciones, la distancia cuadrada suma las diferencias cuadradas de ambas columnas. En la actividad de la slide, una opción separa por forma y otra por tamaño. Si una diferencia de diámetro pasa de **1 cm a 10 mm**, su aporte pasa de $1^2=1$ a $10^2=100$. El criterio ahora vota cien veces más fuerte por ese diámetro. Estandarizar con media y desviación típica hace comparables las variaciones observadas: en la slide, forma y tamaño quedan empatados con costo **4 = 4**. Empatar no significa que ambas sean igualmente importantes para el negocio; el analista decide eso.
+
+<svg viewBox="0 0 620 165" role="img" aria-label="Dos diferencias de una unidad se vuelven aportes 1 y 100 al cambiar una escala" style={{maxWidth:'100%'}}><text x="10" y="33" fill="currentColor">1 cm</text><rect x="95" y="13" width="40" height="30" fill="var(--sl-color-accent)"/><text x="145" y="35" fill="currentColor">aporte 1</text><text x="10" y="92" fill="currentColor">10 mm</text><rect x="95" y="72" width="420" height="30" fill="var(--sl-color-orange)"/><text x="525" y="94" fill="currentColor">aporte 100</text><text x="95" y="145" fill="currentColor">misma longitud física, distinto peso numérico</text></svg>
+
+*Cómo leerlo:* las barras representan el aporte de esa coordenada a la distancia cuadrada. Es un esquema del cambio de unidades, no una comparación de longitudes físicas.
+
+### El codo y el costo exacto de estos alquileres
+
+Con un grupo, los ocho alquileres cuestan **138**. Con dos, **10**. Con tres, dividir uno de los grupos de cuatro en dos pares baja su costo de 5 a 1; el otro sigue en 5: WCSS **6**. Con cuatro grupos, dividir ambos bloques en pares da **2**. Así, las mejoras son **128**, **4** y **4**. La primera es mucho mayor: el codo está en $K=2$. La curva original de arriba es ilustrativa; estos valores permiten reconstruir la curva numérica. El codo pregunta cuándo añadir grupos deja de ahorrar mucho costo, no cuántas clases «verdaderas» existen.
+
+### Ir más a fondo: de distancias a silueta y costo
+
+La silueta mide si un punto está más cerca, en promedio, de sus compañeros que del grupo vecino. Primero se definen ambas distancias y solo después se normaliza la diferencia para que quede entre $-1$ y 1.
+
+<Pasos titulo="Por qué la silueta queda entre −1 y 1">
+
+1. Para un punto, $a$ promedia las distancias a los demás de su grupo; $b$ es el menor promedio a otro grupo. Ambos son no negativos.
+2. Si $b\ge a$, la silueta es $(b-a)/b=1-a/b$, entre 0 y 1. Cuanto más pequeño sea $a$ frente a $b$, más cerca de 1.
+3. Si $a>b$, queda $(b-a)/a=b/a-1$, entre $-1$ y 0. El punto encaja mejor en otro grupo en promedio.
+4. Para el alquiler 5: $a=(3+2+1)/3=2$ y $b=(5+6+7+8)/4=6.5$. Sale $s=4.5/6.5=0.692307\ldots$.
+5. Promediar las ocho siluetas da cerca de 0.79. Un grupo de un solo punto requiere una convención especial; por eso no se compara libremente $K=1$ o $K=n$.
+
+</Pasos>
+
+El vino tiene **178** observaciones, **13** medidas y tres variedades conocidas. La silueta **0.28** para $K=3$ mira únicamente distancias; el ARI **0.90** compara después con variedades. Una nube uniforme aleatoria puede dar silueta **0.41** tras forzar grupos. La puntuación mayor de la nube aleatoria no la convierte en una clasificación más útil. Las variables del vino deben escalarse con cuidado porque medir intensidad, acidez y otros atributos en unidades distintas altera la geometría.
+
+<svg viewBox="0 0 620 170" role="img" aria-label="Punto cinco a distancia dos de su grupo y seis coma cinco del otro" style={{maxWidth:'100%'}}><line x1="35" y1="91" x2="585" y2="91" stroke="currentColor"/>{[2,3,4,5,10,11,12,13].map((v,i)=><g key={i}><circle cx={35+v*38} cy="91" r={v===5?10:6} fill={i<4?'var(--sl-color-accent)':'var(--sl-color-orange)'}/><text x={35+v*38} y="120" textAnchor="middle" fill="currentColor">{v}</text></g>)}<text x="200" y="38" fill="currentColor">a = 2 dentro</text><text x="390" y="38" fill="currentColor">b = 6.5 fuera</text></svg>
+
+*Cómo leerlo:* el punto grande es el alquiler 5. Sus tres compañeros azules dan distancia media 2; los cuatro puntos naranjas, distancia media 6.5.
+
+## Ejercicios de las slides
+
+**Predice primero: ¿por qué no elegir el menor WCSS entre $K=1,\ldots,8$?**
+
+<Solucion>
+
+1. Cada grupo adicional puede conservar los centros anteriores y dedicar el nuevo a un punto, así que el mejor costo no aumenta.
+2. Con ocho grupos, cada alquiler es su propio centro: todas las distancias son cero.
+3. Elegir el menor costo siempre elegiría ocho. Mira la ganancia marginal, silueta y utilidad del agrupamiento.
+
+</Solucion>
+
+**Compruébalo: euros o miles de euros.** Edad en años e ingreso en euros describen clientes. Reescribes ingreso en miles de euros. ¿Se conservan los grupos?
+
+<Solucion>
+
+1. La diferencia de ingresos se divide por 1000; su aporte cuadrado a distancia se divide por $1000^2=1000000$.
+2. Edad puede pasar a dominar. Por tanto, los grupos pueden cambiar aunque los clientes sean los mismos.
+3. Decide pesos o estandariza a partir del conjunto de entrenamiento y aplica exactamente la misma transformación a nuevos clientes.
+
+</Solucion>
+
+**Predice primero: ¿cuáles alquileres están más cerca de la frontera?** Usa el punto 5 para comprobarlo.
+
+<Solucion>
+
+1. Los extremos internos 5 y 10 miran hacia el gran hueco y son los candidatos menos cómodos.
+2. Para 5, $a=2$ y $b=6.5$; la silueta es $0.6923$, menor que la de puntos más internos como 2 o 3.
+3. Por simetría, 10 tiene la misma silueta. Ninguno está mal asignado: ambos conservan silueta positiva.
+
+</Solucion>
+
+**Compruébalo: el gerente quiere «el verdadero número de tipos de clientes» porque silueta 0.41 favorece cuatro.** ¿Qué respondes?
+
+<Solucion>
+
+1. Una nube aleatoria también puede producir 0.41; la silueta solo mide geometría de una partición impuesta.
+2. Pregunta para qué se usarán los segmentos y cuántos pueden atenderse. Compara estabilidad entre semillas y muestras.
+3. Comunica cuatro como propuesta útil bajo esos criterios, sin afirmar que sean tipos naturales.
+
+</Solucion>
+
+<Quiz client:visible id="clu-cuantos" preguntas={[
+ {q:'¿Por qué el menor WCSS no decide K?',opts:['WCSS sube con K','Con K=n vale cero','No usa distancias','Necesita etiquetas'],ok:1},
+ {q:'Para el alquiler 5, ¿cuál es a?',opts:['1','2','5','6.5'],ok:1},
+ {q:'Para el alquiler 5, ¿cuál es b?',opts:['2','4.5','6.5','8'],ok:2},
+ {q:'Su silhouette es aproximadamente…',opts:['−0.69','0','0.69','1'],ok:2},
+ {q:'Pasar una sola variable de cm a mm puede…',opts:['No cambiar nada','Cambiar los grupos','Solo cambiar ARI','Crear etiquetas'],ok:1},
+ {q:'¿Qué demuestra silhouette 0.41 en puntos aleatorios?',opts:['Hay cuatro grupos reales','La silhouette puede premiar estructura impuesta','ARI es 0.41','K=1'],ok:1},
+ {q:'WCSS óptima de los ocho alquileres con K=3',opts:['2','6','10','138'],ok:1},
+ {q:'Una diferencia de 1 cm pasa a 10 mm: ¿factor en distancia cuadrada?',opts:['1','10','100','1000'],ok:2}
+]} />
+
+<Conexiones items={[{href:'/fundamentos/matematicas/',titulo:'Distancia',texto:'La escala de cada coordenada define el espacio geométrico.'},{href:'/regularizacion/validacion-cruzada/',titulo:'Fuga de datos',texto:'Ajusta escaladores dentro de los datos de entrenamiento.'},{href:'/clustering/kmeans/',titulo:'WCSS',texto:'La función objetivo que cae al aumentar K.'}]} />
+<Recursos items={[R.islr,R.skCV,R.sqIndex]} />
+<Fuente archivos={['ML_Course_Clustering.pdf (slides de elección de K)','session-10-simple-b-how-many-groups-and-clouds.ipynb']} />
+
+## Errores típicos
+
+- Interpretar el menor WCSS como evidencia de un $K$ verdadero.
+- Cambiar unidades de una columna y suponer que la distancia permanece igual.
+- Comparar silueta y ARI como si midieran lo mismo: ARI usa etiquetas externas.
+- Calcular $a$ incluyendo el propio punto, cuya distancia cero sesga el promedio.
+- Ajustar el escalador con datos de test antes de validar.

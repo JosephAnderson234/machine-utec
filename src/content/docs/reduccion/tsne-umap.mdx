@@ -1,0 +1,121 @@
+---
+title: "t-SNE, UMAP y mapas que hay que leer con cuidado"
+description: "Manifolds, probabilidades de vecinos, perplejidad, UMAP, kernel PCA e ICA."
+---
+import EnSimple from '../../../components/EnSimple.astro';
+import Pasos from '../../../components/Pasos.astro';
+import CasoUso from '../../../components/CasoUso.astro';
+import Quiz from '../../../components/Quiz.tsx';
+import Conexiones from '../../../components/Conexiones.astro';
+import Recursos from '../../../components/Recursos.astro';
+import Fuente from '../../../components/Fuente.astro';
+import Solucion from '../../../components/Solucion.astro';
+import { R } from '../../../data/recursos';
+
+<EnSimple id="reduccion/tsne-umap" />
+
+## Empieza aquí: una cinta enrollada
+
+Una tira de papel tiene una coordenada natural: la distancia a lo largo de la tira. Si se enrolla en 3D, dos extremos pueden quedar cerca en línea recta aunque estén muy lejos **sobre** el papel. PCA solo busca un plano; no puede desenrollar esa curva. A esa superficie de baja dimensión incrustada en un espacio mayor se le llama *manifold* o variedad.
+
+<svg viewBox="0 0 520 155" role="img" aria-label="Cinta curvada que se representa como una línea"><path d="M15 120Q95 10 175 105T335 95" fill="none" stroke="var(--sl-color-accent)" strokeWidth="12"/><circle cx="38" cy="92" r="5" fill="var(--sl-color-text)"/><circle cx="300" cy="68" r="5" fill="var(--sl-color-text)"/><path d="M350 75h45m-9-8 9 8-9 8" stroke="var(--sl-color-text)" fill="none"/><path d="M412 76h95" stroke="var(--sl-color-accent)" strokeWidth="8"/><circle cx="418" cy="76" r="5" fill="var(--sl-color-text)"/><circle cx="498" cy="76" r="5" fill="var(--sl-color-text)"/></svg>
+*Cómo leerlo:* vecinos sobre la curva deben quedar vecinos; el plano puede deformar longitudes y huecos.
+
+<svg viewBox="0 0 560 185" role="img" aria-label="Dos vecindarios con diferente densidad se dibujan con tamaños semejantes">
+ <text x="20" y="20" fill="var(--sl-color-text)">datos originales</text><circle cx="90" cy="94" r="18" fill="none" stroke="var(--sl-color-accent)"/><circle cx="210" cy="94" r="55" fill="none" stroke="var(--sl-color-accent)"/><text x="79" y="100" fill="var(--sl-color-text)">A</text><text x="202" y="100" fill="var(--sl-color-text)">B</text><path d="M279 95h57m-9-8 9 8-9 8" fill="none" stroke="var(--sl-color-text)"/><text x="357" y="20" fill="var(--sl-color-text)">mapa de vecinos</text><circle cx="402" cy="94" r="30" fill="none" stroke="var(--sl-color-accent)"/><circle cx="498" cy="94" r="30" fill="none" stroke="var(--sl-color-accent)"/><text x="393" y="100" fill="var(--sl-color-text)">A</text><text x="489" y="100" fill="var(--sl-color-text)">B</text>
+</svg>
+*Cómo leerlo:* el método adapta su escala local; el tamaño del círculo en el mapa no conserva el tamaño del grupo original.
+
+
+## Puente: conservar vecindarios
+
+*t-SNE* (incrustación estocástica de vecinos con distribución t) convierte distancias altas en probabilidades $p_{j|i}$ de vecindad. Ajusta una banda gaussiana por punto hasta alcanzar una *perplejidad* fijada, $2^{H(P_i)}$: número efectivo de vecinos. En el mapa usa una distribución Student-t de cola pesada, $q_{ij}\propto(1+\lVert y_i-y_j\rVert^2)^{-1}$, que deja sitio a puntos moderadamente lejanos y reduce el *crowding* (amontonamiento). Minimiza $KL(P\Vert Q)=\sum_{i,j}p_{ij}\log(p_{ij}/q_{ij})$: cuesta mucho separar vecinos verdaderos.
+
+La distancia alta se convierte en $p_{j|i}\propto\exp(-\lVert x_i-x_j\rVert^2/(2\sigma_i^2))$. Un ancho $\sigma_i$ pequeño mira pocos vecinos; uno grande reparte probabilidad más lejos. Una búsqueda binaria ajusta ese ancho para cada punto hasta alcanzar la perplejidad pedida. Después se simetriza: $p_{ij}=(p_{j|i}+p_{i|j})/(2n)$. Así se compara una sola distribución de pares $P$ con la distribución $Q$ del mapa.
+
+Una gaussiana en 2D amontonaría puntos moderadamente lejanos: hay menos sitio alrededor de un punto en el plano que en alta dimensión. La cola pesada de Student-t deja que estos pares se separen sin una penalización enorme. La divergencia KL no es simétrica; al usar $KL(P\Vert Q)$, un par con $p_{ij}$ grande y $q_{ij}$ pequeño cuesta mucho. En la optimización, vecinos se atraen y los demás se repelen. Inicio, semilla, tasa de aprendizaje y parada pueden cambiar el dibujo; por ello hay que inspeccionar estabilidad.
+
+<Pasos titulo="Ir más a fondo: de probabilidades a fuerzas">
+
+1. En alta dimensión, normaliza las afinidades gaussianas de cada $i$ para que $\sum_{j\ne i}p_{j|i}=1$.
+2. Ajusta $\sigma_i$ hasta que $2^{-\sum_j p_{j|i}\log_2p_{j|i}}$ alcance la perplejidad. Es el número efectivo de vecinos, no de grupos.
+3. Simetriza $P$ para comparar pares sin dirección. En el mapa, usa pesos $w_{ij}=(1+\lVert y_i-y_j\rVert^2)^{-1}$ y normalízalos como $q_{ij}=w_{ij}/\sum_{a\ne b}w_{ab}$.
+4. Minimiza $\sum_{i\ne j}p_{ij}\log(p_{ij}/q_{ij})$. Si un vecino real tiene $q$ pequeño, el cociente y su logaritmo suben; moverlo cerca reduce la pérdida.
+5. La derivada respecto a $y_i$ puede escribirse $4\sum_j(p_{ij}-q_{ij})(y_i-y_j)/(1+\lVert y_i-y_j\rVert^2)$. El signo muestra atracción cuando $p>q$ y repulsión cuando $q>p$.
+</Pasos>
+
+### Ejercicio: predice la perplejidad
+
+Una distribución local reparte $(1/4,1/4,1/4,1/4)$ entre cuatro vecinos. ¿Cuál es su entropía y perplejidad? ¿Significa cuatro clases?
+
+<Solucion>
+
+1. Cada término aporta $-(1/4)\log_2(1/4)=1/2$ bit.
+2. Cuatro términos suman $H=2$ bits.
+3. La perplejidad es $2^2=4$ vecinos efectivos. No informa cuántas clases hay.
+</Solucion>
+
+<Pasos titulo="Perplejidad a mano">
+
+1. Si un punto da probabilidades $(1/2,1/2)$ a dos vecinos, su entropía es $H=-2(1/2)\log_2(1/2)=1$ bit.
+2. La perplejidad es $2^H=2$: dos vecinos efectivos.
+3. Si reparte $(1/4,1/4,1/4,1/4)$, $H=2$ bits y perplejidad 4. No es «cuatro grupos»: es una escala local.
+</Pasos>
+
+*UMAP* construye primero un grafo de $k$ vecinos con pertenencias difusas; después dibuja ese grafo atrayendo aristas y repeliendo no aristas. `n_neighbors` cambia el grafo, de detalle local a contexto global. `min_dist` cambia cuán apretado se dibuja el mismo grafo. El cuaderno 11b muestra que grupos con dispersiones distintas en los datos pueden terminar con tamaños casi iguales en UMAP.
+
+Para un punto $i$, UMAP toma la distancia $\rho_i$ al vecino más próximo. La pertenencia dirigida de $j$ mide $p_{j|i}=\exp[-\max(0,d_{ij}-\rho_i)/\sigma_i]$. Restar $\rho_i$ da peso 1 al vecino más cercano. El ancho $\sigma_i$ se ajusta para que la suma de pertenencias alcance aproximadamente $\log_2 k$; así zonas densas y dispersas tienen vecindarios comparables. Se unen ambas direcciones con $p_{ij}=p_{j|i}+p_{i|j}-p_{j|i}p_{i|j}$, la probabilidad de que exista al menos una de las dos conexiones. El segundo paso busca un dibujo que reduzca la entropía cruzada entre aristas del grafo y del mapa.
+
+En las diapositivas, `n_neighbors=5` produce grado medio 6.8 y posibles fragmentos; con 50, grado 63.2 y más contexto global. Cambiar `min_dist` de 0 a 0.8 modifica cuánto se dispersan las manchas, manteniendo el grafo. No convierte los huecos ni los tamaños de manchas en medidas del espacio original. En el experimento de tres grupos, sus dispersiones varían por factor 3.0 en los datos y quedan casi iguales (factor 1.0) en el mapa.
+
+<Pasos titulo="Ir más a fondo: pertenencia difusa de UMAP">
+
+1. Para cada $i$, fija $\rho_i$ como la distancia al vecino más cercano; así una arista inmediata tendrá exponente cero y pertenencia 1.
+2. Busca $\sigma_i$ para que $\sum_j p_{j|i}\approx\log_2k$. La búsqueda adapta una escala a cada densidad local.
+3. Combina direcciones: si $p_{j|i}=0.6$ y $p_{i|j}=0.5$, la unión vale $0.6+0.5-0.6(0.5)=0.8$.
+4. El dibujo usa atracción sobre aristas y repulsión sobre pares muestreados sin arista. `n_neighbors` cambia el grafo del paso 1; `min_dist` restringe el empaquetamiento del paso 2.
+</Pasos>
+
+:::caution[No leas un mapa como un plano métrico]
+Un hueco grande entre manchas no prueba separación grande en los datos; el tamaño de una mancha no mide su varianza; una mancha visible no prueba una clase real. Cambia semilla y parámetros, compara con PCA y valida cualquier hipótesis en el espacio original. t-SNE no ofrece una transformación ordinaria para puntos nuevos; UMAP sí dispone de `transform`.
+:::
+
+### Ir más a fondo: otras dos preguntas
+
+*Kernel PCA* aplica PCA en un espacio de características implícito usando una matriz de Gram centrada $K_{ij}=K(x_i,x_j)$. Puede capturar estructura curva, pero requiere elegir kernel y ancho, y usa memoria $O(n^2)$. *ICA* busca fuentes estadísticamente independientes, no solo ejes descorrelacionados. En $x=As$, recupera $s$ salvo orden y signo cuando hay fuentes no gaussianas identificables: es la «fiesta del cóctel».
+
+Dos anillos concéntricos no se separan al rotar ejes con PCA lineal; un kernel radial puede mapearlos a coordenadas separables. Para centrar el Gram se usa $K_c=HKH$, con $H=I-\mathbf1\mathbf1^\top/n$. Descomponer $K_c$ da el problema dual de tamaño $n\times n$; no hay inversa simple para reconstruir píxeles. ICA responde otra pregunta: dos micrófonos captan mezclas de dos voces, $x=As$. Busca señales independientes y no gaussianas, aunque sus direcciones no sean ortogonales ni estén ordenadas por varianza. Descorrelación de PCA no basta para independencia.
+
+Como regla práctica, estandariza cuando cambian las unidades y empieza con PCA si necesitas una proyección rápida y reconstruible. Usa t-SNE o UMAP para explorar vecindarios curvos, no como sustituto directo de variables para predicción. UMAP suele escalar mejor y ofrece transformación para nuevos puntos; t-SNE estándar no. Compara mapas con vecinos en el espacio original y varios parámetros.
+
+```python
+import numpy as np
+from sklearn.manifold import TSNE
+X = np.array([[0.,0.],[0.,1.],[1.,0.],[1.,1.],[4.,4.],[4.,5.]])
+Z = TSNE(n_components=2, perplexity=2, init='pca', random_state=0).fit_transform(X)
+print(Z.shape, np.isfinite(Z).all())
+# (6, 2) True
+```
+
+<CasoUso titulo="Explorar imágenes de dígitos" sector="digital" icono="🔢">Un equipo colorea un mapa t-SNE de imágenes 8×8 según su etiqueta para descubrir confusiones locales. Comprueba cada grupo contra vecinos de los 64 píxeles originales; usa el mapa como generador de preguntas, no como evidencia de accuracy.</CasoUso>
+
+<Quiz client:visible id="reduccion-tsne-umap" preguntas={[
+ {q:'¿Qué es un manifold?',opts:['una superficie curva de baja dimensión','una clase','una matriz diagonal','una pérdida'],ok:0},
+ {q:'Probabilidades 1/2 y 1/2 dan perplejidad…',opts:['1','2','4','10'],ok:1},
+ {q:'¿Por qué Student-t en el mapa?',opts:['colas pesadas reducen amontonamiento','centra datos','usa y','impone positividad'],ok:0},
+ {q:'KL(P‖Q) penaliza especialmente…',opts:['separar vecinos reales','áreas grandes','colores','signos'],ok:0},
+ {q:'Probabilidades 1/4 en cuatro vecinos: ¿cuántos bits de entropía?',opts:['1','2','4','8'],ok:1},
+ {q:'En UMAP, unión difusa de 0.6 y 0.5: ¿cuánto da?',opts:['0.3','0.6','0.8','1.1'],ok:2},
+ {q:'Si k pasa de 5 a 50 en UMAP, ¿qué objeto se modifica?',opts:['grafo de vecinos','etiquetas','píxeles','clases reales'],ok:0},
+ {q:'¿Qué busca ICA?',opts:['fuentes independientes','máxima varianza solamente','etiquetas','rangos k'],ok:0}
+]} />
+<Conexiones items={[{href:'/kernels/truco/',titulo:'Kernel trick',texto:'Kernel PCA usa productos internos implícitos.'},{href:'/reduccion/pca/',titulo:'PCA',texto:'Una base lineal para comparar mapas no lineales.'},{href:'/clustering/otras-formas/',titulo:'Clustering',texto:'No deduzcas grupos solo mirando manchas 2D.'}]} />
+<Recursos items={[R.mml, R.g3b1bLA]} />
+<Fuente archivos={['ML_Course_Dimensionality_Reduction.pdf (slides 76–104)','session-11b-tsne-and-umap.ipynb']} />
+
+## Errores típicos
+
+- Contar manchas de t-SNE como clases confirmadas.
+- Interpretar distancia entre manchas o área de una mancha como distancia o varianza original.
+- Tratar `min_dist` como un cambio de datos en vez de disposición del mapa.
+- Creer que descorrelación de PCA implica independencia estadística.

@@ -1,0 +1,41 @@
+---
+title: "Resumen 13 · MLOps"
+description: "Resumen imprimible de una página: ideas clave, fórmulas y trampas de examen de MLOps."
+tableOfContents: false
+prev: false
+next: false
+---
+
+<p class="no-print"><a href="/mlops/reproducibilidad/">ir a la teoría completa</a> · imprime con Ctrl + P (o guarda como PDF)</p>
+
+## Ideas clave
+
+- Un modelo en producción es un **sistema**; la mayor parte no es código de ML. Cinco preguntas: ¿se puede reconstruir? ¿ve las mismas entradas? ¿cómo se libera? ¿sigue funcionando? ¿y entonces qué?
+- **Reproducible** = desde un registro escrito cualquiera lo reconstruye: datos (con **huella SHA-256**), código, librerías, hiperparámetros, semilla, entorno. Trackers (MLflow, W&B) y **model registry**.
+- Niveles: 0 = todo a mano; 1 = **pipeline** automatizado que se despliega (se entrega la receta, no solo el modelo); 2 = CI/CD del propio pipeline.
+- **Training-serving skew**: el modelo recibe en producción entradas preparadas distinto (0..255 vs 0..16). **No se cae: responde mal.** Cura: un solo camino de preprocesamiento + **esquema** que valida en la puerta.
+- **Release gate**: compara el nuevo con el viejo en los **mismos** casos y cuenta los que cambian. Despliegue **shadow / canary / blue-green / A-B**; decide el **rollback** antes de liberar.
+- Los modelos fallan **en silencio**: covariate shift (cambian las $x$), label/prior shift (cambia $P(y)$), concept drift (cambia $P(y\mid x)$). Si las etiquetas llegan tarde, monitorea entradas (**PSI**, detector pasado-vs-hoy con AUC) y la **confianza**.
+- Reentrenar con nuevas etiquetas, cuidar los **feedback loops**, y documentar con **model card** y **lineage**.
+
+## Fórmulas
+
+$$
+\text{PSI} = \sum_{\text{bins}} (\text{hoy}-\text{antes})\,\ln\frac{\text{hoy}}{\text{antes}}
+$$
+
+$$
+\text{Ej.: } 50/50 \to 30/70:\ (-0.2)\ln0.6 + (0.2)\ln1.4 \approx 0.17
+$$
+
+$$
+\text{AUC}(\text{pasado vs hoy}) \approx 0.5 \Rightarrow \text{sin cambio detectable};\ \to 1 \Rightarrow \text{drift}
+$$
+
+## Trampas de examen
+
+- Un mismo código puede dar otro modelo si cambia una librería, el orden de los datos o la semilla.
+- Que no haya errores en los logs no significa que el modelo acierte.
+- El umbral de PSI depende del tamaño del lote: lotes chicos dan PSI altos por azar.
+- Accuracy +5 sobre 540 puede ser azar: mira cuántos casos cambiaron.
+- Un monitor de entradas no ve un concept drift puro; uno de confianza puede no ver un cambio que el modelo ignora.

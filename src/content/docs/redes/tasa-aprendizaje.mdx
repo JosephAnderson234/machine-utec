@@ -1,0 +1,174 @@
+---
+title: "12.1 · El tamaño del paso"
+description: "Siete tasas sobre una parábola y el compromiso entre dos curvaturas."
+---
+import Solucion from '../../../components/Solucion.astro';
+
+import EnSimple from '../../../components/EnSimple.astro';
+import Pasos from '../../../components/Pasos.astro';
+import CasoUso from '../../../components/CasoUso.astro';
+import Quiz from '../../../components/Quiz.tsx';
+import Conexiones from '../../../components/Conexiones.astro';
+import Recursos from '../../../components/Recursos.astro';
+import Fuente from '../../../components/Fuente.astro';
+import TasaParabola from '../../../components/sim/TasaParabola.tsx';
+import { R } from '../../../data/recursos';
+
+<EnSimple id="redes/tasa-aprendizaje" />
+
+## Empieza aquí: siete maneras de bajar una parábola
+
+En la diapositiva, $L(w)=w^2$ y empezamos en $w_0=1$. La pendiente es $2w$, así que un paso de gradiente con tasa $\eta$ da $w_{t+1}=w_t-\eta(2w_t)=(1-2\eta)w_t$. Solo hay que multiplicar repetidamente por $r=1-2\eta$.
+
+| $\eta$ | $r$ | $w_0,w_1,w_2,w_3$ | Lectura |
+| --- | --- | --- | --- |
+| 0.10 | 0.8 | 1, 0.8, 0.64, 0.512 | baja lento |
+| 0.25 | 0.5 | 1, 0.5, 0.25, 0.125 | baja sin cruzar |
+| 0.50 | 0 | 1, 0, 0, 0 | llega en un paso |
+| 0.75 | -0.5 | 1, -0.5, 0.25, -0.125 | cruza y se acerca |
+| 0.90 | -0.8 | 1, -0.8, 0.64, -0.512 | cruza y baja lento |
+| 1.00 | -1 | 1, -1, 1, -1 | oscila para siempre |
+| 1.10 | -1.2 | 1, -1.2, 1.44, -1.728 | se aleja |
+
+<figure><svg viewBox="0 0 520 150" role="img" aria-label="Tasas pequeña, adecuada y excesiva sobre un valle"><path d="M40 25 Q260 230 480 25" fill="none" stroke="currentColor" stroke-width="3"/><g fill="var(--sl-color-accent)"><circle cx="260" cy="130" r="6"/><circle cx="420" cy="55" r="6"/></g><g fill="currentColor" font-size="15"><text x="20" y="24">L alta</text><text x="260" y="123">mínimo</text><text x="390" y="42">inicio</text><text x="275" y="70">η pequeña →</text><text x="50" y="95">← η grande cruza</text></g></svg><figcaption><strong>Cómo leerlo:</strong> el gradiente apunta cuesta arriba; restarlo mueve el peso hacia el valle. El tamaño del paso decide si se acerca o lo salta.</figcaption></figure>
+
+<TasaParabola client:visible />
+
+<figure><svg viewBox="0 0 560 180" role="img" aria-label="Dos curvaturas generan un valle alargado"><ellipse cx="275" cy="88" rx="195" ry="65" fill="none" stroke="var(--sl-color-text)" stroke-width="2"/><ellipse cx="275" cy="88" rx="110" ry="36" fill="none" stroke="var(--sl-color-accent)" stroke-width="2"/><circle cx="275" cy="88" r="5" fill="var(--sl-color-accent)"/><path d="M110 120L215 75L265 102L275 88" fill="none" stroke="var(--sl-color-text)" stroke-width="3"/><g fill="var(--sl-color-text)" font-size="14"><text x="20" y="160">dirección suave: c=1</text><text x="345" y="160">dirección empinada: c=100</text><text x="283" y="82">mínimo</text></g></svg><figcaption><strong>Cómo leerlo:</strong> las elipses son curvas de igual pérdida. La dirección empinada limita la tasa segura; la suave avanza despacio con esa misma tasa.</figcaption></figure>
+
+## Ejercicios de las diapositivas
+
+**Predice primero — primer paso.** En $L(w)=w^2$, desde $w_0=1$ con $\eta=0.5$, ¿dónde cae el siguiente peso? ¿Qué pasa con $\eta=1$?
+
+<Solucion>
+
+La pendiente inicial es 2. Con $\eta=0.5$ se resta 1 y se llega exactamente a 0. Con $\eta=1$ se resta 2 y se llega a $-1$; la siguiente pendiente es $-2$, así que vuelve a 1. Oscila sin bajar la pérdida.
+
+</Solucion>
+
+**Compruébalo — siete tasas.** Sin mirar la tabla, calcula los tres primeros pasos para $\eta=0.75$ y $1.10$.
+
+<Solucion>
+
+La regla es multiplicar por $1-2\eta$. Para $0.75$, el factor es $-0.5$: $1,-0.5,0.25,-0.125$. Para $1.10$, es $-1.2$: $1,-1.2,1.44,-1.728$. El primer caso cruza con saltos cada vez menores; el segundo cruza con saltos crecientes.
+
+</Solucion>
+
+**Tu turno — cuatro lecturas.** Las entradas son $(1,10),(1,-10),(-1,10),(-1,-10)$ y la respuesta es $10x_1+x_2$. Calcula las cuatro respuestas, la solución exacta y las dos curvaturas de la pérdida cuadrática media.
+
+<Solucion>
+
+Las respuestas son $20,0,0,-20$. La regla que las produjo usa $w=(10,1)$. Por simetría, el promedio de $x_1x_2$ es 0: no hay término cruzado en la pérdida. El promedio de $x_1^2$ es 1 y el de $x_2^2$ es 100. Por eso $L(w)=\tfrac12(w_1-10)^2+50(w_2-1)^2$, salvo una constante que aquí es cero. Las curvaturas son 1 y 100.
+
+</Solucion>
+
+**Compruébalo — condicionamiento.** Si las curvaturas son 1 y 4, calcula el número de condición, la tasa equilibrada y el factor de error de cada dirección.
+
+<Solucion>
+
+1. El número de condición es $\kappa=4/1=4$.
+2. La tasa equilibrada es $2/(1+4)=0.4$.
+3. La dirección suave se multiplica por $1-0.4=0.6$; la empinada por $1-4(0.4)=-0.6$. Ambas reducen su magnitud al 60 % por paso.
+
+</Solucion>
+
+**Predice primero — red B rota.** Si solo cambian los dos pesos de salida, la activación oculta es $(2,1)$ y el error inicial de predicción es 1. Con tasa 0.1, ¿cuánto vale el error después de tres pasos?
+
+<Solucion>
+
+La curvatura en esa dirección es $\|h\|^2=2^2+1^2=5$. Cada paso multiplica el error por $1-0.1(5)=0.5$. Los errores son $1,0.5,0.25,0.125$; tras tres pasos queda $1/8$. La tasa óptima para esos dos pesos aislados sería $1/5=0.2$ y el borde $2/5=0.4$.
+
+</Solucion>
+
+## Puente: qué significa «tasa de aprendizaje»
+
+La tasa $\eta$ (*learning rate*) es el factor que multiplica el gradiente: $\mathbf w_{t+1}=\mathbf w_t-\eta\nabla L(\mathbf w_t)$. El caso anterior deja una regla exacta para cualquier parábola $L(w)=\tfrac12cw^2$ de curvatura $c>0$.
+
+<Pasos titulo="Tasa óptima y borde de estabilidad">
+
+1. La derivada es $L'(w)=cw$; al actualizar, $w_{t+1}=(1-\eta c)w_t$.
+2. Tras $t$ pasos, $w_t=(1-\eta c)^tw_0$. Para acercarse a cero se necesita $|1-\eta c|<1$.
+3. Al resolver esa desigualdad: $0<\eta<2/c$. En $\eta=2/c$ el factor es $-1$: oscila sin mejorar. Por encima, su magnitud excede 1.
+4. El mejor factor posible es 0, que ocurre en $\eta=1/c$: llega en un paso para esa dirección cuadrática.
+
+</Pasos>
+
+## Dos direcciones: el valle estrecho
+
+La clase construye cuatro lecturas $\mathbf x=(1,10),(1,-10),(-1,10),(-1,-10)$ con respuesta $y=10x_1+x_2$. Al ajustar $\hat y=w_1x_1+w_2x_2$, la pérdida media es
+
+$$L(\mathbf w)=\tfrac12(w_1-10)^2+\tfrac{100}{2}(w_2-1)^2.$$
+
+La primera dirección tiene curvatura 1; la segunda, 100. Si $e_1=w_1-10$ y $e_2=w_2-1$, un paso deja $e_1'=(1-\eta)e_1$ y $e_2'=(1-100\eta)e_2$. El paso debe ser menor que $2/100=0.02$ para no explotar en la dirección empinada; a esa tasa, la dirección suave mejora apenas cerca del 2 % por paso.
+
+<Pasos titulo="El compromiso que equilibra ambas direcciones">
+
+1. Minimiza el peor factor de contracción: $\max(|1-\eta c_{\min}|,|1-\eta c_{\max}|)$.
+2. En el óptimo, un factor es positivo y el otro negativo con igual magnitud: $1-\eta c_{\min}=-(1-\eta c_{\max})$.
+3. Despeja $\eta_*=2/(c_{\min}+c_{\max})$. Para 1 y 100: $\eta_*=2/101\approx0.019802$.
+4. Ambos errores se multiplican en magnitud por $(100-1)/(100+1)=99/101\approx0.980198$ por paso. La razón $\kappa=c_{\max}/c_{\min}=100$ se llama **número de condición**.
+
+</Pasos>
+
+:::caution[Trampa de examen]
+El óptimo $1/c$ solo vale para **una** curvatura. Usar $\eta=1$ en el valle de curvaturas 1 y 100 haría que la segunda dirección se multiplique por $-99$ cada paso.
+:::
+
+### Ir más a fondo (opcional)
+
+Para una pérdida cuadrática multidimensional con Hessiana simétrica positiva, cada autovector es una dirección como las dos anteriores y su autovalor es su curvatura. La condición $0<\eta<2/c_{\max}$ estabiliza todas. Estandarizar las variables suele reducir la desigualdad de curvaturas y acelera el entrenamiento.
+
+<Pasos titulo="De la Hessiana a la tasa de compromiso">
+
+1. Cerca de un mínimo cuadrático, escribe el error $e=w-w_*$ y la pérdida como $L(w)=\tfrac12e^\top H e$. La matriz $H$ mide cuánto cambia la pendiente en cada dirección.
+2. Si $H$ es simétrica positiva, sus autovectores forman una base. En el autovector $i$, $H e_i=c_i e_i$; el descenso deja ese componente multiplicado por $1-\eta c_i$.
+3. Para que todos los componentes se acerquen a cero, cada factor debe tener magnitud menor que uno. El mayor autovalor impone $0<\eta<2/c_{\max}$.
+4. Para minimizar la peor contracción, iguala las magnitudes de los factores extremos, uno positivo y otro negativo. Sale $\eta=2/(c_{\min}+c_{\max})$ y factor $(\kappa-1)/(\kappa+1)$.
+5. En las cuatro lecturas, $\kappa=100$, así que el factor es $99/101\approx0.9802$. Reducir un error de 1 a $10^{-4}$ exige aproximadamente $\ln(10^{-4})/\ln(99/101)\approx461$ pasos. El cuello de botella es la escala desigual de las entradas.
+
+</Pasos>
+
+## Cuatro tasas sobre las cuatro lecturas
+
+Aquí la tasa $0.5$ que era perfecta para $w^2$ ya no sirve: la segunda coordenada se multiplicaría por $1-100(0.5)=-49$. Con $\eta=0.01$, la dirección empinada llega a su valor óptimo en un paso, pero la suave retiene el 99 % de su error. Con $\eta\approx0.0198$, las dos direcciones pierden cerca del 1.98 % de error por paso. Este ejemplo explica por qué no existe una «tasa buena» sin mirar la escala y curvatura del problema.
+
+## Diapositivas de esta página
+
+«The simplest loss: L(w)=w²», «By hand: seven rates», «Back to net B: its own best rate» y «Check yourself: step sizes» explican los pasos en una dirección. «Two features, two curvatures», «The best compromise, by hand», «Four rates on the four readings» y «Check yourself: conditioning» llevan la misma regla a un valle estrecho. Cada predicción y comprobación de esas láminas aparece resuelta arriba.
+
+## Errores típicos
+
+- Llamar óptima a $2/c$: es el borde que oscila, no el punto que llega en un paso.
+- Evaluar la tasa solo por el primer salto; la pérdida debe seguir bajando.
+- Confundir pendiente $2w$ con curvatura 2 en $L=w^2$.
+- Elegir $1/c_{\min}$ cuando hay otra dirección mucho más empinada.
+
+```python
+rates = [0.1, 0.25, 0.5, 0.75, 0.9, 1.0, 1.1]
+for eta in rates:
+    w = 1.0
+    path = [w]
+    for _ in range(3):
+        w -= eta * 2 * w
+        path.append(w)
+    print(eta, [round(x, 3) for x in path])
+```
+
+<CasoUso titulo="Datos con unidades distintas" sector="modelado" icono="📏">
+Si una entrada varía entre 0 y 1 y otra entre -100 y 100, una tasa que es segura para una puede ser inútil para la otra. Ajustar un `StandardScaler` solo en entrenamiento y aplicarlo a validación y prueba ayuda a que el valle sea menos estrecho.
+</CasoUso>
+
+<Quiz client:visible id="redes-tasa" preguntas={[
+  {q:'Para L=w² y η=0.25, ¿w₂ desde w₀=1?',opts:['0','0.25','0.5','1'],ok:1},
+  {q:'Para L=w², ¿qué tasa llega a 0 en un paso?',opts:['0.25','0.5','1','2'],ok:1},
+  {q:'Para curvatura c, ¿dónde está el borde de estabilidad?',opts:['1/c','2/c','c','c/2'],ok:1},
+  {q:'En η=2/c, el error…',opts:['se anula','oscila con igual magnitud','crece','siempre baja'],ok:1},
+  {q:'Curvaturas 1 y 100: ¿tasa de compromiso?',opts:['1','1/100','2/101','2'],ok:2},
+  {q:'¿Cuál es κ para curvaturas 1 y 100?',opts:['1','10','100','101'],ok:2},
+  {q:'¿Qué suele mejorar el condicionamiento de entradas en escalas diferentes?',opts:['estandarizar con train','usar el test para escalar','poner η=1','quitar activaciones'],ok:0},
+  {q:'Con curvaturas 1 y 4, ¿qué factor deja la tasa 0.4 en la dirección empinada?',opts:['0','0.6','-0.6','-1'],ok:2},
+]} />
+
+<Conexiones items={[{href:'/regresion/gradiente/',titulo:'Descenso de gradiente',texto:'Es la misma actualización, ahora con tasas examinadas exactamente.'},{href:'/fundamentos/matematicas/',titulo:'Autovalores',texto:'En cuadráticas, cada autovalor de la Hessiana es una curvatura.'},{href:'/redes/optimizadores/',titulo:'Momentum y Adam',texto:'Modifican la dirección o escala de cada paso.'}]} />
+<Recursos items={[R.sqGD, R.mluLinReg]} />
+<Fuente archivos={['ML_Course_Neural_Networks_II.pdf (slides 4–11)']} />

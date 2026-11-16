@@ -1,0 +1,131 @@
+---
+title: "Cuando la varianza no basta: LDA, factores y NMF"
+description: "Separación supervisada, ruido por variable y piezas no negativas."
+---
+import EnSimple from '../../../components/EnSimple.astro';
+import Pasos from '../../../components/Pasos.astro';
+import CasoUso from '../../../components/CasoUso.astro';
+import Quiz from '../../../components/Quiz.tsx';
+import Conexiones from '../../../components/Conexiones.astro';
+import Recursos from '../../../components/Recursos.astro';
+import Fuente from '../../../components/Fuente.astro';
+import Solucion from '../../../components/Solucion.astro';
+import { R } from '../../../data/recursos';
+
+<EnSimple id="reduccion/lda-fa-nmf" />
+
+## Empieza aquí: dos clases que PCA confunde
+
+**Ejemplo propio.** Dos clases tienen puntos $(-3,-1),(-1,-1),(1,-1),(3,-1)$ y $(-3,1),(-1,1),(1,1),(3,1)$. La variación horizontal domina: $\operatorname{Var}(x)=5$, $\operatorname{Var}(y)=1$. PCA con una componente conserva $x$ y superpone ambas clases. La coordenada vertical $y$, aunque menos variable, las separa perfectamente.
+
+<svg viewBox="0 0 380 215" role="img" aria-label="Dos filas de puntos de distintas clases y ejes horizontal y vertical"><path d="M30 108h320M190 15v185" stroke="var(--sl-color-text)" opacity=".5"/>{[60,145,235,320].map(x=><g><circle cx={x} cy="65" r="7" fill="var(--sl-color-accent)"/><circle cx={x} cy="151" r="7" fill="var(--sl-color-gray-3)"/></g>)}<text x="265" y="100" fill="var(--sl-color-text)">PC1 →</text><text x="198" y="30" fill="var(--sl-color-text)">↑ LDA</text></svg>
+*Cómo leerlo:* proyectar horizontalmente mezcla colores; verticalmente los separa.
+
+<svg viewBox="0 0 550 170" role="img" aria-label="NMF suma partes positivas de un dígito mientras PCA puede restarlas">
+ <rect x="14" y="18" width="95" height="105" rx="8" fill="none" stroke="var(--sl-color-text)"/><path d="M42 45h42v55H42" fill="none" stroke="var(--sl-color-accent)" strokeWidth="9"/><text x="32" y="151" fill="var(--sl-color-text)">dígito</text><text x="132" y="78" fill="var(--sl-color-text)">≈</text><rect x="175" y="18" width="95" height="105" rx="8" fill="none" stroke="var(--sl-color-text)"/><path d="M203 45h42" stroke="var(--sl-color-accent)" strokeWidth="9"/><text x="288" y="78" fill="var(--sl-color-text)">+</text><rect x="320" y="18" width="95" height="105" rx="8" fill="none" stroke="var(--sl-color-text)"/><path d="M347 45v55h42" fill="none" stroke="var(--sl-color-accent)" strokeWidth="9"/><text x="429" y="74" fill="var(--sl-color-text)">sin restar</text>
+</svg>
+*Cómo leerlo:* NMF compone una imagen sumando trazos de intensidad no negativa; no usa un trazo negativo para cancelar otro.
+
+
+## Puente: tres preguntas distintas
+
+PCA pregunta dónde se dispersan todos los puntos sin mirar $y$. *LDA de Fisher* (análisis discriminante lineal) pregunta qué proyección separa las **medias de clase** en relación con la dispersión dentro de cada clase. El análisis factorial pregunta qué covariación es compartida y qué ruido pertenece a cada variable. *NMF* (factorización de matrices no negativas) pregunta qué partes no negativas se suman para formar cada observación.
+
+<Pasos titulo="Fisher LDA a mano en dos clases">
+
+1. Calcula medias $\mu_0,\mu_1$ y dispersión interna $S_W=\sum_c\sum_{i:y_i=c}(x_i-\mu_c)(x_i-\mu_c)^\top$.
+2. La dispersión entre clases es $S_B=\sum_c n_c(\mu_c-\mu)(\mu_c-\mu)^\top$.
+3. Busca $w$ que maximice $J(w)=w^\top S_Bw/(w^\top S_Ww)$. Para dos clases y $S_W$ invertible, $w\propto S_W^{-1}(\mu_1-\mu_0)$.
+4. En el dibujo, ambas clases tienen medias horizontales 0 y medias verticales $-1,+1$: la diferencia de medias apunta verticalmente. Como no hay dispersión vertical interna, se separan perfecto; en cálculo real se regulariza $S_W$ si es singular.
+</Pasos>
+
+Con $K$ clases hay como máximo $K-1$ direcciones discriminantes porque las $K$ medias centradas suman cero con pesos $n_c$. La LDA de Fisher se relaciona con la LDA generativa de la sesión 05: para dos gaussianas con covarianza compartida, ambas usan una dirección proporcional a $\Sigma^{-1}(\mu_1-\mu_0)$. En el cuaderno 11a, los «cigars» dan 99.24 % de varianza en PC1 pero clasificación 0.5417; LDA alcanza $0.9810\pm0.0111$ en datos reservados.
+
+En la diapositiva de los dos diagramas de dispersión, el primero dibuja la dispersión **dentro** de las clases y el segundo la distancia **entre** sus centros. Fisher compara ambas: una separación grande solo vale si no viene acompañada de nubes internas aún más grandes. Su problema de autovalores es generalizado, $S_Bw=\lambda S_Ww$, porque mide separación relativa a la dispersión interna. Si $S_W$ es singular, se regulariza o se reduce dimensión antes.
+
+<Pasos titulo="Ejercicio de la diapositiva: comprueba Fisher">
+
+1. En el ejemplo propio, ambas medias tienen coordenada horizontal 0. La diferencia de medias es $(0,2)$.
+2. La dispersión interna horizontal por clase es $(-3)^2+(-1)^2+1^2+3^2=20$; con dos clases, $S_{W,xx}=40$.
+3. La dispersión vertical interna es cero. Proyectar al eje horizontal da separación de medias cero; al vertical da separación 2 con dispersión interna cero.
+4. Por ello la dirección vertical separa perfectamente. En práctica añadiríamos una pequeña regularización a $S_W$ para poder invertirla.
+</Pasos>
+
+### Ejercicio: ¿cuántas direcciones?
+
+Si hay cuatro clases con medias distintas en cinco dimensiones, ¿cuántas direcciones discriminantes útiles puede devolver LDA como máximo? ¿Una varianza enorme garantiza que PCA encuentre esas direcciones?
+
+<Solucion>
+
+1. Las cuatro medias centradas tienen una relación lineal ponderada: su suma ponderada es cero.
+2. Por ello el rango de $S_B$ no supera $K-1=3$; LDA devuelve como máximo tres direcciones.
+3. PCA maximiza varianza sin mirar clases. Una variación dentro de clase puede dominar y esconder la separación, como en el ejemplo horizontal.
+</Solucion>
+
+### Factor analysis y NMF
+
+Análisis factorial propone $x=\mu+Wz+\epsilon$, con $\operatorname{Cov}(x)=WW^\top+\Psi$; $\Psi$ diagonal permite ruido propio por columna. Una rotación ortogonal $R$ deja $(WR)(WR)^\top=WW^\top$: el espacio de factores puede identificarse, pero sus nombres y ejes individuales no son únicos.
+
+La diagonal importa: si dos sensores comparten una señal latente, $WW^\top$ explica su covariación; $\Psi_{jj}$ asigna a cada sensor su ruido específico. PCA describe varianza total y ordena direcciones; el análisis factorial construye un modelo probabilístico con ruido separado. Si permitiéramos una matriz de ruido arbitraria, esta podría explicar toda la covarianza y los factores perderían sentido. El precio de la separación es un supuesto más fuerte y una estimación más difícil; las rotaciones impiden decir que «el factor 1 es temperatura» sin convenciones adicionales.
+
+<Pasos titulo="Ir más a fondo: covarianza factorial y rotación">
+
+1. Suponemos $E[z]=E[\epsilon]=0$, $\operatorname{Cov}(z)=I$ y ruido independiente del factor con covarianza diagonal $\Psi$.
+2. La covarianza de $Wz+\epsilon$ es $W\operatorname{Cov}(z)W^\top+\operatorname{Cov}(\epsilon)=WW^\top+\Psi$. Los términos cruzados se anulan por independencia.
+3. Si $R^\top R=I$, entonces $(WR)(WR)^\top=WRR^\top W^\top=WW^\top$. La distribución observable de segundo orden no distingue $W$ de $WR$.
+4. Por ello el modelo puede estimar un subespacio de factores, pero no nombres únicos para cada eje sin restricciones adicionales.
+</Pasos>
+
+NMF exige $X\approx WH$ y $X,W,H\ge0$. En dígitos con $k=10$, el cuaderno encuentra 0 % de entradas negativas en la base NMF contra 46.7 % en PCA; NMF usa trazos más localizados, pero paga error de reconstrucción 409.3 frente a 314.5. La optimización no convexa depende de la inicialización.
+
+En un ejemplo pequeño, una fila de imagen $x=(1,1,0)+(0,1,1)=(1,2,1)$ se forma sumando dos piezas no negativas. Los pesos de $W$ dicen cuánto de cada pieza se usa; las filas de $H$ dibujan las piezas. La razón técnica es la restricción de signo: sin negativos no hay cancelación que construya patrones globales con restas. Por eso la base suele ser más localizada. Esa interpretabilidad no garantiza que cada parte tenga un nombre estable; distintas inicializaciones pueden dar bases diferentes.
+
+### Ejercicio: NMF a mano
+
+Suma dos piezas de tres píxeles, $h_1=(1,1,0)$ y $h_2=(0,1,1)$, con peso uno cada una. ¿Qué imagen forman? ¿Podrían formar un cero en el píxel central usando pesos positivos?
+
+<Solucion titulo="Recompón tres píxeles">
+
+1. Toma piezas $h_1=(1,1,0)$ y $h_2=(0,1,1)$, con pesos 1 y 1.
+2. Suma por coordenadas: $(1+0,1+1,0+1)=(1,2,1)$.
+3. Ningún valor es negativo. Si el píxel central fuera 0, estas dos piezas con pesos positivos no podrían producirlo porque ambas suman en el centro.
+</Solucion>
+
+:::caution[Trampas de examen]
+LDA no puede separar clases que solo difieren en forma y comparten media. NMF no garantiza el menor error de rango $k$; esa garantía es de la SVD sin la restricción de positividad. Un factor latente puede rotarse sin cambiar el modelo.
+:::
+
+```python
+import numpy as np
+from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
+from sklearn.decomposition import NMF
+X = np.array([[0.,0.],[1.,1.],[2.,0.],[0.,3.],[1.,4.],[2.,3.]])
+y = np.array([0,0,0,1,1,1])
+print(LinearDiscriminantAnalysis(n_components=1).fit_transform(X,y).shape)
+print(NMF(n_components=1, init='random', random_state=0, max_iter=500).fit(X).components_.min() >= 0)
+# (6, 1)
+# True
+```
+
+<CasoUso titulo="Separar pacientes y describir imágenes" sector="salud" icono="🧬">Con etiquetas diagnósticas, LDA puede buscar una vista que distinga grupos; con imágenes de intensidades no negativas, NMF puede ofrecer partes aditivas interpretables. En ambos casos se evalúa en pacientes reservados: una vista bonita no garantiza generalización.</CasoUso>
+
+<Quiz client:visible id="reduccion-lda-fa-nmf" preguntas={[
+ {q:'¿Qué usa LDA y PCA ignora?',opts:['etiquetas','covarianza','vectores','escala'],ok:0},
+ {q:'Con K=4 clases, máximo de direcciones LDA:',opts:['1','3','4','8'],ok:1},
+ {q:'En el ejemplo propio, ¿qué eje separa las clases?',opts:['horizontal','vertical','ninguno','ambos igual'],ok:1},
+ {q:'¿Qué representa Ψ diagonal?',opts:['medias','ruido por variable','etiquetas','singulares'],ok:1},
+ {q:'Con medias verticales −1 y +1, ¿cuál es la distancia entre medias?',opts:['0','1','2','4'],ok:2},
+ {q:'Al sumar piezas (1,1,0)+(0,1,1), ¿qué intensidad tiene el centro?',opts:['0','1','2','3'],ok:2},
+ {q:'Error en dígitos k=10, PCA frente a NMF:',opts:['314.5 frente a 409.3','409.3 frente a 314.5','ambos 0','ambos 64'],ok:0}
+ ,{q:'Si K=5, ¿cuál es el máximo de ejes LDA?',opts:['3','4','5','6'],ok:1}
+]} />
+<Conexiones items={[{href:'/generativos/lda-qda/',titulo:'LDA generativa',texto:'La dirección coincide con covarianza compartida.'},{href:'/reduccion/pca/',titulo:'PCA',texto:'La varianza puede ignorar la señal de clase.'},{href:'/regularizacion/ridge-lasso/',titulo:'Regularización',texto:'Estabiliza una matriz de dispersión singular.'}]} />
+<Recursos items={[R.skLDA, R.mml]} />
+<Fuente archivos={['ML_Course_Dimensionality_Reduction.pdf (slides 49–75)','session-11a-pca-lda-and-factorizations.ipynb (§6–10)']} />
+
+## Errores típicos
+
+- Elegir PCA para maximizar separación supervisada sin mirar etiquetas.
+- Confundir la LDA de Fisher con un método que garantiza separar cualquier forma de clase.
+- Interpretar un factor rotado como si tuviera identidad única.
+- Atribuir a NMF la garantía de error mínimo de la SVD.

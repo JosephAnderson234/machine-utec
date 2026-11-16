@@ -1,0 +1,170 @@
+---
+title: "MLOps II: desplegar sin perder el control"
+description: "Entradas, release gate pareado, costo, canary y rollback."
+---
+import EnSimple from '../../../components/EnSimple.astro';
+import Pasos from '../../../components/Pasos.astro';
+import CasoUso from '../../../components/CasoUso.astro';
+import Quiz from '../../../components/Quiz.tsx';
+import Conexiones from '../../../components/Conexiones.astro';
+import Recursos from '../../../components/Recursos.astro';
+import Fuente from '../../../components/Fuente.astro';
+import Solucion from '../../../components/Solucion.astro';
+import ReleaseGateLab from '../../../components/sim/ReleaseGateLab.tsx';
+import { R } from '../../../data/recursos';
+
+<EnSimple id="mlops/despliegue" />
+
+## Empieza aquí: un bug que nunca lanza error
+
+DigitReader aprendió píxeles en escala **0..16**, pero un escáner nuevo envía grises **0..255**. El vector conserva 64 números, así que el SVM acepta la entrada y contesta: en el caso del curso, llama **5 a todos los formularios** y la accuracy cae a 10.2 %. Este *training-serving skew* (desfase entre entrenar y servir) no se detecta con un `try/except`: hay que comprobar el contrato de entrada.
+
+<svg viewBox="0 0 530 150" role="img" aria-label="Dos escalas de píxeles, entrenamiento y servicio"><text x="10" y="35" fill="var(--sl-color-text)">entrenar</text><rect x="115" y="17" width="140" height="25" fill="var(--sl-color-accent)"/><text x="265" y="35" fill="var(--sl-color-text)">0..16</text><text x="10" y="97" fill="var(--sl-color-text)">servir</text><rect x="115" y="79" width="385" height="25" fill="var(--sl-color-gray-3)"/><text x="455" y="131" fill="var(--sl-color-text)">0..255</text></svg>
+*Cómo leerlo:* el número de píxeles coincide; la escala no. Un esquema de entrada debe comprobar ambos.
+
+<svg viewBox="0 0 570 165" role="img" aria-label="Despliegue gradual de versión vieja a nueva con botón de regreso">
+ <rect x="15" y="42" width="125" height="70" rx="9" fill="none" stroke="var(--sl-color-text)"/><text x="34" y="83" fill="var(--sl-color-text)">tráfico 100 %</text><path d="M145 76h50m-8-8 8 8-8 8" stroke="var(--sl-color-text)" fill="none"/><rect x="200" y="18" width="145" height="55" rx="9" fill="none" stroke="var(--sl-color-accent)"/><text x="221" y="51" fill="var(--sl-color-text)">viejo 95 %</text><rect x="200" y="93" width="145" height="55" rx="9" fill="none" stroke="var(--sl-color-accent)"/><text x="219" y="126" fill="var(--sl-color-text)">nuevo 5 %</text><path d="M350 120h42m-8-8 8 8-8 8" stroke="var(--sl-color-text)" fill="none"/><text x="402" y="119" fill="var(--sl-color-text)">etiquetas → decisión</text>
+</svg>
+*Cómo leerlo:* en canary se expone una fracción real, se esperan etiquetas y se usa una regla fijada antes de ampliar o revertir.
+
+
+## Puente: un solo camino y una puerta
+
+Empaqueta el mismo preprocesamiento con el modelo para entrenamiento y servicio. Verifica dimensiones, tipo, rango, faltantes y versión del esquema **antes** de predecir. Un *release gate* fija criterios de lanzamiento antes de ver el resultado: calidad global, grupos importantes, latencia y tamaño del artefacto.
+
+El contrato de DigitReader pide **64 números**, todos entre 0 y 16; permite decimales porque el blur produce, por ejemplo, 7.25. La puerta de entrada rechazó 0 de 1257 formularios de entrenamiento, 0 de 540 de test, 0 de 540 borrosos y los 540 del servidor defectuoso. Detecta formato, no significado: los borrosos pasan. Compartir una misma función o un `Pipeline` con el servicio evita que una copia del preprocesamiento se quede atrás.
+
+### Ejercicio: ¿qué entra por la puerta?
+
+Decide si entran (a) 64 valores con máximo 16, (b) 64 con máximo 255, (c) 63 valores, (d) 64 entre 0 y 16 con decimales.
+
+<Solucion>
+
+1. (a) Sí: cumple longitud y rango.
+2. (b) No: 255 supera 16. Se rechaza y alerta antes de pedir una predicción.
+3. (c) No: falta un píxel; la dimensión debe ser 64.
+4. (d) Sí: el esquema acepta decimales. Un formulario borroso puede tenerlos, aunque su calidad requiera otro monitor.
+</Solucion>
+
+### Ejercicio: una puerta de lanzamiento
+
+La regla dice «v3 mejora aciertos globales y ningún dígito empeora». v2 acierta 530/540, v3 535/540; para el dígito 8 pasan de 51 a 50. ¿Se lanza? ¿Cambiaría la decisión una tolerancia previa de un caso por dígito?
+
+<Solucion>
+
+1. Globalmente mejora en $535-530=5$ formularios.
+2. El dígito 8 pierde uno, de 51 a 50. Por tanto falla la condición «ninguno empeora» y no se lanza bajo esa regla.
+3. Si antes de mirar los resultados se hubiera pactado tolerar una pérdida de un caso por dígito, esa condición pasaría. Aún habría que comprobar los demás criterios y la incertidumbre de la mejora.
+</Solucion>
+
+En la comparación v2→v3, la accuracy sube de 530 a 535 de 540, pero el dígito 8 pasa de 51 a 50 aciertos. Una puerta estricta «ningún dígito empeora» rechaza v3; una que tolere un error por dígito podría aceptarlo. Para evaluar si el +5 convence, hay que mirar **pares**: v3 arregla 9 formularios y estropea 4.
+
+<Pasos titulo="¿Puede el +5 ser azar? Prueba exacta pareada">
+
+1. Los formularios donde ambos modelos coinciden no favorecen a ninguno. Hay $9+4=13$ discordantes.
+2. Bajo empate, cada discordante favorece a uno u otro con probabilidad $1/2$.
+3. La probabilidad bilateral de un resultado al menos tan desigual es $2\sum_{j=0}^{4}\binom{13}{j}/2^{13}=0.267$ aproximadamente.
+4. Como 0.267 supera 0.05, +5 no aporta evidencia fuerte de mejora en esta muestra. La decisión operativa puede además exigir no empeorar una clase.
+</Pasos>
+
+<ReleaseGateLab client:visible />
+
+### Ejercicio: ¿+5 convence?
+
+De 13 formularios discordantes, v3 arregla 9 y estropea 4. Predice si una prueba bilateral al 5 % considerará convincente esa diferencia.
+
+<Solucion>
+
+1. Bajo igualdad, cada discordancia favorece a v2 o v3 con probabilidad 1/2.
+2. Calcula la cola pequeña: $\sum_{j=0}^4\binom{13}{j}=1+13+78+286+715=1093$.
+3. Duplica por simetría y divide por $2^{13}=8192$: $2(1093)/8192=0.26685$.
+4. $0.267>0.05$. La muestra no da evidencia fuerte de una mejora distinta de azar.
+</Solucion>
+
+### Ejercicio de comprobación: mismo dato en dos lenguajes
+
+Entrenamiento prepara una variable en SQL y servicio la calcula en Java. Un candidato arregla 7 formularios y rompe 5; el esquema deja pasar todas las imágenes borrosas. Identifica el riesgo, calcula si 7 contra 5 convence y juzga el esquema.
+
+<Solucion>
+
+1. Dos implementaciones pueden diferir en redondeo, faltantes o escala: es desfase entre entrenamiento y servicio. Conviene calcular la variable en un único componente compartido.
+2. Hay 12 discordancias. Bajo empate, la probabilidad bilateral es $2\sum_{j=0}^{5}\binom{12}{j}/2^{12}\approx0.774$: 7 contra 5 no convence.
+3. El esquema revisa longitud y rango; el blur puede respetar ambos. No está roto: se necesita un monitor de calidad de imagen.
+</Solucion>
+
+## Cómo servir y cómo lanzar
+
+| Modalidad | Uso | Costo clave |
+| --- | --- | --- |
+| *Batch* (lotes) | clasificar todos los formularios de noche | espera hasta el próximo lote |
+| *Online* (en línea) | respuesta por solicitud | latencia y capacidad pico |
+| *Edge* (en dispositivo) | predicción junto al escáner | memoria y actualización de equipos |
+
+El costo de servir importa: en la medición del curso, el SVM v3 requiere 223 571 números almacenados por solicitud frente a 650 de regresión logística, 81 705 de k-NN y 228 206 de un bosque de 100 árboles; el aumento de datos vuelve v3 4.6 veces más costoso que el SVM previo para cinco aciertos más. Define presupuesto de latencia y recursos en la puerta.
+
+Elige modalidad por el plazo de respuesta. Si se procesan formularios al cierre del día, un lote reduce infraestructura activa pero retrasa la respuesta. Si el cajero necesita la cifra de inmediato, importa la latencia de la cola y del modelo. En el borde, el escáner puede responder sin red, pero debe recibir versiones y registros. Compara costo **por solicitud** y costo **por día** con la tasa esperada; la accuracy sola no decide despliegue.
+
+**Shadow:** ejecuta la nueva versión sin mostrar sus respuestas; compara salidas y latencia, pero no detecta cambios de conducta del usuario. **Canary:** expone una fracción real y mide. **Blue/green:** mantiene entornos completos y cambia tráfico. **A/B:** asigna usuarios a versiones para medir efecto causal sobre una métrica de negocio. Mantén la versión antigua lista para *rollback*.
+
+### Ejercicio: elige la forma de lanzamiento
+
+Empareja cada necesidad con shadow, canary, blue/green o A/B: (1) probar si v4 corre en tráfico real sin riesgo, (2) comprobar calidad con pocos usuarios, (3) cambiar a todos y poder volver de inmediato, (4) medir si los empleados vuelven a teclear menos formularios.
+
+<Solucion>
+
+1. Shadow ejecuta v4 sin mostrar su respuesta: prueba compatibilidad y latencia.
+2. Canary expone, por ejemplo, 5 % del tráfico real y espera etiquetas.
+3. Blue/green mantiene dos entornos y cambia el enrutamiento; la reversión es otro cambio de tráfico.
+4. A/B asigna usuarios o formularios de forma controlada y mide el efecto visible sobre el trabajo de los empleados. Shadow no cambia su conducta.
+</Solucion>
+
+### ¿Cuánto tráfico necesita el canary?
+
+El curso estima **605 etiquetas por modelo** para distinguir una caída de 99 % a 97 % con sus supuestos de potencia. Con 10 000 formularios diarios, 5 % en canary y todos etiquetados, $605/(10000\cdot0.05)=1.21$ días de recolección; si la etiqueta tarda una semana, la decisión tarda aproximadamente **8.2 días**. Para una diferencia menor hacen falta más datos. Escribe antes la regla «si el error supera el límite definido, volver».
+
+### Ejercicio: predice el tamaño del canary
+
+Entre 200, 600 y 2000 etiquetas por modelo, ¿cuál queda más cerca del cálculo del curso para distinguir 99 % de 97 %? Si la caída a detectar fuese de 99 % a 98 %, ¿necesitarías más o menos? ¿Puede shadow medir si los empleados vuelven a teclear menos?
+
+<Solucion>
+
+1. La estimación de clase es 605: entre las opciones, 600. A 100 formularios, esperaríamos 1 frente a 3 errores; la diferencia de 2 es pequeña frente a las fluctuaciones.
+2. Una diferencia de un punto es más difícil de detectar. La clase calcula 1826 etiquetas por modelo, unas tres veces más; a 500 formularios diarios en canary son $1826/500=3.652$ días más una semana de retraso de etiquetas, cerca de 10.7 días.
+3. Shadow no muestra respuestas, así que no puede cambiar el trabajo de los empleados. Un A/B sí puede medir ese efecto.
+</Solucion>
+
+El *rollback* debe estar escrito antes: qué alarma lo activa, quién ejecuta el cambio, cómo conserva las predicciones y etiquetas del canary, y qué versión queda disponible. Si se decide después de ver una caída, cada día perdido puede parecer «una muestra más». La puerta y la reversión hacen verificable la decisión.
+
+:::caution[Trampas de examen]
+Más accuracy global puede ocultar peor resultado en un dígito. Un canary de 5 % no significa una prueba de un día si las etiquetas llegan tarde. Shadow no sirve para medir cambios de comportamiento provocados por mostrar la nueva respuesta.
+:::
+
+```python
+from math import comb
+p = 2 * sum(comb(13,j) for j in range(5)) / 2**13
+print(round(p, 3), round(605/(10000*.05), 2))
+# 0.267 1.21
+```
+
+<CasoUso titulo="Actualizar DigitReader en el banco" sector="finanzas" icono="🏦">El equipo valida el rango 0..16, compara v3 con v2 por dígito y deja v2 disponible. Prueba v3 en sombra, después en un canary con etiquetas manuales y revierte si supera la tasa de error pactada.</CasoUso>
+
+<Quiz client:visible id="mlops-despliegue" preguntas={[
+ {q:'¿Por qué no falla el programa con píxeles 0..255?',opts:['la forma de 64 números sigue siendo válida','el SVM convierte unidades','hay una etiqueta','el modelo se reentrena'],ok:0},
+ {q:'¿Qué respondió DigitReader al bug de unidades?',opts:['siempre 5','siempre 0','lanzó excepción','nada'],ok:0},
+ {q:'530→535 y 8s 51→50: una puerta estricta por dígito…',opts:['acepta','rechaza','no mira dígitos','reentrena'],ok:1},
+ {q:'¿Cuántos casos discordantes hay con 9 arreglados y 4 estropeados?',opts:['5','9','13','540'],ok:2},
+ {q:'p bilateral aproximada:',opts:['0.001','0.05','0.267','1'],ok:2},
+ {q:'¿Qué modalidad muestra respuestas a una fracción real?',opts:['shadow','canary','solo batch','registro'],ok:1},
+ {q:'A 500 formularios/día etiquetados en canary, 605 requieren…',opts:['0.5 días','1.21 días','7 días','605 días'],ok:1},
+ {q:'¿Cuándo escribir rollback?',opts:['antes de lanzar','después del incidente','nunca','tras ver test'],ok:0}
+]} />
+<Conexiones items={[{href:'/clasificacion/metricas/',titulo:'Métricas por grupo',texto:'Accuracy global puede esconder pérdidas por clase.'},{href:'/regularizacion/validacion-cruzada/',titulo:'Evaluación honesta',texto:'La puerta se define antes de mirar el candidato.'},{href:'/svm/margen-suave/',titulo:'SVM',texto:'Escala y costo de predicción afectan el servicio.'}]} />
+<Recursos items={[R.mlcc, R.skMetrics]} />
+<Fuente archivos={['ML_Course_MLOps.pdf (slides 16–28)']} />
+
+## Errores típicos
+
+- Aceptar rango 0..255 solo porque el vector tiene 64 entradas.
+- Usar la mejora global para ignorar una pérdida por clase definida en la puerta.
+- Tratar 5 % de tráfico como tamaño de muestra suficiente sin contar etiquetas y retraso.
+- Esperar que shadow mida efectos de respuestas que nadie vio.

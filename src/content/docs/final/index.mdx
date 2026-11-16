@@ -1,0 +1,96 @@
+---
+title: "Ruta del final: de un árbol a un sistema en producción"
+description: "Mapa de las unidades 8–13 (ensambles, clustering, reducción de dimensión, redes neuronales I y II, MLOps), qué repasar del parcial antes de cada una y en qué orden estudiar."
+---
+
+import { Steps } from '@astrojs/starlight/components';
+
+:::tip[Si vienes del parcial, lee esto primero]
+El final **no empieza de cero**: cada lección nueva reutiliza algo que ya sabes. Esta página te dice qué, para que nunca te encuentres con una idea «que sale de la nada».
+:::
+
+## La historia del final en una frase por lección
+
+Piensa en el curso como en una empresa que va creciendo:
+
+| # | Lección | La pregunta que responde | Idea en lenguaje simple | La versión técnica que aprenderás |
+| --- | --- | --- | --- | --- |
+| 8 | **Ensambles** | ¿Y si en vez de un modelo uso muchos? | Un grupo de personas adivina mejor que una sola, **si se equivocan en cosas distintas**. | Promediar baja la varianza; bagging, random forest, AdaBoost, gradient boosting, stacking. |
+| 9 | **Clustering** | ¿Qué hago si **no tengo** respuestas (etiquetas)? | Ordenar objetos en grupos de «parecidos». | k-means y su costo WCSS, silhouette, GMM con EM, DBSCAN, clustering jerárquico. |
+| 10 | **Reducción de dimensión** | ¿Y si tengo **demasiadas columnas**? | Resumir 64 números en 2 sin perder lo importante, como una sombra bien elegida. | PCA (autovectores de la covarianza), SVD, LDA, NMF, t-SNE, UMAP. |
+| 11 | **Redes neuronales I** | ¿Qué hago cuando **ninguna recta** sirve? | Apilar muchas «rectas dobladas» hasta dibujar cualquier forma. | Neurona, XOR, capas ocultas, ReLU, aproximación universal, backpropagation. |
+| 12 | **Redes neuronales II** | ¿Cómo **entreno** bien una red? | Elegir el tamaño del paso y no empezar ni muy fuerte ni muy suave. | Tasa de aprendizaje y curvatura, momentum, Adam, mini-batches, inicialización, dropout, early stopping. |
+| 13 | **MLOps** | ¿Y cuando el modelo sale **al mundo real**? | Poder reconstruirlo, que reciba lo mismo que en el laboratorio y darse cuenta cuando empieza a fallar. | Reproducibilidad, training-serving skew, canary y rollback, data drift, PSI, reentrenamiento. |
+
+<figure class="not-content" style="margin:1.5rem 0">
+<svg viewBox="0 0 760 250" role="img" aria-label="Dependencias entre el parcial y el final" style="width:100%;height:auto;font-family:var(--__sl-font);font-size:13px">
+	<defs><marker id="fa" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="currentColor" /></marker></defs>
+	<g fill="none" stroke="var(--sl-color-gray-4)" stroke-width="1.6" style="color:var(--sl-color-gray-4)">
+		<path d="M130 40 H250" marker-end="url(#fa)" />
+		<path d="M130 105 H250" marker-end="url(#fa)" />
+		<path d="M130 170 H250" marker-end="url(#fa)" />
+		<path d="M130 215 C190 215 190 150 250 150" marker-end="url(#fa)" />
+		<path d="M370 40 H500" marker-end="url(#fa)" />
+		<path d="M370 150 H500" marker-end="url(#fa)" />
+		<path d="M370 105 C430 105 440 60 500 60" marker-end="url(#fa)" />
+		<path d="M620 150 V205" marker-end="url(#fa)" />
+		<path d="M620 60 C690 60 700 210 680 222" marker-end="url(#fa)" />
+	</g>
+	<g fill="var(--sl-color-gray-6)" stroke="var(--sl-color-gray-5)">
+		<rect x="10" y="22" width="120" height="36" rx="8" />
+		<rect x="10" y="87" width="120" height="36" rx="8" />
+		<rect x="10" y="152" width="120" height="36" rx="8" />
+		<rect x="10" y="200" width="120" height="32" rx="8" />
+	</g>
+	<g fill="var(--sl-color-accent-low)" stroke="var(--sl-color-accent)">
+		<rect x="250" y="22" width="120" height="36" rx="8" />
+		<rect x="250" y="87" width="120" height="36" rx="8" />
+		<rect x="250" y="132" width="120" height="36" rx="8" />
+		<rect x="500" y="42" width="120" height="36" rx="8" />
+		<rect x="500" y="132" width="120" height="36" rx="8" />
+		<rect x="560" y="205" width="150" height="36" rx="8" />
+	</g>
+	<g fill="var(--sl-color-white)" text-anchor="middle">
+		<text x="70" y="45">7 · Árboles</text>
+		<text x="70" y="110">Gaussianas (LDA)</text>
+		<text x="70" y="175">Álgebra lineal</text>
+		<text x="70" y="221">Logística + GD</text>
+		<text x="310" y="45">8 · Ensambles</text>
+		<text x="310" y="110">9 · Clustering</text>
+		<text x="310" y="155">10 · Reducción</text>
+		<text x="560" y="65">11 · Redes I</text>
+		<text x="560" y="155">12 · Redes II</text>
+		<text x="635" y="228">13 · MLOps</text>
+	</g>
+	<text x="70" y="12" text-anchor="middle" fill="var(--sl-color-gray-3)" font-size="11">YA LO SABES (parcial)</text>
+	<text x="440" y="12" text-anchor="middle" fill="var(--sl-color-gray-3)" font-size="11">LO NUEVO (final)</text>
+</svg>
+<figcaption style="font-size:.85rem;color:var(--sl-color-gray-3)"><b>Cómo leerlo:</b> cada flecha dice «para entender esto, conviene tener fresco aquello». Los árboles alimentan a los ensambles (y el XOR de las redes compara contra boosting de árboles); las gaussianas de LDA/QDA vuelven en el GMM del clustering; el álgebra lineal (autovectores) es todo PCA; la logística con descenso de gradiente es literalmente una red de una neurona. MLOps se aplica a <i>cualquier</i> modelo, por eso va al final.</figcaption>
+</figure>
+
+## Antes de cada unidad, repasa 10 minutos
+
+| Antes de… | Repasa del parcial | Por qué |
+| --- | --- | --- |
+| 8 · Ensambles | [Sesgo–varianza](/regularizacion/sesgo-varianza/), [poda e inestabilidad de árboles](/arboles/poda/) | Un ensamble ataca la **varianza** de un árbol inestable; sin el dardo «sesgo vs varianza» no se entiende qué arregla bagging y qué arregla boosting. |
+| 9 · Clustering | [LDA y QDA](/generativos/lda-qda/), [validación cruzada](/regularizacion/validacion-cruzada/) | El GMM son las mismas campanas gaussianas, pero **sin etiquetas**; y el «cuántos grupos» es elegir un hiperparámetro sin trampa. |
+| 10 · Reducción | [Las matemáticas que usarás](/fundamentos/matematicas/), [LDA](/generativos/lda-qda/), [el truco del kernel](/kernels/truco/) | PCA = autovectores de la covarianza; LDA de Fisher reaparece; kernel PCA usa el mismo truco que la SVM. |
+| 11 · Redes I | [Sigmoide y frontera](/clasificacion/logistica/), [cross-entropy](/clasificacion/entrenamiento/), [softmax](/clasificacion/softmax/) | Una neurona **es** una regresión logística; las «cabezas» de la red son las pérdidas que ya conoces. |
+| 12 · Redes II | [Descenso de gradiente](/regresion/gradiente/), [ridge](/regularizacion/ridge-lasso/) | Todo es elegir bien η en un «tazón» de curvatura c; weight decay es ridge aplicado a cada peso. |
+| 13 · MLOps | [Métricas](/clasificacion/metricas/), [train/val/test y fuga de datos](/fundamentos/intro/) | Monitorear es volver a medir; el skew es una fuga de datos al revés. |
+
+## Cómo estudiar cada página
+
+<Steps>
+
+1. **Lee el recuadro «En simple»** y haz el ejemplo a mano con lápiz (son números pequeños, a propósito: los mismos de las slides «Your turn»).
+2. **Juega con el simulador antes de leer la fórmula.** Predice qué va a pasar, después mueve el control y compara.
+3. **Lee la versión completa**: notación, derivaciones con «Siguiente paso» y las trampas de examen.
+4. **Cierra con el quiz** de la página. Si fallas, vuelve al ejemplo a mano, no a la fórmula.
+5. Al terminar la unidad: [flashcards](/examen/flashcards/), [modo examen](/examen/modo-examen/) filtrando por la unidad y el [simulacro del final](/examen/simulacro-final/).
+
+</Steps>
+
+:::note[De dónde sale el contenido]
+Las 6 lecciones del profesor Hurtado (`ML_Course_Ensemble_Methods.pdf`, `ML_Course_Clustering.pdf`, `ML_Course_Dimensionality_Reduction.pdf`, `ML_Course_Neural_Networks_I.pdf`, `ML_Course_Neural_Networks_II.pdf`, `ML_Course_MLOps.pdf`) y los notebooks del repositorio del curso (`session-09-*`, `session-10-*`, `session-11a/11b`, `practical/03-neural-networks-…`). Los ejemplos con números propios se marcan como tales.
+:::

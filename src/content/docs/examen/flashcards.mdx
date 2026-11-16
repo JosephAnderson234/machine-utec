@@ -1,9 +1,14 @@
 ---
 title: "Flashcards"
-description: "Tarjetas de repaso rápido de toda la primera parte del curso, filtrables por tema, con progreso guardado en el navegador."
+description: "Tarjetas de repaso rápido de todo el curso (parcial y final), filtrables por tema, con progreso guardado en el navegador."
 ---
 
 import Flashcards from '../../../components/Flashcards.tsx';
+import { FLASH_ENSAMBLES } from '../../../data/final/ensambles';
+import { FLASH_CLUSTERING } from '../../../data/final/clustering';
+import { FLASH_REDUCCION } from '../../../data/final/reduccion';
+import { FLASH_REDES } from '../../../data/final/redes';
+import { FLASH_MLOPS } from '../../../data/final/mlops';
 
 Haz clic en la tarjeta para voltearla. Marca «La sé» o «Repasar»; con «solo pendientes» te quedan las difíciles. El progreso se guarda en este navegador.
 
@@ -77,5 +82,10 @@ Haz clic en la tarjeta para voltearla. Marca «La sé» o «Repasar»; con «sol
 		{ t: 'Árboles', f: 'Poda por costo-complejidad', b: '$R_\\alpha(T) = R(T) + \\alpha|T|$; eslabón más débil $g(m) = \\frac{R(m)-R(T_m)}{|T_m|-1}$.' },
 		{ t: 'Árboles', f: 'Ruta de poda del ejemplo de 10 puntos', b: 'Quiebres en $\\alpha = 2/15,\\ 16/105,\\ 3/14$ (4 → 3 → 2 → 1 hojas).' },
 		{ t: 'Árboles', f: 'Mayor debilidad de un árbol', b: 'Alta varianza (inestabilidad): pequeños cambios en los datos cambian la primera pregunta. Se arregla promediando (ensembles).' },
+		...FLASH_ENSAMBLES,
+		...FLASH_CLUSTERING,
+		...FLASH_REDUCCION,
+		...FLASH_REDES,
+		...FLASH_MLOPS,
 	]}
 />

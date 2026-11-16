@@ -1,3 +1,8 @@
+import { ENSIMPLE_ENSAMBLES } from './final/ensambles';
+import { ENSIMPLE_CLUSTERING } from './final/clustering';
+import { ENSIMPLE_REDUCCION } from './final/reduccion';
+import { ENSIMPLE_REDES } from './final/redes';
+import { ENSIMPLE_MLOPS } from './final/mlops';
 // Recuadro «En simple» al inicio de cada página de teoría: la idea sin fórmulas ni jerga.
 // frase = la idea en una oración; analogia = imagen cotidiana; llevate = lo mínimo que hay que recordar;
 // palabras = términos técnicos de la página traducidos a lenguaje normal.
@@ -343,4 +348,9 @@ export const ENSIMPLE: Record<string, EnSimple> = {
 			['ensemble', 'combinar muchos modelos (por ejemplo, muchos árboles) para que se corrijan entre sí.'],
 		],
 	},
+	...ENSIMPLE_ENSAMBLES,
+	...ENSIMPLE_CLUSTERING,
+	...ENSIMPLE_REDUCCION,
+	...ENSIMPLE_REDES,
+	...ENSIMPLE_MLOPS,
 };

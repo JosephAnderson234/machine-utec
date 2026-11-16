@@ -1,3 +1,8 @@
+import { GLOSARIO_ENSAMBLES } from './final/ensambles';
+import { GLOSARIO_CLUSTERING } from './final/clustering';
+import { GLOSARIO_REDUCCION } from './final/reduccion';
+import { GLOSARIO_REDES } from './final/redes';
+import { GLOSARIO_MLOPS } from './final/mlops';
 // Glosario inglés ↔ español del curso. `t` = tema (para filtrar), `href` = página donde se explica.
 export type Termino = { en: string; es: string; def: string; t: string; href: string };
 
@@ -142,4 +147,9 @@ export const GLOSARIO: Termino[] = [
 	{ en: 'permutation importance', es: 'importancia por permutación', def: 'Cuánto empeora el modelo al barajar una feature en datos de validación; más confiable que MDI.', t: 'Árboles', href: '/arboles/poda/' },
 	{ en: 'bootstrap', es: 'remuestreo bootstrap', def: 'Muestrear n puntos con reemplazo del training set.', t: 'Árboles', href: '/arboles/poda/' },
 	{ en: 'bagging / random forest', es: 'bagging / bosque aleatorio', def: 'Promediar muchos árboles entrenados con bootstrap (y features al azar): baja la varianza.', t: 'Árboles', href: '/arboles/poda/' },
+	...GLOSARIO_ENSAMBLES,
+	...GLOSARIO_CLUSTERING,
+	...GLOSARIO_REDUCCION,
+	...GLOSARIO_REDES,
+	...GLOSARIO_MLOPS,
 ];

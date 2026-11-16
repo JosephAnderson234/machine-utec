@@ -1,0 +1,114 @@
+---
+title: "SVD y cuántas componentes conservar"
+description: "La factorización detrás de PCA, rango k, varianza explicada y dígitos."
+---
+import EnSimple from '../../../components/EnSimple.astro';
+import Pasos from '../../../components/Pasos.astro';
+import CasoUso from '../../../components/CasoUso.astro';
+import Quiz from '../../../components/Quiz.tsx';
+import Conexiones from '../../../components/Conexiones.astro';
+import Recursos from '../../../components/Recursos.astro';
+import Fuente from '../../../components/Fuente.astro';
+import Solucion from '../../../components/Solucion.astro';
+import SvdCompressionLab from '../../../components/sim/SvdCompressionLab.tsx';
+import { R } from '../../../data/recursos';
+
+<EnSimple id="reduccion/svd-componentes" />
+
+## Empieza aquí: conservar una de dos direcciones
+
+En los cuatro puntos anteriores, PC1 guarda 4 de 5 unidades de varianza. Si solo conservamos PC1, perdemos 1; con las dos, recuperamos exactamente los puntos. Esa decisión es una compresión con pérdida medible.
+
+<svg viewBox="0 0 420 155" role="img" aria-label="Dos barras de varianza, 4 y 1"><rect x="64" y="25" width="105" height="100" fill="var(--sl-color-accent)"/><rect x="242" y="100" width="105" height="25" fill="var(--sl-color-gray-3)"/><text x="90" y="145" fill="var(--sl-color-text)">PC1: 4</text><text x="263" y="145" fill="var(--sl-color-text)">PC2: 1</text></svg>
+*Cómo leerlo:* la primera barra retiene 80 %; la segunda aporta el 20 % que faltaba.
+
+<svg viewBox="0 0 560 180" role="img" aria-label="Un círculo pasa por rotación, escala y rotación hasta formar una elipse">
+ <circle cx="65" cy="88" r="32" fill="none" stroke="var(--sl-color-accent)" strokeWidth="3"/><path d="M102 88h45m-8-8 8 8-8 8" stroke="var(--sl-color-text)" fill="none"/><text x="151" y="88" fill="var(--sl-color-text)">Vᵀ</text><circle cx="235" cy="88" r="32" fill="none" stroke="var(--sl-color-accent)" strokeWidth="3"/><path d="M273 88h35m-8-8 8 8-8 8" stroke="var(--sl-color-text)" fill="none"/><text x="311" y="88" fill="var(--sl-color-text)">Σ</text><ellipse cx="397" cy="88" rx="55" ry="23" fill="none" stroke="var(--sl-color-accent)" strokeWidth="3"/><path d="M454 88h35m-8-8 8 8-8 8" stroke="var(--sl-color-text)" fill="none"/><text x="493" y="88" fill="var(--sl-color-text)">U</text><text x="28" y="154" fill="var(--sl-color-text)">entrada</text><text x="349" y="154" fill="var(--sl-color-text)">ejes estirados</text>
+</svg>
+*Cómo leerlo:* los giros cambian orientación; solo los valores singulares de $\Sigma$ cambian las longitudes.
+
+
+## Puente: rotar, escalar, rotar
+
+La *descomposición en valores singulares* (SVD) escribe la matriz centrada como $\tilde X=U\Sigma V^\top$. $V^\top$ gira los ejes de entrada, $\Sigma$ estira cada dirección y $U$ orienta el resultado. Las columnas de $V$ son las componentes de PCA, pues $C=V(\Sigma^2/n)V^\top$. En el ejemplo, los valores singulares son $4,2$; $\lambda=(4^2/4,2^2/4)=(4,1)$.
+
+Cada bloque de la SVD es un patrón de rango uno: $\tilde X=\sum_j\sigma_j u_jv_j^\top$. Conservar los primeros $k$ bloques produce $\tilde X_k$; los descartados son exactamente la parte que no reconstruimos. Visualmente, una imagen de dígito pierde detalles finos al guardar pocas componentes, y gana trazos al aumentar $k$. En señales temporales, los primeros componentes pueden capturar patrones compartidos antes que pequeñas oscilaciones.
+
+La matriz de covarianza tiene tamaño $d\times d$ y se forma multiplicando $\tilde X^\top\tilde X$. La SVD trabaja directamente con la matriz centrada y evita cuadrar su condición numérica. Si $d$ es enorme y $n$ pequeño, también permite elegir algoritmos truncados sin calcular todos los ejes. Para el ejemplo de cuatro filas, $\sigma_1=4$ y $\sigma_2=2$: el cuadrado dividido por cuatro devuelve las varianzas de clase 4 y 1.
+
+<Pasos titulo="Elegir k y calcular la pérdida">
+
+1. Ordena $\lambda_1\ge\lambda_2\ge\cdots$. Aquí: $(4,1)$.
+2. Calcula la proporción acumulada: con $k=1$, $4/5=0.8$; con $k=2$, $5/5=1$.
+3. Reconstruye con $\hat X_k=U_k\Sigma_kV_k^\top+\mu$.
+4. El error cuadrático medio por fila es exactamente $\sum_{j>k}\lambda_j$: 1 para $k=1$, 0 para $k=2$.
+</Pasos>
+
+**Ir más a fondo (opcional).** El teorema de Eckart–Young dice que truncar la SVD a las primeras $k$ componentes da la mejor aproximación de rango $k$ bajo la norma de Frobenius. El error total cuadrado es $\sum_{j>k}\sigma_j^2$; al dividir por $n$, aparece la suma de autovalores descartados. Un *scree plot* muestra cada $\lambda_j$ y la curva acumulada; no siempre tiene un «codo» evidente.
+
+<Pasos titulo="Ir más a fondo: de SVD a PCA y al error óptimo">
+
+1. Partimos de datos centrados $\tilde X=U\Sigma V^\top$. Las columnas de $U$ y $V$ son ortonormales, por lo que sus giros preservan longitudes.
+2. Multiplicamos: $\tilde X^\top\tilde X=V\Sigma U^\top U\Sigma V^\top=V\Sigma^2V^\top$. Al dividir por $n$, cada $v_j$ es autovector de covarianza con autovalor $\lambda_j=\sigma_j^2/n$.
+3. La norma de Frobenius suma cuadrados de todas las entradas. La ortogonalidad hace que el error de truncar sea $\lVert\tilde X-\tilde X_k\rVert_F^2=\sum_{j>k}\sigma_j^2$.
+4. Cualquier otra matriz de rango $k$ omite al menos esa energía singular. Esa es la afirmación de Eckart–Young; exige error cuadrático y rango $k$, no calidad de clasificación.
+5. Al dividir por $n$, obtenemos error medio por fila $\sum_{j>k}\lambda_j$. Con $k=1$ en cuatro puntos, vale $\lambda_2=1$.
+</Pasos>
+
+### Elegir $k$ según la tarea
+
+El *scree plot* dibuja varianza por componente y acumulada. Para los dígitos crudos, 21 de 64 componentes alcanzan 90 % y 29 alcanzan 95 %. Ese 90 % responde cuánto detalle cuadrático queda, no cuántos dígitos clasificaremos bien. Para visualizar, 2D permite mirar vecinos; para comprimir, compara error de reconstrucción y bytes; para acelerar, mide tiempo total incluyendo PCA; para agrupar, revisa si el clustering mejora en datos reservados. La diapositiva «More than a picture» recuerda que una proyección útil puede alimentar otro modelo, pero debe ajustarse dentro de cada fold para evitar fuga.
+
+### Ejercicio: umbral de varianza
+
+Con autovalores $(4,1)$, ¿cuántas componentes exige un umbral de 90 %? ¿Cuál es el error cuadrático medio por fila con una componente?
+
+<Solucion>
+
+1. La varianza total es $4+1=5$.
+2. Una componente conserva $4/5=0.8=80\%$, por debajo de 90 %.
+3. Hacen falta dos componentes: $(4+1)/5=1$.
+4. Con solo una, se descarta $\lambda_2=1$, que es el error cuadrático medio por fila.
+</Solucion>
+
+En los dígitos de 8×8 del cuaderno 11a (1797 imágenes, 64 píxeles), **sin estandarizar**, 90 % requiere 21 componentes y 95 % requiere 29. Con píxeles estandarizados la clase reporta 31 y 40: son preguntas distintas porque cambia la escala. Con $k=8$ en los datos crudos, se conserva 67.39 % y el error cuadrático medio por imagen es 391.7947; con $k=32$, 96.64 % y error 40.4247.
+
+<SvdCompressionLab client:visible />
+
+:::caution[Trampa de examen]
+La SVD de $X$ sin centrar no da automáticamente el PCA de las diapositivas. Y 90 % de varianza conservada no significa 90 % de accuracy: PCA ignora las etiquetas.
+:::
+
+```python
+import numpy as np
+from sklearn.decomposition import PCA
+X = np.array([[7.,5.],[3.,1.],[6.,2.],[4.,4.]])
+Xc = X - X.mean(0)
+print(np.linalg.svd(Xc, compute_uv=False).tolist())
+print(PCA(n_components=1).fit(X).explained_variance_ratio_.round(2).tolist())
+# [4.0, 2.0] (puede variar en los últimos decimales)
+# [0.8]
+```
+
+<CasoUso titulo="Comprimir imágenes de dígitos" sector="digital" icono="🔢">Un banco guarda las coordenadas de PCA de imágenes de 64 píxeles para explorar su colección. Decide $k$ con la varianza acumulada y comprueba el error visual y la calidad de la tarea posterior: una imagen reconocible no garantiza clasificación correcta.</CasoUso>
+
+<Quiz client:visible id="reduccion-svd" preguntas={[
+ {q:'¿Qué se factoriza para obtener PCA?',opts:['X centrada','y','X sin centrar siempre','la matriz de etiquetas'],ok:0},
+ {q:'Valores singulares del ejemplo:',opts:['4 y 2','4 y 1','16 y 4','2 y 1'],ok:0},
+ {q:'Con n=4 y σ=2, ¿cuánto vale λ?',opts:['4','2','1','0.5'],ok:2},
+ {q:'Error medio al guardar solo PC1:',opts:['0','1','4','5'],ok:1},
+ {q:'¿Qué gráfico ayuda a escoger k?',opts:['ROC','scree','confusión','residuos verticales'],ok:1},
+ {q:'¿Cuántas componentes logran 90 % en dígitos crudos?',opts:['8','21','31','64'],ok:1},
+ {q:'¿Qué garantiza truncar la SVD?',opts:['mejor rango k en Frobenius','mejor accuracy','etiquetas separadas','sin pérdida'],ok:0}
+ ,{q:'Con λ=(4,1), ¿cuántas componentes alcanzan 90 %?',opts:['1','2','0','4'],ok:1}
+]} />
+<Conexiones items={[{href:'/reduccion/pca/',titulo:'PCA',texto:'Los valores singulares producen los autovalores.'},{href:'/fundamentos/matematicas/',titulo:'Matrices',texto:'La SVD factoriza una transformación lineal.'},{href:'/clasificacion/metricas/',titulo:'Métricas',texto:'Varianza explicada y accuracy miden cosas distintas.'}]} />
+<Recursos items={[R.mml, R.g3b1bLA]} />
+<Fuente archivos={['ML_Course_Dimensionality_Reduction.pdf (slides 33–48)','session-11a-pca-lda-and-factorizations.ipynb (§4–5)']} />
+
+## Errores típicos
+
+- Aplicar SVD a datos sin centrar y llamarlo PCA centrado.
+- Interpretar 90 % de varianza como 90 % de aciertos.
+- Buscar un codo que el gráfico no muestra.
+- Calcular PCA antes de separar los folds de validación.

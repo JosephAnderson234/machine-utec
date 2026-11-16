@@ -1,0 +1,103 @@
+---
+title: "Simulacro del final"
+description: "Preguntas propias estilo «Your turn / Check yourself» de las slides del final: ensambles, clustering, reducción de dimensión, redes neuronales I y II y MLOps, con cálculos a mano."
+---
+
+import Quiz from '../../../components/Quiz.tsx';
+
+:::caution[Preguntas propias]
+No es un examen oficial: son preguntas armadas con los **ejemplos numéricos de las slides del final** (los 8 alquileres, los tres votantes, el XOR, $L(w)=w^2$, DigitReader…) para practicar el tipo de razonamiento que piden los «Your turn» y «Check yourself». Ten papel y calculadora; cada respuesta trae su explicación. Cuando un número no viene del material, la pregunta lo dice («ejemplo propio»).
+:::
+
+## Parte A · Ensambles y clustering
+
+<Quiz
+	client:visible
+	id="simfinal-ensambles-1"
+	titulo="Simulacro · ensambles"
+	preguntas={[
+		{ q: 'Tres votantes independientes aciertan cada uno el 70 % de las veces. ¿Con qué probabilidad acierta la **mayoría**?', opts: ['0.700', '0.784', '0.910', '0.343'], ok: 1, why: 'Acierta si 2 o 3 aciertan: $0.7^3 + 3\\cdot0.7^2\\cdot0.3 = 0.343+0.441 = 0.784$.' },
+		{ q: 'Mismo problema, pero cada votante acierta el **40 %**. La mayoría acierta…', opts: ['0.352: votar empeora a votantes peores que una moneda', '0.400: votar no cambia nada', '0.648', '0.784'], ok: 0, why: '$0.4^3+3\\cdot0.4^2\\cdot0.6 = 0.064+0.288 = 0.352 < 0.4$. El voto amplifica: mejora a los buenos y hunde a los malos.' },
+		{ q: 'Los tres votantes aciertan 7/10 pero sus **3 errores son los mismos ejemplos**. ¿Accuracy del voto?', opts: ['7/10', '9/10', '10/10', '0.784'], ok: 0, why: 'Si los errores coinciden, la mayoría se equivoca en esos mismos 3. El ensamble necesita errores **distintos** (poco correlacionados).' },
+		{ q: 'Promediar 10 árboles **independientes** cuyas predicciones tienen desviación 0.30 deja una desviación de aproximadamente…', opts: ['0.30', '0.03', '0.095', '0.15'], ok: 2, why: 'La varianza se divide entre $n$: $\\sigma/\\sqrt{n} = 0.30/\\sqrt{10}\\approx0.095$. Ojo: el **sesgo** no baja al promediar.' },
+		{ q: 'Vas a promediar 100 copias de un modelo. ¿Cuál mejora más?', opts: ['Un stump (sesgo alto, varianza baja)', 'Un árbol profundo (sesgo bajo, varianza alta)', 'Mejoran igual', 'Ninguno: promediar no cambia nada'], ok: 1, why: 'Promediar ataca la varianza. El stump falla «en el mismo lado» siempre (sesgo): promediar copias del mismo error no lo corrige.' },
+		{ q: 'En un bootstrap de $n=10$ puntos, ¿qué fracción esperada de puntos queda **fuera** (out-of-bag)?', opts: ['$0.9^{10}\\approx0.35$', '$1/10$', '$0.5$', '$1-0.9^{10}\\approx0.65$'], ok: 0, why: 'Cada sorteo evita un punto con prob. $1-1/n$; tras $n$ sorteos: $(1-1/n)^n$. Para $n$ grande tiende a $e^{-1}\\approx0.368$.' },
+		{ q: 'Random forest se diferencia de bagging de árboles en que…', opts: ['usa stumps', 'en cada split solo considera un subconjunto aleatorio de features', 'pondera los errores como AdaBoost', 'no usa bootstrap'], ok: 1, why: '«Banca a la estrella»: si una feature domina, todos los árboles bagged la usan arriba y se parecen. Sortear features descorrelaciona los árboles y así el promedio baja más la varianza.' },
+		{ q: 'Un stump de AdaBoost tiene error ponderado $\\varepsilon=0.3$. Su voto $\\alpha=\\tfrac12\\ln\\tfrac{1-\\varepsilon}{\\varepsilon}$ vale…', opts: ['0.42', '0.85', '0.30', '0 (es como una moneda)'], ok: 0, why: '$\\tfrac12\\ln(0.7/0.3)=\\tfrac12\\ln 2.33\\approx0.42$. Con $\\varepsilon=0.5$ el voto sería 0.' },
+		{ q: 'Gradient boosting para regresión con pérdida cuadrática: cada nuevo árbol se ajusta a…', opts: ['los datos originales con otro bootstrap', 'los residuos $y-\\hat y$ del modelo actual', 'los pesos de los errores', 'las predicciones del árbol anterior'], ok: 1, why: 'El residuo es el gradiente negativo de $\\tfrac12(y-\\hat y)^2$. Se suma con una tasa de aprendizaje pequeña y se para antes de sobreajustar.' },
+		{ q: 'Añadir más árboles…', opts: ['sobreajusta bagging y no boosting', 'casi nunca daña a bagging/RF, pero puede sobreajustar boosting', 'siempre mejora ambos', 'daña a ambos por igual'], ok: 1, why: 'Bagging promedia: más árboles solo estabilizan. Boosting suma correcciones: sigue persiguiendo el ruido si no lo paras (early stopping, learning rate).' },
+	]}
+/>
+
+<Quiz
+	client:visible
+	id="simfinal-clustering-1"
+	titulo="Simulacro · clustering"
+	preguntas={[
+		{ q: 'Alquileres 2, 3, 4, 5, 10, 11, 12, 13 con centros 3 y 10.2. ¿Dónde queda la frontera y cuáles son los nuevos centros?', opts: ['Frontera 6.6; centros 3.5 y 11.5', 'Frontera 7.5; centros 3 y 10.2', 'Frontera 6.6; centros 3 y 11.5', 'Frontera 5; centros 2 y 13'], ok: 0, why: 'La frontera es el punto medio $(3+10.2)/2=6.6$: 2–5 van al centro 3 y 10–13 al 10.2. Luego cada centro pasa al promedio de su grupo: 3.5 y 11.5.' },
+		{ q: 'WCSS final de esos grupos {2,3,4,5} y {10,11,12,13}:', opts: ['10', '17.76', '5', '138'], ok: 0, why: 'Cada grupo: $1.5^2+0.5^2+0.5^2+1.5^2=5$; dos grupos: 10.' },
+		{ q: '¿Por qué el paso «mover» de k-means nunca sube el costo?', opts: ['porque los centros son aleatorios', 'porque para un grupo fijo, la suma de cuadrados es mínima en el promedio', 'porque se usa la mediana', 'porque la frontera es recta'], ok: 1, why: 'Derivada de $\\sum(x_i-c)^2$ igual a cero ⇒ $c=\\bar x$. Y «unir» a cada punto con su centro más cercano tampoco puede subirlo.' },
+		{ q: 'Silhouette del alquiler 5 en esa partición ($a$ = distancia media a su grupo, $b$ = al otro grupo):', opts: ['$(6.5-2)/6.5\\approx0.69$', '$2/6.5\\approx0.31$', '$6.5-2=4.5$', '$-0.69$'], ok: 0, why: '$a=(3+2+1)/3=2$, $b=(5+6+7+8)/4=6.5$, $s=(b-a)/\\max(a,b)=0.69$: está bien asignado.' },
+		{ q: 'Corres k-means dos veces con el mismo $K$ y obtienes agrupaciones distintas. Esto es…', opts: ['un bug', 'normal: depende del inicio aleatorio y puede caer en un mínimo local; se arregla con varios reinicios / k-means++', 'imposible si los datos están estandarizados', 'señal de que $K$ es incorrecto'], ok: 1 },
+		{ q: 'Expresas el diámetro en **mm** en vez de **cm** y no estandarizas. k-means…', opts: ['no cambia', 'puede cambiar: esa feature ahora pesa 10× en la distancia', 'mejora siempre', 'deja de converger'], ok: 1, why: 'La distancia suma diferencias de features distintas: la que tiene números más grandes domina. Por eso se estandariza antes.' },
+		{ q: '¿Qué método **separa ruido** y encuentra grupos de forma arbitraria (lunas, anillos)?', opts: ['k-means', 'GMM', 'DBSCAN', 'PCA'], ok: 2, why: 'DBSCAN define grupos como regiones densas (ε, minPts); los puntos que no están en ninguna son ruido. «No necesita $K$» es solo media verdad: ε decide.' },
+		{ q: 'En un GMM, el «paso E» calcula…', opts: ['los centros como promedios', 'la responsabilidad (pertenencia blanda) de cada gaussiana para cada punto', 'el número de grupos', 'la linkage'], ok: 1, why: 'Ej. de las slides: campana baja 0.465 y alta 0.282 en el alquiler 7 ⇒ $P(\\text{baja})=0.465/(0.465+0.282)\\approx0.62$. El paso M re-estima medias, covarianzas y pesos con esas responsabilidades.' },
+	]}
+/>
+
+## Parte B · Reducción de dimensión
+
+<Quiz
+	client:visible
+	id="simfinal-reduccion-1"
+	titulo="Simulacro · reducción de dimensión"
+	preguntas={[
+		{ q: 'La covarianza de unos datos centrados es $C=\\begin{pmatrix}3&1\\\\1&3\\end{pmatrix}$ (ejemplo propio). ¿Varianza explicada por PC1?', opts: ['4/6 ≈ 67 %', '3/6 = 50 %', '2/6 ≈ 33 %', '100 %'], ok: 0, why: 'Autovalores: $\\det(C-\\lambda I)=(3-\\lambda)^2-1=0\\Rightarrow\\lambda=4,2$. PC1 = dirección $(1,1)/\\sqrt2$ con $4/(4+2)$ de la varianza.' },
+		{ q: 'PC1 es…', opts: ['la feature con mayor varianza', 'la dirección (combinación de features) donde la proyección de los datos tiene máxima varianza', 'la dirección que mejor separa las clases', 'una dirección aleatoria'], ok: 1, why: 'Es el autovector de $C$ con mayor autovalor. Separar clases es lo que busca LDA, no PCA.' },
+		{ q: '¿Por qué se suele **estandarizar** antes de PCA?', opts: ['para que la SVD converja', 'porque PCA persigue varianza y una feature en unidades grandes la acapararía', 'porque PCA necesita etiquetas', 'no hace falta nunca'], ok: 1 },
+		{ q: 'Con $K=3$ clases y 10 features, LDA de Fisher da como máximo…', opts: ['10 direcciones', '3 direcciones', '2 direcciones', '1 dirección'], ok: 2, why: '$S_B$ tiene rango $\\le K-1$: solo hay $K-1$ direcciones útiles.' },
+		{ q: 'Relación entre SVD y PCA para $\\tilde X$ centrada ($\\tilde X=U\\Sigma V^\\top$):', opts: ['las columnas de $V$ son las componentes principales y $\\lambda_k=\\sigma_k^2/n$ (con $C=\\tfrac1n\\tilde X^\\top\\tilde X$, como en las slides)', 'las columnas de $U$ son las componentes', 'no hay relación', 'los autovalores son $\\sigma_k$'], ok: 0 },
+		{ q: 'En dimensión 3, la esfera inscrita ocupa ~52 % del cubo. En dimensión alta esa fracción…', opts: ['tiende a 1', 'se mantiene', 'tiende a 0: el volumen se va a las esquinas', 'oscila'], ok: 2, why: 'Es la geometría de la maldición de la dimensionalidad: los puntos quedan lejos de todo y las distancias se parecen entre sí.' },
+		{ q: 'En un mapa t-SNE dos grupos aparecen muy separados y uno se ve más grande. Puedes concluir que…', opts: ['están lejos y el grande tiene más varianza', 'los vecinos cercanos se preservan; tamaños y distancias entre grupos **no** son confiables', 'PCA daría lo mismo', 'hay exactamente 2 clases'], ok: 1, why: 't-SNE (y UMAP) preserva vecindarios locales. Tamaños, huecos y distancias globales dependen de la perplejidad / n_neighbors.' },
+		{ q: 'NMF es preferible a PCA cuando…', opts: ['los datos pueden ser negativos', 'los datos son no negativos (píxeles, conteos) y quieres partes que solo se suman', 'quieres componentes ortogonales', 'tienes etiquetas'], ok: 1 },
+	]}
+/>
+
+## Parte C · Redes neuronales
+
+<Quiz
+	client:visible
+	id="simfinal-redes-1"
+	titulo="Simulacro · redes neuronales I y II"
+	preguntas={[
+		{ q: 'Neurona con $\\mathbf w=(2,-1)$, $b=-1$. ¿Cuál de $A=(1,1)$, $B=(2,1)$, $C=(0,1)$ queda del lado positivo ($z>0$)?', opts: ['Solo B', 'A y B', 'Solo C', 'Las tres'], ok: 0, why: '$z_A=2-1-1=0$ (sobre la recta), $z_B=4-1-1=2>0$, $z_C=0-1-1=-2$.' },
+		{ q: '¿Por qué ninguna neurona sola resuelve XOR?', opts: ['porque la sigmoide es lenta', 'porque $f(0,0)+f(1,1)=f(1,0)+f(0,1)$ para cualquier $f$ aditiva, pero XOR pide la primera suma negativa y la segunda positiva', 'por falta de datos', 'porque los pesos deben ser enteros'], ok: 1, why: 'Ambas diagonales suman $w_1+w_2+2b$. El mismo argumento vale para cualquier modelo aditivo (incluso boosting con stumps).' },
+		{ q: 'Si quitas todas las activaciones (sin «doblar») de una red de 5 capas, obtienes…', opts: ['una red más expresiva', 'un modelo lineal: composición de funciones lineales es lineal', 'un árbol', 'un modelo que no se puede entrenar'], ok: 1 },
+		{ q: 'MLP 64 → 32 → 10 con sesgos. Número de parámetros (ejemplo propio):', opts: ['2,410', '2,368', '74', '20,480'], ok: 0, why: '$64\\cdot32+32 = 2080$; $32\\cdot10+10=330$; total 2,410.' },
+		{ q: 'Con salida sigmoide + cross-entropy (o softmax + cross-entropy), la señal de error en la salida es…', opts: ['$(\\hat y-y)\\,\\sigma\'(z)$', '$\\hat y - y$: predicho menos real', '$(y-\\hat y)^2$', '$\\log\\hat y$'], ok: 1, why: 'La derivada de la sigmoide se cancela con la de la log-loss. Por eso es la cabeza estándar para clasificación.' },
+		{ q: 'Inicializas **todos** los pesos en cero en una red con capa oculta. Pasa que…', opts: ['entrena más rápido', 'todas las unidades ocultas reciben el mismo gradiente y siguen idénticas: la capa vale como una sola unidad', 'diverge', 'nada especial'], ok: 1 },
+		{ q: '$L(w)=w^2$ (curvatura $c=2$) desde $w_0=1$ con descenso de gradiente. ¿Qué tasa η llega a 0 en **un** paso y cuál es el borde de divergencia?', opts: ['η = 0.5 y borde 1', 'η = 1 y borde 2', 'η = 0.1 y borde 0.5', 'η = 2 y borde 4'], ok: 0, why: '$w\\leftarrow w-\\eta\\,2w=(1-2\\eta)w$. Óptimo $1/c=0.5$; con $\\eta=1$ oscila $1,-1,1,\\dots$ para siempre; con $\\eta>1$ crece.' },
+		{ q: 'Dos direcciones con curvaturas 1 y 100. La mejor tasa **única** es…', opts: ['1', '0.01', '$2/101\\approx0.0198$', '0.02'], ok: 2, why: 'Equilibra ambos factores: $1-\\eta = -(1-100\\eta)\\Rightarrow\\eta=2/(1+100)$. Aun así la dirección suave avanza lento: es el mal condicionamiento.' },
+		{ q: 'Momentum con β = 0.9 y gradiente constante: el paso efectivo crece hasta…', opts: ['0.9 veces el gradiente', '10 veces ($1/(1-\\beta)$)', '100 veces', 'no cambia'], ok: 1 },
+		{ q: '¿Qué hace dropout con p = 0.5 (probabilidad de conservar)?', opts: ['Borra la mitad de los pesos para siempre', 'En cada paso de entrenamiento apaga unidades al azar y divide las sobrevivientes entre p; en test usa todas', 'Baja la tasa de aprendizaje a la mitad', 'Duplica los datos'], ok: 1 },
+		{ q: 'Con Adam, la penalización L2 conviene aplicarla como…', opts: ['L2 dentro de la pérdida', 'weight decay desacoplado (AdamW)', 'dropout', 'no se puede'], ok: 1, why: 'En Adam, la L2 sumada al gradiente queda reescalada por la tasa adaptativa de cada peso; AdamW encoge los pesos directamente.' },
+	]}
+/>
+
+## Parte D · MLOps
+
+<Quiz
+	client:visible
+	id="simfinal-mlops-1"
+	titulo="Simulacro · MLOps"
+	preguntas={[
+		{ q: 'Entrenamiento: 50 % formularios claros / 50 % oscuros. Hoy: 3 claros y 7 oscuros. $\\text{PSI}=\\sum(\\text{hoy}-\\text{antes})\\ln\\frac{\\text{hoy}}{\\text{antes}}$ vale…', opts: ['≈ 0.17', '≈ 0.40', '0.20', '0'], ok: 0, why: '$(0.3-0.5)\\ln0.6+(0.7-0.5)\\ln1.4 = 0.102+0.067\\approx0.17$. ¿Es alarma? Depende del tamaño del lote: con 50 formularios, lotes sanos llegan a 0.387 el 95 % de las veces.' },
+		{ q: 'El modelo se entrenó con píxeles 0..16 pero en producción recibe 0..255 sin reescalar. ¿Qué pasa?', opts: ['el servicio se cae con un error', 'el modelo responde **sin error pero mal** (en las slides: casi todo como «5»)', 'nada: el modelo normaliza solo', 'se reentrena automáticamente'], ok: 1, why: 'Es training-serving skew. Cura: un solo camino de preprocesamiento empaquetado con el modelo y un esquema que valide la entrada «en la puerta».' },
+		{ q: '¿Cuál de estas cosas **no** forma parte de «aquello de lo que está hecho un modelo» para poder reconstruirlo?', opts: ['los datos (con su huella/hash)', 'el código y las versiones de librerías', 'la semilla y los hiperparámetros', 'el color del dashboard'], ok: 3 },
+		{ q: 'Las etiquetas reales llegan una semana tarde. ¿Qué monitor puede avisar **antes**?', opts: ['la accuracy diaria', 'monitores de entradas (PSI, detector pasado-vs-hoy) y de la confianza de las predicciones', 'ninguno', 'el F1 en test'], ok: 1 },
+		{ q: 'Un detector «¿puedo distinguir datos de hoy de los del pasado?» obtiene AUC ≈ 0.5. Significa…', opts: ['hay un drift fuerte', 'no se distinguen: no hay evidencia de cambio en las entradas', 'el modelo está roto', 'hay que reentrenar'], ok: 1 },
+		{ q: 'Un **canary** es…', opts: ['entrenar dos modelos y quedarse con el mejor en test', 'enviar una pequeña fracción del tráfico real al modelo nuevo, comparar y decidir (con rollback preparado de antemano)', 'un modelo que solo predice en lote', 'un test unitario'], ok: 1 },
+		{ q: 'El modelo nuevo acierta 5 formularios más que el viejo en 540. Para saber si es real conviene…', opts: ['mirar solo el total', 'contar los formularios que **cambiaron** (los que el nuevo arregla vs. los que rompe) y ver si la diferencia puede ser azar', 'subir la semilla', 'reentrenar en test'], ok: 1 },
+		{ q: 'Un modelo de recomendación decide qué ven los usuarios y luego se reentrena con sus clics. Riesgo principal:', opts: ['training-serving skew', 'feedback loop: el modelo crea los datos que lo confirman', 'underfitting', 'label shift aleatorio'], ok: 1 },
+	]}
+/>

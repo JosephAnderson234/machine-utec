@@ -1,0 +1,190 @@
+---
+title: "12.2 · Momentum, Adam y mini-batches"
+description: "Memoria del gradiente, pasos adaptativos y ruido de los lotes."
+---
+import Solucion from '../../../components/Solucion.astro';
+
+import EnSimple from '../../../components/EnSimple.astro';
+import Pasos from '../../../components/Pasos.astro';
+import CasoUso from '../../../components/CasoUso.astro';
+import Quiz from '../../../components/Quiz.tsx';
+import Conexiones from '../../../components/Conexiones.astro';
+import Recursos from '../../../components/Recursos.astro';
+import Fuente from '../../../components/Fuente.astro';
+import MomentumAdamPaso from '../../../components/sim/MomentumAdamPaso.tsx';
+import { R } from '../../../data/recursos';
+
+<EnSimple id="redes/optimizadores" />
+
+## Empieza aquí: recordar tres pendientes
+
+Imagina que una pendiente de valor 1 persiste durante tres pasos. Descenso simple siempre camina una unidad de gradiente. *Momentum* («impulso») guarda una suma con memoria $\beta=0.9$: $v_0=0$, $v_t=0.9v_{t-1}+g_t$. Obtiene $v_1=1$, $v_2=1.9$, $v_3=2.71$. Si las pendientes alternan $+1,-1,+1$, obtiene $1,-0.1,0.91$: las oscilaciones se compensan.
+
+<figure><svg viewBox="0 0 540 150" role="img" aria-label="Gradientes alternos se cancelan y constantes se suman"><g fill="none" stroke-width="4"><path stroke="var(--sl-color-accent)" d="M40 110 L160 85 L280 60 L400 35"/><path stroke="var(--sl-color-text)" d="M40 110 L160 85 L280 111 L400 88"/></g><g fill="var(--sl-color-text)" font-size="15"><text x="405" y="35">constante: acumula</text><text x="405" y="92">alterno: cancela</text><text x="35" y="135">0</text><text x="155" y="135">1</text><text x="275" y="135">2</text><text x="395" y="135">3 pasos</text></g></svg><figcaption><strong>Cómo leerlo:</strong> cada tramo muestra el valor acumulado de momentum tras un gradiente; una dirección persistente gana impulso.</figcaption></figure>
+
+## Puente: tres formas de usar la pendiente
+
+**Descenso simple:** $\theta_t=\theta_{t-1}-\eta g_t$. **Momentum:** $v_t=\beta v_{t-1}+g_t$, $\theta_t=\theta_{t-1}-\eta v_t$. **Adam** (*adaptive moment estimation*, estimación adaptativa de momentos) calcula para cada peso una media reciente del gradiente y otra de su cuadrado; divide por la raíz de esta última. Así, pesos con gradientes de magnitudes muy distintas reciben pasos comparables.
+
+<Pasos titulo="Momentum constante y alternante">
+
+1. Con $g_t=1$, la suma después de $t$ pasos es $v_t=1+\beta+\cdots+\beta^{t-1}=(1-\beta^t)/(1-\beta)$.
+2. Si $0\le\beta<1$, el límite es $1/(1-\beta)$. Para $\beta=0.9$ es 10; el paso efectivo puede acabar cerca de diez veces mayor.
+3. Con $g=(1,-1,1)$: $v_1=1$, $v_2=\beta-1=-0.1$, $v_3=\beta(\beta-1)+1=0.91$ para $\beta=0.9$.
+4. Por eso momentum ayuda en valles largos con dirección persistente, y amortigua vaivenes transversales. Al añadirlo, hay que volver a ajustar $\eta$; la diapositiva propone empezar con una tasa alrededor de diez veces menor.
+
+</Pasos>
+
+## Adam: dos promedios y una corrección esencial
+
+Con $\beta_1=0.9$, $\beta_2=0.999$ y $m_0=v_0=0$:
+
+$$m_t=\beta_1m_{t-1}+(1-\beta_1)g_t,\quad v_t=\beta_2v_{t-1}+(1-\beta_2)g_t^2,$$
+$$\hat m_t=\frac{m_t}{1-\beta_1^t},\quad\hat v_t=\frac{v_t}{1-\beta_2^t},\quad\theta_t=\theta_{t-1}-\eta\frac{\hat m_t}{\sqrt{\hat v_t}+\epsilon}.$$
+
+<Pasos titulo="El primer paso de Adam para g=100">
+
+1. Desde cero, $m_1=0.1(100)=10$ y $v_1=0.001(100^2)=10$.
+2. Sin corregir, $m_1/\sqrt{v_1}=10/\sqrt{10}\approx3.162$: demasiado grande para un gradiente constante.
+3. Corrige el arranque: $\hat m_1=10/(1-0.9)=100$ y $\hat v_1=10/(1-0.999)=10\,000$.
+4. El cociente corregido es $100/100=1$ y el primer movimiento es aproximadamente $-\eta$. Lo mismo ocurre para un gradiente positivo de 0.01, 1 o 1,000 cuando $\epsilon$ es despreciable.
+
+</Pasos>
+
+<MomentumAdamPaso client:visible />
+
+<figure><svg viewBox="0 0 560 175" role="img" aria-label="Batch grande reduce la variación del gradiente"><g fill="var(--sl-color-accent)"><rect x="55" y="38" width="65" height="107"/><rect x="170" y="75" width="65" height="70"/><rect x="285" y="105" width="65" height="40"/><rect x="400" y="141" width="65" height="4"/></g><g fill="var(--sl-color-text)" font-size="15" text-anchor="middle"><text x="88" y="162">1 dato</text><text x="202" y="162">2</text><text x="318" y="162">4</text><text x="432" y="162">8</text><text x="88" y="30">4.15</text><text x="202" y="67">2.72</text><text x="318" y="97">1.57</text><text x="432" y="132">0</text></g></svg><figcaption><strong>Cómo leerlo:</strong> las barras muestran la dispersión del gradiente al muestrear sin reemplazo de los ocho alquileres. El lote completo ya no tiene ruido de muestreo.</figcaption></figure>
+
+## Ejercicios de las diapositivas
+
+**Predice primero — carrera justa.** Descenso simple, momentum con $\beta=0.9$ y Adam compiten en el valle de curvaturas 1 y 100. Cada uno recibe su mejor tasa entre 8,001 candidatas. ¿Por qué no basta probar la misma tasa para todos?
+
+<Solucion>
+
+Cada algoritmo transforma el gradiente de modo distinto. Momentum acumula dirección, por lo que su paso efectivo puede ser mucho mayor; Adam divide por una escala propia de cada peso. Con la misma $\eta$ numérica se comparan movimientos diferentes. Hay que ajustar cada tasa con el mismo presupuesto de búsqueda y medir el mismo criterio, por ejemplo llegar a pérdida $10^{-6}$ y permanecer allí hasta el paso 1,500.
+
+En la corrida de la diapositiva, descenso simple tardó 445 pasos, momentum 165 y Adam 163. A la tasa elegida para descenso simple ($0.01973$), Adam tardó cerca de 1,700 pasos; a la tasa de Adam ($0.356$), los otros dos explotaron. La conclusión depende de permitir que cada método ajuste su tasa.
+
+</Solucion>
+
+**Predice primero — cuándo paga momentum.** Para $\beta=0.9$, su factor de reducción por paso no puede bajar de $\sqrt{0.9}\approx0.9487$ en el caso cuadrático estudiado. ¿Ganará al descenso simple con número de condición $\kappa=37$ o $38$?
+
+<Solucion>
+
+El mejor factor de descenso simple es $(\kappa-1)/(\kappa+1)$. Para 37 es $36/38\approx0.9474$, menor que 0.9487: descenso simple gana por poco. Para 38 es $37/39\approx0.94872$, apenas mayor: momentum 0.9 puede ganar. El umbral es aproximadamente $\kappa=37.97$. En el valle de curvaturas 1 y 100, el factor simple es 0.9802, así que el impulso sí puede compensar.
+
+</Solucion>
+
+**Compruébalo — momentum y Adam.** (a) Para gradiente constante 1 y $\beta=0.5$, ¿a qué valor tiende la suma? (b) En el primer paso de Adam con $g=100$, ¿qué valores corrigen el arranque?
+
+<Solucion>
+
+1. La suma es $1+0.5+0.25+\cdots=1/(1-0.5)=2$.
+2. Adam comienza con $m_1=10$ y $v_1=10$. Divide por $1-0.9=0.1$ y $1-0.999=0.001$: $\hat m_1=100$, $\hat v_1=10,000$.
+3. El cociente $\hat m_1/\sqrt{\hat v_1}=1$. Sin corregir, sería $10/\sqrt{10}\approx3.162$.
+
+</Solucion>
+
+:::caution[Trampa de examen]
+El $v_t$ de Adam es **promedio de cuadrados** y no es el $v_t$ de momentum, que suma gradientes con signo. La corrección de sesgo de Adam cambia de verdad el primer paso: sin ella, el cociente tiene magnitud cercana a $3.162$, no 1.
+:::
+
+## ¿Cuántos ejemplos escucha cada paso?
+
+La diapositiva usa ocho alquileres $2,3,4,5,10,11,12,13$, con media 7.5. Ajusta un único precio $w$ minimizando $\tfrac12\operatorname{mean}(w-y_i)^2$. El gradiente sobre un lote $B$ es $w-\overline y_B$. Desde $w=0$ y $\eta=1/2$, el **batch completo** (los ocho) mueve a $w=3.75$. En *SGD* (un ejemplo), los alquileres 10, 3, 12 y 5 dan $w=5,4,8,6.5$ sucesivamente. El recorrido tiembla aunque el promedio total sea estable.
+
+**Compruébalo — lotes.** Con 1,000 ejemplos y lotes de 50, ¿cuántos pasos hay por época? En los ocho alquileres, ¿qué cambia entre un lote de 1, 2, 4 y 8?
+
+<Solucion>
+
+Una época usa todos los ejemplos una vez: $1000/50=20$ actualizaciones. En los alquileres, el gradiente de cada lote es $w$ menos su media. El promedio de todas las medias posibles es 7.5, así que el voto es correcto en promedio. La dispersión medida de ese voto baja de 4.15 (un alquiler) a 2.72 (dos), 1.57 (cuatro) y 0 (ocho). Más ejemplos suavizan la dirección, pero exigen más trabajo por paso.
+
+</Solucion>
+
+**Predice primero — ruido de dos lunas.** Una red se entrena con 100 puntos de dos lunas. Al pasar de lote de 1 a lote de 4, ¿esperas que el ruido del gradiente aumente o disminuya? ¿Por qué no se divide exactamente por cuatro?
+
+<Solucion>
+
+Disminuye: promediar varios gradientes cancela parte de las diferencias individuales. Si fueran independientes con igual varianza, la desviación típica se dividiría aproximadamente por $\sqrt4=2$, no por 4. Muestrear sin reemplazo y las correlaciones entre ejemplos cambian esa cifra. El lote completo tiene ruido de muestreo cero respecto de esos 100 puntos, pero todavía puede sobreajustar los datos.
+
+</Solucion>
+
+### Ir más a fondo (opcional): el piso de momentum
+
+<Pasos titulo="Derivar la recurrencia en una dirección cuadrática">
+
+1. Para una dirección de curvatura $c$, el gradiente es $cw_t$. Momentum calcula $v_{t+1}=\beta v_t+cw_t$ y luego $w_{t+1}=w_t-\eta v_{t+1}$.
+2. Del paso anterior se obtiene $\eta v_t=w_{t-1}-w_t$. Sustituirlo elimina la variable auxiliar.
+3. Resulta $w_{t+1}=(1+\beta-\eta c)w_t-\beta w_{t-1}$. Es una recurrencia de segundo orden: el nuevo error depende de los dos anteriores.
+4. Probando soluciones $w_t=r^t$ se llega a $r^2-(1+\beta-\eta c)r+\beta=0$. El producto de las dos raíces es $\beta$.
+5. Si las raíces son conjugadas, ambas tienen magnitud $\sqrt\beta$. Para $\beta=0.9$, ese piso es $\sqrt{0.9}\approx0.949$ por paso: memoria no implica aceleración ilimitada. La tasa y las curvaturas deciden si compensa.
+
+</Pasos>
+
+### Ir más a fondo (opcional): cuánto dura el sesgo de Adam
+
+<Pasos titulo="Corregir promedios que empiezan en cero">
+
+1. Si el gradiente es constante $g$, desplegar la recurrencia da $m_t=(1-\beta_1^t)g$. El factor menor que uno viene exclusivamente del arranque en cero.
+2. Del mismo modo $v_t=(1-\beta_2^t)g^2$. Como $\beta_2=0.999$ está muy cerca de 1, el segundo promedio tarda más en acercarse a $g^2$.
+3. Dividir por los factores respectivos recupera exactamente $g$ y $g^2$ en este caso constante. Para gradientes variables corrige el sesgo inicial, aunque los promedios siguen ponderando más lo reciente.
+4. Con $t=10$, $1-0.9^{10}\approx0.651$ y $1-0.999^{10}\approx0.00996$. Omitir la corrección del segundo promedio todavía sería un error enorme tras diez pasos.
+
+</Pasos>
+
+## Ruido que no se apaga solo
+
+Con tasa constante, SGD sigue escuchando alquileres individuales que tiran hacia precios distintos. Cerca de la media 7.5, un alquiler de 2 empuja hacia abajo y uno de 13 hacia arriba. Por eso el parámetro puede seguir temblando aunque el gradiente completo sea cero. Para estabilizarlo se puede bajar la tasa con las épocas o aumentar el lote; son decisiones distintas del algoritmo de Adam o momentum.
+
+## Diapositivas de esta página
+
+«Momentum: a running sum of gradients», «The floor: momentum can never beat» y «When does β=0.9 pay?» explican memoria y su límite. «Adam: a step size for every weight», «How long Adam's bias lasts», «A fair race: each at its own best rate» y «Check yourself: momentum and Adam» explican pasos adaptativos. «One example, a few, or all of them?», «The noise of a batch, measured», «Which batch size, then?», «The noise never settles at a constant rate» y «Check yourself: batches» explican el muestreo. Las cuentas y predicciones están en los ejercicios anteriores.
+
+## Errores típicos
+
+- Comparar Adam y SGD con la misma tasa numérica sin ajustar cada uno.
+- Confundir el $v$ de momentum (suma con signo) con el $v$ de Adam (media de cuadrados).
+- Creer que un gradiente de mini-lote es siempre igual al gradiente completo; coincide en promedio.
+- Suponer que más pasos por época significan automáticamente más información total.
+
+| Método | Ejemplos por paso | Ventaja | Costo |
+| --- | --- | --- | --- |
+| Batch completo | todos | gradiente exacto del conjunto | paso caro, poca frecuencia |
+| Mini-batch | unos pocos | aprovecha cálculo vectorizado; ruido moderado | aún hay variación |
+| SGD puro | uno | paso barato y frecuente | ruido alto |
+
+### Ir más a fondo (opcional): una carrera justa
+
+En el valle de curvaturas 1 y 100 de la página anterior, la diapositiva compara cada método con **su propia tasa ajustada**. Momentum no supera automáticamente a descenso simple: el límite en la dirección suave sigue dependiendo de la curvatura. Una afirmación «Adam ganó a SGD» exige preguntar si ambos tuvieron una búsqueda de tasas comparable y el mismo presupuesto de épocas o cómputo.
+
+```python
+v = 0.0
+for g in [1, 1, 1]:
+    v = 0.9*v + g
+    print(round(v, 2))
+# 1.0, 1.9, 2.71 (una línea por valor)
+w = 0.0
+for rent in [10, 3, 12, 5]:
+    w -= 0.5*(w-rent)
+    print(w)
+# 5.0, 4.0, 8.0, 6.5
+```
+
+<CasoUso titulo="Entrenar una red para dos lunas" sector="clasificación" icono="🌙">
+El cuaderno práctico divide 750 ejemplos de entrenamiento en mini-batches. Cada lote calcula un forward, una pérdida y un backward; Adam o SGD actualizan los pesos. Compara curvas de pérdida por época y precisión en los 250 ejemplos reservados, siempre con la misma partición.
+</CasoUso>
+
+<Quiz client:visible id="redes-optimizadores" preguntas={[
+  {q:'Con β=0.9 y gradientes 1,1,1, ¿v₃?',opts:['1','1.9','2.71','3'],ok:2},
+  {q:'¿Límite de momentum para gradiente 1 y β=0.9?',opts:['0.9','1','9','10'],ok:3},
+  {q:'Con β=0.9 y gradientes +1,-1, ¿v₂?',opts:['-1','-0.1','0','0.1'],ok:1},
+  {q:'Adam, primer paso con g=100: ¿m₁?',opts:['0.1','1','10','100'],ok:2},
+  {q:'Adam corrige m₁ y v₁ porque…',opts:['arrancan en cero','no hay gradiente','el lote es pequeño','ReLU es lineal'],ok:0},
+  {q:'Desde w=0, η=0.5 y alquiler 10, ¿nuevo w?',opts:['2.5','5','10','20'],ok:1},
+  {q:'¿Qué exige una comparación justa de Adam y SGD?',opts:['misma η numérica','tasas ajustadas y presupuesto comparable','solo train accuracy','sin validación'],ok:1},
+  {q:'Con 1,000 ejemplos y lotes de 50, ¿pasos por época?',opts:['10','20','50','1,000'],ok:1},
+]} />
+
+<Conexiones items={[{href:'/redes/tasa-aprendizaje/',titulo:'Tasa y condicionamiento',texto:'Cada optimizador responde al valle estrecho de manera distinta.'},{href:'/regresion/gradiente/',titulo:'Descenso estocástico',texto:'El gradiente de un ejemplo es una estimación ruidosa del promedio.'},{href:'/regularizacion/validacion-cruzada/',titulo:'Comparación justa',texto:'Ajusta hiperparámetros en entrenamiento y reserva test.'}]} />
+<Recursos items={[R.sqGD, R.playground]} />
+<Fuente archivos={['ML_Course_Neural_Networks_II.pdf (slides 12–24)', '03-neural-networks-from-scratch-and-in-scikit-learn.ipynb']} />

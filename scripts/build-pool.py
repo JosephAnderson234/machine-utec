@@ -18,6 +18,11 @@ UNIDADES = {
     'svm': ('SVM', '/svm/geometria/'),
     'kernels': ('Kernels', '/kernels/truco/'),
     'arboles': ('Árboles', '/arboles/impureza/'),
+    'ensambles': ('Ensambles', '/ensambles/equipos/'),
+    'clustering': ('Clustering', '/clustering/kmeans/'),
+    'reduccion': ('Reducción de dimensión', '/reduccion/por-que/'),
+    'redes': ('Redes neuronales', '/redes/neurona/'),
+    'mlops': ('MLOps', '/mlops/reproducibilidad/'),
 }
 BANCO = {'fund': 'fundamentos', 'reg': 'regresion', 'regu': 'regularizacion', 'clf': 'clasificacion',
          'gen': 'generativos', 'svm': 'svm', 'kern': 'kernels', 'tree': 'arboles'}
@@ -59,6 +64,9 @@ for p in sorted(DOCS.rglob('*.mdx')):
         if qid.startswith('banco-'):
             unidad = BANCO[qid.split('-', 1)[1]]
             fuente = 'banco oficial'
+        elif qid.startswith('simfinal-'):
+            unidad = qid.split('-')[1]
+            fuente = 'simulacro del final'
         elif qid.startswith('simulacro'):
             unidad = None
             fuente = 'simulacro'

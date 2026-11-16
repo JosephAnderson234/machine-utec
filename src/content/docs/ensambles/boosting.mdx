@@ -1,0 +1,181 @@
+---
+title: "Boosting: corregir lo que queda"
+description: "AdaBoost a mano, gradient boosting, tasa de aprendizaje y mezcla de modelos."
+---
+import EnSimple from '../../../components/EnSimple.astro';
+import Pasos from '../../../components/Pasos.astro';
+import Solucion from '../../../components/Solucion.astro';
+import CasoUso from '../../../components/CasoUso.astro';
+import Quiz from '../../../components/Quiz.tsx';
+import Conexiones from '../../../components/Conexiones.astro';
+import Recursos from '../../../components/Recursos.astro';
+import Fuente from '../../../components/Fuente.astro';
+import { R } from '../../../data/recursos';
+
+<EnSimple id="ensambles/boosting" />
+
+## Empieza aquí: corregir una predicción sencilla
+
+Ocho departamentos tienen áreas 1 a 8 y alquileres **2, 3, 4, 5, 10, 11, 12, 13**. Predecir siempre el promedio **7.5** deja errores (real menos predicho) $-5.5,-4.5,-3.5,-2.5,2.5,3.5,4.5,5.5$. La suma de errores cuadrados es **138**.
+
+Un árbol de una sola pregunta corta en área 4.5. Los cuatro errores a la izquierda promedian $-4$; los otros cuatro, $+4$. Si sumamos solo **la mitad** de esta corrección, la predicción pasa a 5.5 y 9.5. La suma de cuadrados baja a **42**.
+
+<svg viewBox="0 0 600 175" role="img" aria-label="Ocho alquileres y predicción inicial y corregida" style={{maxWidth:'100%'}}><line x1="35" y1="145" x2="580" y2="145" stroke="currentColor"/><line x1="35" y1="20" x2="35" y2="145" stroke="currentColor"/><line x1="45" y1="77" x2="560" y2="77" stroke="var(--sl-color-gray-3)" strokeDasharray="5 4" strokeWidth="2"/><path d="M45 95 H302 V58 H560" fill="none" stroke="var(--sl-color-accent)" strokeWidth="3"/>{[2,3,4,5,10,11,12,13].map((y,i)=><circle key={i} cx={65+i*68} cy={145-y*9} r="6" fill="var(--sl-color-orange)"/>)}<text x="410" y="72" fill="currentColor">inicio: 7.5</text><text x="55" y="108" fill="currentColor">5.5</text><text x="475" y="52" fill="currentColor">9.5</text></svg>
+
+*Cómo leerlo:* puntos naranjas son alquileres reales; la línea gris predice 7.5 a todos; el escalón azul corrige medio paso.
+
+**Puente.** Sumar modelos pequeños en secuencia para corregir errores anteriores es *boosting* (refuerzo). Hay dos recetas de la sesión: AdaBoost cambia los pesos de las filas mal clasificadas; *gradient boosting* ajusta el residuo que quedó.
+
+## AdaBoost: los errores pesan más
+
+En clasificación binaria, escribe las etiquetas y predicciones como $y_i,h_m(x_i)\in\{-1,+1\}$. Al inicio todas las filas tienen peso $w_i=1/n$. Un tocón calcula su **error ponderado** $\epsilon_m=\sum_i w_i\mathbf 1[y_i\ne h_m(x_i)]$. Luego recibe un voto de tamaño $\alpha_m=\tfrac12\ln((1-\epsilon_m)/\epsilon_m)$ y se actualiza $w_i\leftarrow w_i e^{-\alpha_m y_i h_m(x_i)}$, normalizando al final.
+
+<Pasos titulo="Primera ronda de AdaBoost en diez puntos">
+
+1. Todos empiezan con $w_i=0.1$. El primer tocón de la sesión falla 2 de 10: $\epsilon_1=0.2$.
+2. Su voto vale $\alpha_1=\tfrac12\ln(0.8/0.2)=\ln 2\approx0.693$.
+3. Cada fallo multiplica su peso por $e^{\alpha_1}=2$; cada acierto lo multiplica por $e^{-\alpha_1}=1/2$.
+4. La suma antes de normalizar es $2(0.1)(2)+8(0.1)(1/2)=0.8$. Cada fallo queda en $0.25$ y cada acierto en $0.0625$.
+5. El siguiente tocón ve cada fallo como cuatro veces más pesado que cada acierto. La sesión llega a votos aproximados $0.69,0.97,0.76$ y a diez aciertos de entrenamiento tras tres rondas.
+
+</Pasos>
+
+**Ir más a fondo (opcional).** Si $\epsilon=1/2$, $\alpha=0$: el tocón no aporta. Si $\epsilon<1/2$, aporta voto positivo; si supera $1/2$, conviene invertir su respuesta. Un error de etiqueta persistente puede recibir cada vez más peso y arrastrar el modelo hacia el ruido.
+
+## Gradient boosting: ajustar los residuos
+
+Con pérdida cuadrática, la derivada de $\tfrac12(y-F)^2$ respecto de $F$ es $F-y$, así que el **gradiente negativo** es $y-F$: exactamente el residuo. En la ronda $m$ se ajusta un árbol pequeño $h_m$ a esos residuos y se suma una fracción $\nu$:
+
+$$F_m(x)=F_{m-1}(x)+\nu h_m(x),\qquad 0<\nu\le1.$$
+
+En el ejemplo, $F_0=7.5$, $h_1=-4$ o $+4$, y $\nu=0.5$. La sesión registra errores de entrenamiento **138 → 42 → 18 → 9.9** tras tres correcciones. Un solo split óptimo tiene error **10**; varias correcciones forman una escalera más expresiva.
+
+:::caution[Trampa de examen]
+Más rondas siempre reducen el error **de entrenamiento**, pero pueden elevar el de test. En la ola ruidosa de la sesión, tasa 1.0 rinde mejor alrededor de 6 rondas; tasa 0.1 alrededor de 40, con menor error de test. El número de rondas se decide con validación y *early stopping* (parada temprana), no con test.
+:::
+
+## Bagging, boosting, voting y stacking
+
+| Método | Cómo se construye | Principal riesgo |
+| --- | --- | --- |
+| Bagging | Modelos en paralelo sobre muestras bootstrap; voto o promedio | Errores demasiado parecidos |
+| Boosting | Modelos secuenciales que corrigen lo anterior | Perseguir etiquetas erróneas o ruido |
+| Voting | Combina modelos ya entrenados | No aprende una mezcla óptima |
+| Stacking | Entrena un metamodelo sobre predicciones **fuera de fold** | Fuga si se usa la predicción de entrenamiento de los modelos base |
+
+Bagging suele ser una primera opción estable con árboles profundos. Gradient boosting puede ganar con datos tabulares bien cuidados, pero requiere ajustar tasa, profundidad y rondas. Compara por CV y por la métrica del problema.
+
+## En código
+
+```python
+import numpy as np
+y = np.array([2, 3, 4, 5, 10, 11, 12, 13], dtype=float)
+f0 = np.full(8, y.mean())
+residual = y - f0
+h = np.where(np.arange(8) < 4, residual[:4].mean(), residual[4:].mean())
+f1 = f0 + 0.5 * h
+print(((y-f0)**2).sum(), ((y-f1)**2).sum())  # 138.0 42.0
+```
+
+<CasoUso titulo="Predicción de demanda por etapas" sector="logística" icono="🚚">Una tienda predice pedidos diarios. El primer árbol capta diferencias grandes por temporada; árboles siguientes ajustan residuos por promociones y días festivos. Reserva semanas recientes para decidir cuándo parar: un error de inventario futuro importa más que ajustar perfectamente el histórico.</CasoUso>
+
+## Aprender de los errores
+
+### AdaBoost: por qué el segundo tocón puede no mejorar todavía
+
+La primera pregunta sobre los diez puntos falla en P4 y P5; sus pesos suben a **0.25** cada uno. La segunda pregunta de la slide es sobre $x_2\le5.5$: acierta esos dos puntos ahora caros. Su voto es aproximadamente **0.97**, mayor que el **0.69** del primero. Donde ambos tocones discrepan, domina el segundo, y todavía quedan **P3 y P8** mal: **2/10**. Una tercera ronda añade una pregunta que resuelve esos desacuerdos y el equipo alcanza **10/10** de entrenamiento. Por eso no basta mirar cada miembro por separado: la predicción final usa el signo de la suma ponderada.
+
+<svg viewBox="0 0 620 170" role="img" aria-label="Tres tocones de AdaBoost suman votos de distinto peso" style={{maxWidth:'100%'}}>{[0,1,2].map((i)=><g key={i}><rect x={20+i*175} y="25" width="135" height="72" rx="8" fill="var(--sl-color-accent-low)"/><text x={87+i*175} y="55" textAnchor="middle" fill="currentColor">tocón {i+1}</text><text x={87+i*175} y="78" textAnchor="middle" fill="currentColor">voto {['0.69','0.97','0.76'][i]}</text><path d={`M${87+i*175} 97 L305 137`} stroke="var(--sl-color-accent)"/></g>)}<rect x="250" y="132" width="110" height="32" rx="6" fill="var(--sl-color-green-low)"/><text x="305" y="154" textAnchor="middle" fill="currentColor">signo de suma</text></svg>
+
+*Cómo leerlo:* cada tocón emite $-1$ o $+1$, multiplicado por su voto. El segundo pesa más que el primero; la respuesta final se decide después de sumar los tres.
+
+### Ir más a fondo: de la pérdida a la corrección
+
+El peso de AdaBoost se escoge para reducir la pérdida exponencial del equipo. La corrección de gradient boosting sale de otra pérdida, la cuadrática. Así se entiende por qué ambos métodos suman modelos, pero ajustan cosas diferentes.
+
+<Pasos titulo="Derivar el voto y el residuo">
+
+1. AdaBoost mide el costo exponencial de un tocón con error ponderado $\epsilon$ como $L(\alpha)=(1-\epsilon)e^{-\alpha}+\epsilon e^{\alpha}$. Los aciertos tienen margen positivo y reciben $e^{-\alpha}$; los fallos, $e^{\alpha}$.
+2. Derivar da $L'(\alpha)=-(1-\epsilon)e^{-\alpha}+\epsilon e^{\alpha}$. Igualar a cero implica $e^{2\alpha}=(1-\epsilon)/\epsilon$.
+3. Tomar logaritmos da $\alpha=\tfrac12\log[(1-\epsilon)/\epsilon]$. Con $\epsilon=0.2$ sale $\tfrac12\log4=0.6931$. Si $\epsilon=0.5$, el voto vale cero.
+4. En regresión, la pérdida de una fila es $\ell(F)=\tfrac12(y-F)^2$. Su derivada respecto de la predicción es $F-y$. Moverse en dirección contraria usa $y-F$, el residuo.
+5. Ajustar un tocón a los residuos aproxima esa dirección. En los ocho alquileres, el tocón vale $-4$ a la izquierda y $+4$ a la derecha; con tasa $\nu=0.5$ añadimos solo $-2$ o $+2$.
+6. En clasificación logística, si $F$ es el logit y $p=1/(1+e^{-F})$, la derivada de log-loss respecto de $F$ es $p-y$. El gradiente negativo es $y-p$: etiqueta menos probabilidad. La idea general sigue siendo corregir lo que falta según la pérdida elegida.
+
+</Pasos>
+
+La secuencia de la slide **138 → 42 → 18 → 9.9** es suma de errores cuadrados en entrenamiento, no test. Una tasa menor exige más árboles para avanzar, pero permite pasos más finos. En la ola ruidosa, tasa **1.0** rinde mejor cerca de **6** rondas y tasa **0.1** cerca de **40**. La validación decide la parada. Un error de test que empieza a subir revela que el modelo está aprendiendo peculiaridades de la muestra.
+
+<svg viewBox="0 0 620 175" role="img" aria-label="Error de entrenamiento baja y error de validación tiene un mínimo" style={{maxWidth:'100%'}}><line x1="45" y1="16" x2="45" y2="145" stroke="currentColor"/><line x1="45" y1="145" x2="580" y2="145" stroke="currentColor"/><path d="M55 35 C175 78 330 112 565 130" fill="none" stroke="var(--sl-color-accent)" strokeWidth="3"/><path d="M55 50 C170 87 255 108 320 107 C430 105 510 80 565 55" fill="none" stroke="var(--sl-color-orange)" strokeWidth="3"/><line x1="320" y1="102" x2="320" y2="145" stroke="var(--sl-color-text)" strokeDasharray="4 3"/><text x="341" y="129" fill="currentColor">parar aquí</text></svg>
+
+*Cómo leerlo:* azul es error de entrenamiento, que sigue bajando; naranja es validación, que primero baja y luego sube. El mínimo naranja define la parada temprana; las curvas muestran el mecanismo, no valores de un experimento concreto.
+
+### Modelos base, voto y apilamiento
+
+Bagging puede envolver árboles, vecinos cercanos, Naive Bayes o regresión logística. Ganará poco si el modelo es estable, como una recta que casi no cambia entre bootstrap. AdaBoost exige que el aprendiz responda bien a **pesos de muestra**; muchos modelos no los aceptan directamente. En *voting* (votación) se combinan modelos distintos con pesos fijos. En *stacking* (apilamiento), otro modelo aprende a combinarlos. Sus entradas deben ser predicciones **fuera de fold**: si el metamodelo ve predicciones sobre los mismos datos que ajustaron cada base, aprende un desempeño ficticio.
+
+En el conjunto real de tumores, la slide compara un árbol, bagging, bosque y gradient boosting. El orden exacto cambia entre particiones; la decisión responsable es comparar varias particiones de validación, costo y necesidad de explicación. Un bosque suele ofrecer una base estable; boosting requiere vigilar la parada. La API común de scikit-learn es `fit` y `predict`, con versiones `Classifier` y `Regressor` según el objetivo.
+
+## Ejercicios de las slides
+
+**Predice primero: dos tocones.** El primero falla P4 y P5 y tiene voto 0.69. El segundo corrige esos puntos, tiene voto 0.97 y falla P3 y P8. ¿Desaparece el error después de dos rondas?
+
+<Solucion>
+
+1. En los puntos donde discrepan, $0.97>0.69$: la suma ponderada toma la respuesta del segundo.
+2. El segundo falla P3 y P8, por lo que quedan 2 de 10 errores. La tercera ronda puede cambiar ese resultado.
+
+</Solucion>
+
+**Compruébalo: 99 % en entrenamiento, 80 % en test.** Propón cambios sin usar el test para escoger hiperparámetros.
+
+<Solucion>
+
+1. La brecha de 19 puntos sugiere sobreajuste.
+2. Separa validación o usa CV. Prueba menos rondas, árboles menos profundos y una tasa menor junto con más rondas controladas.
+3. Elige el punto de parada con validación. Usa el test solo para la estimación final.
+
+</Solucion>
+
+**Predice primero: ¿qué modelo base mejora?** Compara bagging de árboles profundos con bagging de regresiones logísticas sobre la misma muestra.
+
+<Solucion>
+
+1. El árbol profundo es inestable: diferentes bootstrap producen fronteras distintas.
+2. La regresión logística suele ser más estable si hay suficientes datos. Sus copias se parecen, así que promediar aporta menos.
+3. Ninguna mejora está garantizada en test. Se comprueba con validación, usando exactamente la misma partición.
+
+</Solucion>
+
+**Predice primero: árbol, bagging, bosque o boosting.** Ordénalos por rendimiento esperado en una sola partición de los tumores antes de mirar resultados. ¿Qué conclusión sí puedes defender al acabar?
+
+<Solucion>
+
+1. Un árbol profundo aislado suele variar más entre particiones; bagging y bosque estabilizan sus respuestas. Boosting puede ajustar sesgo adicional.
+2. Esa intuición permite una hipótesis, no un orden garantizado. Los cuatro pueden empatar o cambiar posiciones con la partición y los hiperparámetros.
+3. Compara con la misma validación repetida y una métrica apropiada; reserva test para el final. La slide usa el conjunto de 569 tumores como evidencia de que el ranking no es una ley universal.
+
+</Solucion>
+
+<Quiz client:visible id="ens-boosting" preguntas={[
+ {q:'Con 2 fallos de 10 y pesos iguales, ¿cuánto vale el voto α de AdaBoost?',opts:['0','0.2','0.693','2'],ok:2},
+ {q:'Después de normalizar la primera ronda, ¿cuánto pesa cada ejemplo fallado?',opts:['0.0625','0.10','0.20','0.25'],ok:3},
+ {q:'Con pérdida cuadrática, el gradiente negativo respecto de la predicción es…',opts:['F−y','y−F','y²','F²'],ok:1},
+ {q:'¿Qué predice la primera corrección en los alquileres a la izquierda de 4.5 con tasa 0.5?',opts:['3.5','5.5','7.5','9.5'],ok:1},
+ {q:'Entrenamiento 99 % y test 80 % en boosting indica…',opts:['subajuste','sobreajuste','datos perfectos','necesidad de más rondas'],ok:1},
+ {q:'Para entrenar stacking sin fuga, el metamodelo recibe…',opts:['predicciones in-sample','predicciones fuera de fold','etiquetas del test','solo residuos'],ok:1},
+ {q:'Si el error ponderado es 0.5, ¿cuánto vale α?',opts:['0','0.5','0.693','1'],ok:0},
+ {q:'Ocho alquileres con suma cuadrática 42: ¿MSE?',opts:['5.25','8','42','336'],ok:0}
+]} />
+
+<Conexiones items={[{href:'/regresion/gradiente/',titulo:'Gradiente',texto:'El residuo cuadrático es la dirección de descenso.'},{href:'/regularizacion/validacion-cruzada/',titulo:'Validación',texto:'Elige rondas y tasa sin mirar el test.'},{href:'/arboles/impureza/',titulo:'Tocones',texto:'Un árbol de una pregunta es el miembro débil de AdaBoost.'}]} />
+<Recursos items={[R.islr,R.sqIndex,R.mluRF]} />
+<Fuente archivos={['ML_Course_Ensemble_Methods.pdf (slides 31–54)','session-09-simple-c-boosting-and-mixing.ipynb']} />
+
+## Errores típicos
+
+- Confundir el residuo $y-F$ con la derivada $F-y$; boosting usa el gradiente negativo.
+- Olvidar normalizar los pesos de AdaBoost después de cada ronda.
+- Creer que dos tocones deben mejorar el error aunque el voto mayor copie al segundo.
+- Elegir la ronda con el mínimo de error de test en lugar de validación.
+- Entrenar stacking con predicciones sobre los mismos datos de ajuste.

@@ -3,6 +3,10 @@
 Uso: python scripts/build-resumenes.py
 """
 import pathlib
+import sys
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+from resumenes_final import U_FINAL
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 OUT = ROOT / 'src' / 'content' / 'docs' / 'resumenes'
@@ -139,6 +143,8 @@ U = [
   ],
   trampas=['Entropía = sorpresa; Gini = desacuerdo (no al revés).', 'Basta evaluar $n-1$ umbrales.', 'La feature de la raíz no es necesariamente la más importante.', 'Un árbol con defaults está sobreajustado.']),
 ]
+U += U_FINAL
+PDF = ROOT / 'public' / 'pdf'
 
 for u in U:
     lines = [
@@ -150,7 +156,9 @@ for u in U:
         'next: false',
         '---',
         '',
-        f'<p class="no-print"><a href="/pdf/resumen-{u["slug"]}.pdf" download>⬇ Descargar PDF</a> · <a href="{u["href"]}">ir a la teoría completa</a> · imprime con Ctrl + P</p>',
+        (f'<p class="no-print"><a href="/pdf/resumen-{u["slug"]}.pdf" download>⬇ Descargar PDF</a> · <a href="{u["href"]}">ir a la teoría completa</a> · imprime con Ctrl + P</p>'
+         if (PDF / f'resumen-{u["slug"]}.pdf').exists() else
+         f'<p class="no-print"><a href="{u["href"]}">ir a la teoría completa</a> · imprime con Ctrl + P (o guarda como PDF)</p>'),
         '',
         '## Ideas clave',
         '',
@@ -172,13 +180,13 @@ idx = [
     'description: "Un resumen de una página por unidad (ideas clave, fórmulas y trampas), para leer o descargar en PDF."',
     '---',
     '',
-    'Cada unidad en una sola hoja: lo que **tienes que saber** antes del parcial. Ábrelos en pantalla o descarga el PDF para imprimirlos o leerlos en el celular.',
+    'Cada unidad en una sola hoja: lo que **tienes que saber** antes del parcial o del final. Ábrelos en pantalla o descarga el PDF para imprimirlos o leerlos en el celular.',
     '',
     '| Unidad | Resumen | PDF |',
     '| --- | --- | --- |',
-    *[f'| {u["n"]} | [{u["t"]}](/resumenes/{u["slug"]}/) | <a href="/pdf/resumen-{u["slug"]}.pdf" download>descargar</a> |' for u in U],
+    *[f'| {u["n"]} | [{u["t"]}](/resumenes/{u["slug"]}/) | ' + (f'<a href="/pdf/resumen-{u["slug"]}.pdf" download>descargar</a>' if (PDF / f'resumen-{u["slug"]}.pdf').exists() else 'Ctrl + P') + ' |' for u in U],
     '',
-    '<a href="/pdf/resumenes-completos.pdf" download>⬇ Descargar los 8 resúmenes en un solo PDF</a>',
+    '<a href="/pdf/resumenes-completos.pdf" download>⬇ Descargar los 8 resúmenes del parcial en un solo PDF</a>',
     '',
 ]
 (OUT.parent / 'resumenes.mdx').write_text('\n'.join(idx), encoding='utf-8')
